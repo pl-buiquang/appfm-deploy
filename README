@@ -1,6 +1,7 @@
 # Corpus & Process Management (Server)
 
 
+
 ## Modules
 
 Modules should be stored in the default "modules" directory.
@@ -12,3 +13,6 @@ A module definition requires the file <name of the module>.module to be filled a
 - name : name of the module (must be unique)
 - description [optional] : the description of the module
 - cmd : the command to be executed to run the module
+
+### Module implementation detail
+

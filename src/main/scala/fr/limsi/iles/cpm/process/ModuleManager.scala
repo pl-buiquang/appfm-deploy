@@ -6,6 +6,9 @@ import fr.limsi.iles.cpm.utils.ConfManager
  * Created by buiquang on 9/7/15.
  */
 object ModuleManager {
+  var modules = Map[String,Module]()
+
+
   def listModules():Unit = {
     val list : java.util.ArrayList[String] = ConfManager.get("modules_dir").asInstanceOf[java.util.ArrayList[String]]
     var iterator = list.iterator()
@@ -13,4 +16,5 @@ object ModuleManager {
       println(iterator.next())
     }
   }
+
 }

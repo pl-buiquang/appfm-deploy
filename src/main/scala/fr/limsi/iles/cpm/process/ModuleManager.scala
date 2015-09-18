@@ -6,7 +6,9 @@ import fr.limsi.iles.cpm.utils.ConfManager
  * Created by buiquang on 9/7/15.
  */
 object ModuleManager {
-  var modules = Array[Module]()
+
+  var modules = Map[String,Module]()
+
 
 
   def listModules():Unit = {

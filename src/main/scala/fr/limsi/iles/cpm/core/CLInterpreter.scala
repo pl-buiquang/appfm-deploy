@@ -19,16 +19,15 @@ object CLInterpreter {
         case "corpus" =>
           interpretCorpusCommands(args.slice(1,args.length))
         case "process" =>
-            args(1) match{
-              case "ls" => try {Seq("docker","ps","-a") !!} catch {case e:Throwable => "Error :"+e.getMessage}
-              case "run" => try{
-                Seq("bash",
-                  "/vagrant/modules/addons/bonsai_parser/parse_all_embed.sh",
-                  "/vagrant/data/corpus/munshitest",
-                  "/vagrant/data/results/munshitest") !!
-                }catch {case e:Throwable => "Error :"+e.getMessage}
-              case _ => "Invalid argument"
-            }
+          interpretProcessCommands(args.slice(1,args.length))
+        case "module" =>
+          interpretModuleCommands(args.slice(1,args.length))
+        case "pipeline" =>
+          interpretPipelineCommands(args.slice(1,args.length))
+        case "reload" =>
+          "Reload cpm with configuration"
+        case "restart" =>
+          "Restart cpm"
         case "test" => Thread.sleep(10000); "ok"
         case _ => "No such method!"
       }
@@ -56,6 +55,44 @@ object CLInterpreter {
         case "rm" => "remove file from corpus"
         case "delete" => "delete corpus"
         case _ => ""
+      }
+    }catch{
+      case e:Throwable => "Missing argument"
+    }
+  }
+
+  def interpretProcessCommands(args:Seq[String]) = {
+    try{
+      args(0) match{
+        case "ls" => try {Seq("docker","ps","-a") !!} catch {case e:Throwable => "Error :"+e.getMessage}
+        case "run" => try{
+          Seq("bash",
+            "/vagrant/modules/addons/bonsai_parser/parse_all_embed.sh",
+            "/vagrant/data/corpus/munshitest",
+            "/vagrant/data/results/munshitest") !!
+        }catch {case e:Throwable => "Error :"+e.getMessage}
+        case _ => "Invalid argument"
+      }
+    }catch{
+      case e:Throwable => "Missing argument"
+    }
+  }
+
+  def interpretModuleCommands(args:Seq[String]) = {
+    try{
+      args(0) match{
+        case "ls" => "List available modules"
+        case _ => "Invalid argument"
+      }
+    }catch{
+      case e:Throwable => "Missing argument"
+    }
+  }
+
+  def interpretPipelineCommands(args:Seq[String]) = {
+    try{
+      args(0) match{
+        case _ => "Invalid argument"
       }
     }catch{
       case e:Throwable => "Missing argument"

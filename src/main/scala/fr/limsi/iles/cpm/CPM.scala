@@ -12,9 +12,12 @@ import fr.limsi.iles.cpm.utils.ConfManager
 
 import scala.sys.process._
 
-object CPMServer{
+/**
+ * Entry point of CPM server
+ */
+object CPM extends App{
 
-  def main(args:Array[String]): Unit ={
+  override def main(args:Array[String]): Unit ={
     args.map(s => println(s))
     var confile : Option[String] = None
     if(args.length>0){

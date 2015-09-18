@@ -2,7 +2,7 @@
 
 
 # main port to connect client with
-listen_port : 5555
+cmd_listen_port : 5555
 
 # modules main directory
 modules_dir :

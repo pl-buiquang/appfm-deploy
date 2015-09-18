@@ -6,3 +6,7 @@ package fr.limsi.iles.cpm.corpus
 class CorpusManager {
 
 }
+
+object CorpusManager{
+
+}

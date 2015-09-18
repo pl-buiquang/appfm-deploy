@@ -6,6 +6,7 @@ package fr.limsi.iles.cpm.process
 class PipelineManager {
 
 
+
   def run()={
 
   }

@@ -31,6 +31,7 @@ class Module(moduleName:String,definitionFilePath:String) {
       var mod : ModuleUnit =  key match {
         case "CMD" => val m = CMD(null); m.init(j); m
         case "MAP" => val m = MAP(null,null) ; m.init(j) ; m
+        case "FILTER" => val m = FILTER(null,null); m.init(j); m
         case module => val m = ModuleManager.modules(key); MODULE(m)
       }
       runcmds = runcmds.+:(mod)
@@ -114,13 +115,13 @@ case class MAP(in:LIST,pipeline:Seq[ModuleUnit]) extends ModuleUnit{
   }
   override def run(env:RunEnv,ns:String)={
     in.items.map(_ match{
-      case VAL :
+      case VAL(value) => value
     })//run(LIST(Seq(input)),pipeline))
   }
 }
 case class FILTER(input:PARAMETER,regex:VAL) extends ModuleUnit{
   override def init(conf:java.util.Map[String,Any]) = {
-
+    conf.get("IN")
   }
   override def run(env:RunEnv,ns:String)={
     input match {
@@ -138,14 +139,13 @@ case class FILTER(input:PARAMETER,regex:VAL) extends ModuleUnit{
 
 
 trait PARAMETER{
-
+  def foo = {}
 }
 
 case class VAL(value:String) extends PARAMETER
 case class FILE(path:String) extends PARAMETER
 case class CORPUS(id:String) extends Corpus(id) with PARAMETER
-case class LIST(items:Seq[PARAMETER]) extends PARAMETER{
-
+case class LIST[A <: PARAMETER](items:Seq[A]) extends PARAMETER{
 }
 case class MODULE(module:Module) extends ModuleUnit with PARAMETER{
   override def init(conf:java.util.Map[String,Any]) = {

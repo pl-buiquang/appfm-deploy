@@ -1,19 +1,74 @@
 ## TODO
 
-ModuleVal.inputs => Map[String,Any]
+How to implement a module with docker?
+How to impove performance of multiple dockerized modules (shared librairies, memory overhead, images, containers)?
 
-inputs.foreach(in =>{
-    in._2 match {
-        case String => env.replaceVal()
-        case List[java.util.Map] => in._2.foreach(parseModuleVal _)
-        case List[String] => in._2.foreach(env.replaceVal _)
-    }
-})
+How to implement a module without docker?
+
+Implement a process-shell for docker and without docker
+
+Add DB Type :
+[user:passwd]host:port@type
+types : mysql, mongodb, neo4j/autre, triplestore(choose one)
+
+Full Process Run Specification :
+
+if not db.exist(moduledef) :
+  db.create(moduledef)
+  mkdir $result_dir/moduledef
+listModuledefVersions  = db.get(moduledef)
+if not listModuleVersions.exist(moduledef.version) :
+  mkdir $result_dir/moduledef/moduledef.modificationDate
+  listModulesvals = []
+  listModuledefVersions.append(listModulesvals)
+else :
+  listModulevals = listModuleVersions.get(moduledef) # modulevals are moduledef x confs (=> flatMap against corpus version if handled)
+if not listModulevals.exist(conf.serialize) : #string match
+  mkdir $result_dir/moduledef/moduledef.modificationDate/hash(conf.serialize)
+  listModulevalsversion = []
+  listModulevals.append(listModulevalsversion)
+else
+  listModulevalsversion = listModulevals.get(conf)
+version = len(listModulevalsversion)
+runid = moduledef.runid++
+mkdir $result_dir/moduledef/moduledef.modificationDate/hash(conf.serialize)/version
+moduledef = status =
+db.update(moduledef)
+
+try {
+  moduledef.toProcess(conf).run()
+  status = success
+}
+except {
+  status = failed
+}
+
+or !
+if not db.exist(moduledef) :
+  db.create(moduledef)
+  mkdir $result_dir/moduledef
+  git init $result_dir/moduledef
+
+try {
+  moduledef.toProcess(conf).run()
+  status = success
+}
+except {
+  status = failed
+}
+
+runid = moduledef.runid++
+git add $result_dir/moduledef/. ; git commit -tag "moduledef.modificationDate|conf.serialize|runid"
+db.update(moduledef)
 
 
-test run simple module (with CMD)
-test highorder module
+=====
 
-implement FILTER, MAP, FILTERMAP
+3 parameters apps :
+- module_dirs
+- corpus_dirs
+- result_dirs
 
-rework for parallel processing
+consider limits from possible not achievement in making them not only mutable on during booting.
+
+

@@ -7,6 +7,7 @@ cmd_listen_port : 5555
 # modules directory
 # default is modules in cpm package
 modules_dir :
+  - /people/buiquang/projects/custom/cpm/modules
   - /people/buiquang/projects/custom/cpm_workspace_test/modules
 
 

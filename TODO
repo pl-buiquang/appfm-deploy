@@ -1,2 +1,19 @@
 ## TODO
 
+ModuleVal.inputs => Map[String,Any]
+
+inputs.foreach(in =>{
+    in._2 match {
+        case String => env.replaceVal()
+        case List[java.util.Map] => in._2.foreach(parseModuleVal _)
+        case List[String] => in._2.foreach(env.replaceVal _)
+    }
+})
+
+
+test run simple module (with CMD)
+test highorder module
+
+implement FILTER, MAP, FILTERMAP
+
+rework for parallel processing

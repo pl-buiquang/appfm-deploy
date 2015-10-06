@@ -1,12 +1,15 @@
 /**
  * Created by buiquang on 9/15/15.
  */
+
+import fr.limsi.iles.cpm.process.{VAL, ModuleParameter, RunEnv}
+
 import collection.mutable.Stack
 import org.scalatest._
 
-class ExampleSpec extends FlatSpec with Matchers {
+class ModuleManagerTests extends FlatSpec with Matchers {
 
-  "A Stack" should "pop values in last-in-first-out order" in {
+  "The module manager" should "do something" in {
     val stack = new Stack[Int]
     stack.push(1)
     stack.push(2)
@@ -20,4 +23,5 @@ class ExampleSpec extends FlatSpec with Matchers {
       emptyStack.pop()
     }
   }
+
 }

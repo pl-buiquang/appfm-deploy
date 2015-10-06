@@ -6,9 +6,11 @@ package fr.limsi.iles.cpm
 
 import java.io.File
 
+import com.typesafe.scalalogging.{Logger, LazyLogging}
 import fr.limsi.iles.cpm.core.Server
-import fr.limsi.iles.cpm.process.{ModuleManager, Module}
-import fr.limsi.iles.cpm.utils.ConfManager
+import fr.limsi.iles.cpm.process.{ModuleManager, ModuleDef}
+import fr.limsi.iles.cpm.utils.{ConfManager}
+import org.slf4j.LoggerFactory
 
 import scala.sys.process._
 
@@ -25,12 +27,11 @@ object CPM extends App{
         confile = Some(args(0))
       }
     }
-    val now = new org.joda.time.DateTime()
-    println("["+now.toString("hh:mm:ss")+"] : CPM Server Started!")
+    fr.limsi.iles.cpm.utils.Log("CPM Server Started!")
 
     sys.addShutdownHook({
       println("ShutdownHook called")
-      println(Seq("docker","ps","-a") !!)
+      //println(Seq("docker","ps","-a") !!)
       //Server.context.term()
     })
 
@@ -60,7 +61,7 @@ object CPM extends App{
 
      */
 
-    ModuleManager.listModules()
+    ModuleManager.init()
 
 
     val port = ConfManager.get("cmd_listen_port").toString

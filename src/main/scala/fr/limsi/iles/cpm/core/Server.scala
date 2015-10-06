@@ -24,11 +24,11 @@ object Server {
       //  Wait for next request from client
       //  We will wait for a 0-terminated string (C string) from the client,
       //  so that this server also works with The Guide's C and C++ "Hello World" clients
-      val request = socket.recv (0)
+      val stringinput = socket.recvStr()
       // If provided by scala or c apps for instance (not needed with python...)
       // In order to display the 0-terminated string as a String,
       //  we omit the last byte from request
-      val stringinput = new String(request,0,request.length)
+      //val stringinput = new String(request,0,request.length)
       println ("Received request: ["
         + stringinput  //  Creates a String from request, minus the last byte
         + "]")

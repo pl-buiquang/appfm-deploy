@@ -19,6 +19,8 @@ libraryDependencies += "org.yaml" % "snakeyaml" % "1.16"
 
 libraryDependencies += "org.zeromq" % "jeromq" % "0.3.5"
 
+libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0"
+
 /*libraryDependencies += "org.spark-project.zeromq" % "zeromq-scala-binding_2.11" % "0.0.7-spark"*/
 /*
  libraryDependencies ++= Seq(

@@ -1,5 +1,7 @@
 package fr.limsi.iles.cpm.core
 
+import fr.limsi.iles.cpm.process._
+
 import scala.sys.process._
 
 /**
@@ -82,6 +84,16 @@ object CLInterpreter {
     try{
       args(0) match{
         case "ls" => "List available modules"
+        case "run" => {
+          try{
+            val mod = new ModuleVal("",ModuleManager.modules(args(1)),AbstractModuleVal.initInputs(ModuleManager.modules(args(1))),AbstractModuleVal.initOutputs(ModuleManager.modules(args(1))))
+            val process = mod.toProcess()
+            process.run(RunEnv.initFromConf(args(2)),"",None,false)
+            process.env.args.aggregate("")((toprint,elt) => {elt._1+" = "+elt._2.asString()},_+"\n"+_)
+          }catch{
+            case e:Throwable => e.getMessage
+          }
+        }
         case _ => "Invalid argument"
       }
     }catch{

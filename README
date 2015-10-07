@@ -1,0 +1,38 @@
+CPM Package
+
+This package contains all what is needed to run cpm within a virtual machine based on debian jessie 64 bits
+
+
+== Installation ==
+
+add bin to your path:
+export PATH=$PATH:/path/to/bin
+
+
+== Getting Started ==
+
+=== CLI ===
+cpm start
+
+=== Webinterface ===
+run cpm as a service : create init.d file (that run cpm start)
+go to http://localhost:8080
+
+
+=== Python module ===
+for now : add cpm.py to your project
+
+
+=== Java module ===
+add cpm-client.jar to your libraries
+
+
+== Documentation ==
+
+
+
+
+
+
+
+

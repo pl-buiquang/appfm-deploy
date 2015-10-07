@@ -1,0 +1,16 @@
+== Requirements/Dependencies
+
+Java
+Language SDK
+
+
+Scala
+http://www.scala-lang.org/
+Language library
+
+
+SBT
+http://www.scala-sbt.org/
+Build tool
+
+

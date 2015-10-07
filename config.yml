@@ -1,0 +1,12 @@
+mounted_dir:
+	- /mnt/mounteddir
+
+#use config.vm.synced_folder "/path/to/src/", "/path/to/target"
+
+data_dir:
+
+listen_port:
+#webserver
+
+
+# other config for multi machine deployement

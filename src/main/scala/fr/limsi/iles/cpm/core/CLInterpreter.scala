@@ -85,12 +85,12 @@ object CLInterpreter {
       args(0) match{
         case "ls" => ModuleManager.ls()
         case "run" => {
-          ProcessManager.newrun(args(1),args(2))
+          ProcessManager.newRun(args(1),args(2))
         }
         case _ => "Invalid argument"
       }
     }catch{
-      case e:Throwable => "Missing argument"
+      case e:Throwable => e.getMessage+ " (Missing argument)"
     }
   }
 

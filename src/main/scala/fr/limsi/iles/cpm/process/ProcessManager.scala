@@ -4,14 +4,17 @@ import java.io.FileInputStream
 import java.util.UUID
 import java.util.function.BiConsumer
 
+import com.mongodb.casbah.commons.MongoDBObject
 import com.typesafe.scalalogging.LazyLogging
-import fr.limsi.iles.cpm.utils.YamlElt
+import fr.limsi.iles.cpm.utils.{ConfManager, DB}
 import org.yaml.snakeyaml.Yaml
 
 /**
  * Created by buiquang on 10/6/15.
  */
 object ProcessManager extends LazyLogging{
+
+  val processCollection = DB.get("runids")
 
   var list : Set[UUID] = Set[UUID]()
 
@@ -21,23 +24,45 @@ object ProcessManager extends LazyLogging{
       uuid = UUID.randomUUID()
     }
 
+    val it = processCollection.find()
+    while(it.hasNext){
+      val el = it.next()
+      logger.info(el.get("ruid").toString)
+
+    }
+
     var args = Map[String,ModuleParameterVal]()
     val yaml = new Yaml()
     val ios = new FileInputStream(conffile)
     val confMap = yaml.load(ios).asInstanceOf[java.util.Map[String,Any]]
-    val resultdirpath = YamlElt.readAs[java.util.HashMap[String,String]](confMap) match {
+    /*val resultdirpath = YamlElt.readAs[java.util.HashMap[String,String]](confMap) match {
       case Some(map) => {
-        map.get("RESULT_DIR")
+        map.get("RESULT_DIR") match {
+          case x:String => x
+          case _ => throw new Exception("missing RESULT_DIR value")
+        }
       }
       case None => {
         throw new Exception("malformed configuration file")
       }
     }
 
+    logger.debug("attempting to create result dir in "+resultdirpath)*/
+    val resultdirpath = ConfManager.get("default_result_dir").toString
     val runresultdir = createRunResultDir(resultdirpath,uuid)
 
     try{
       val module = ModuleManager.modules(modulename)
+
+      val query = MongoDBObject("def"->module.confFilePath)
+      processCollection.findOne(query) match {
+        case Some(thing) => logger.debug(thing.get("ruid").toString)
+        case None => logger.debug("creating new base result dir")
+      }
+
+      val obj = MongoDBObject("ruid" -> uuid.toString,"def" -> module.confFilePath)
+      processCollection.insert(obj)
+
       val env = RunEnv.initFromConf(conffile)
       val resultdirval = DIR()
       resultdirval.parseFromJavaYaml(runresultdir)

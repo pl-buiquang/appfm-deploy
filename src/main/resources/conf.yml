@@ -4,11 +4,23 @@
 # main port to connect client with
 cmd_listen_port : 5555
 
+#
+backend_port : 5005
+
 # modules directory
 # default is modules in cpm package
 modules_dir :
   - /people/buiquang/projects/custom/cpm/modules
   - /people/buiquang/projects/custom/cpm_workspace_test/modules
+
+default_result_dir : /people/buiquang/projects/custom/cpm_workspace_test/results
+
+
+
+# db info
+dbhost : localhost
+dbport : 27017
+dbname : cpmdb
 
 
 

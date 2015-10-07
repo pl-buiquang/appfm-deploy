@@ -7,6 +7,7 @@ package fr.limsi.iles.cpm.core
 import java.util.UUID
 
 import com.typesafe.scalalogging.LazyLogging
+import fr.limsi.iles.cpm.utils.ConfManager
 import org.zeromq.{ZMQException, ZMQ}
 import java.io.{BufferedWriter, FileWriter, PrintWriter, File}
 import java.util.concurrent.{Executors, ExecutorService}
@@ -14,7 +15,7 @@ import java.util.concurrent.{Executors, ExecutorService}
 object Server extends LazyLogging{
   val context = ZMQ.context(1)
 
-  val backendport = 5005
+  val backendport = ConfManager.get("backend_port")
 
   def run(port : String) {
     //  Replace all this with proper load balancer

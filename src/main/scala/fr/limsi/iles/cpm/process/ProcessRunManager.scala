@@ -12,7 +12,7 @@ import org.yaml.snakeyaml.Yaml
 /**
  * Created by buiquang on 10/6/15.
  */
-object ProcessManager extends LazyLogging{
+object ProcessRunManager extends LazyLogging{
 
   val processCollection = DB.get("runids")
 

@@ -3,7 +3,7 @@ package fr.limsi.iles.cpm.process
 import java.util.concurrent.{Executors, ExecutorService}
 
 import com.typesafe.scalalogging.LazyLogging
-import fr.limsi.iles.cpm.core.Server
+import fr.limsi.iles.cpm.server.Server
 import fr.limsi.iles.cpm.corpus.Corpus
 import fr.limsi.iles.cpm.utils.{Log, YamlElt}
 import org.yaml.snakeyaml.Yaml

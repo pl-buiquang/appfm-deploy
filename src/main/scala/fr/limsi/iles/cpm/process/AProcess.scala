@@ -3,7 +3,7 @@ package fr.limsi.iles.cpm.process
 import java.util.concurrent.Executors
 
 import com.typesafe.scalalogging.LazyLogging
-import fr.limsi.iles.cpm.core.Server
+import fr.limsi.iles.cpm.server.Server
 import org.zeromq.ZMQ
 
 import scala.reflect.io.File

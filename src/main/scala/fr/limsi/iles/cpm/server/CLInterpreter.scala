@@ -1,4 +1,4 @@
-package fr.limsi.iles.cpm.core
+package fr.limsi.iles.cpm.server
 
 import fr.limsi.iles.cpm.process._
 
@@ -85,7 +85,7 @@ object CLInterpreter {
       args(0) match{
         case "ls" => ModuleManager.ls()
         case "run" => {
-          ProcessManager.newRun(args(1),args(2))
+          ProcessRunManager.newRun(args(1),args(2))
         }
         case _ => "Invalid argument"
       }

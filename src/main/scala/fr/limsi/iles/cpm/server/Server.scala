@@ -1,4 +1,4 @@
-package fr.limsi.iles.cpm.core
+package fr.limsi.iles.cpm.server
 
 /**
  * Created by buiquang on 9/7/15.

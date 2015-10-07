@@ -1,6 +1,18 @@
 # Corpus & Process Management (Server)
 
 
+## Schema, Format
+if custom format / schema, explain it. describe spec (url, text, extern readme/man filepath)
+
+def :
+  format :
+    my-custom-format : explaination
+    ...
+  schema :
+    my-custom-format : explaination
+    ...
+
+    
 
 ## Modules
 

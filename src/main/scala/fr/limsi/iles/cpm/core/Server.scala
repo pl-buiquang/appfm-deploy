@@ -3,22 +3,47 @@ package fr.limsi.iles.cpm.core
 /**
  * Created by buiquang on 9/7/15.
  */
+
+import java.util.UUID
+
+import com.typesafe.scalalogging.LazyLogging
 import org.zeromq.{ZMQException, ZMQ}
 import java.io.{BufferedWriter, FileWriter, PrintWriter, File}
 import java.util.concurrent.{Executors, ExecutorService}
 
-object Server {
+object Server extends LazyLogging{
   val context = ZMQ.context(1)
 
+  val backendport = 5005
+
   def run(port : String) {
-    //  Prepare our context and socket
+    //  Replace all this with proper load balancer
+    val pool: ExecutorService = Executors.newFixedThreadPool(10)
 
-    val socket = context.socket(ZMQ.REP)
+    for(i <- (1 to 10)){
+      pool.execute(new RequestHandler())
+    }
+
+    val frontend = context.socket(ZMQ.ROUTER)
     println ("starting")
-    socket.bind ("tcp://*:"+port)
+    frontend.bind ("tcp://*:"+port)
 
-    val pool: ExecutorService = Executors.newSingleThreadExecutor()
+    val backend = context.socket(ZMQ.DEALER)
+    backend.bind("tcp://*:"+backendport)
 
+    ZMQ.proxy(frontend,backend,null)
+
+    frontend.close()
+    backend.close()
+    context.term()
+  }
+}
+
+class RequestHandler extends Runnable with LazyLogging{
+
+  def run()={
+    val socket = Server.context.socket(ZMQ.REP)
+    socket.connect ("tcp://localhost:"+Server.backendport)
 
     while (!Thread.currentThread().isInterrupted) {
       //  Wait for next request from client
@@ -29,7 +54,7 @@ object Server {
       // In order to display the 0-terminated string as a String,
       //  we omit the last byte from request
       //val stringinput = new String(request,0,request.length)
-      println ("Received request: ["
+      logger.info("Received request: ["
         + stringinput  //  Creates a String from request, minus the last byte
         + "]")
 
@@ -51,7 +76,8 @@ object Server {
       socket.send(reply, 0)
 
     }
+
     socket.close()
-    context.term()
   }
+
 }

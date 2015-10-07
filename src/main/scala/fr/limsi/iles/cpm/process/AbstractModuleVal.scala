@@ -32,7 +32,7 @@ object AbstractModuleVal{
     val it = paramnames.iterator()
     while(it.hasNext){
       val paramname = it.next()
-      val value = definition.inputs("$"+paramname).paramType match {
+      val value = definition.inputs(paramname).paramType match {
         case "VAL" => VAL()
         case "FILE" => FILE()
         case "CORPUS" => CORPUS()
@@ -52,8 +52,8 @@ object AbstractModuleVal{
     var x = Map[String,ModuleParameterVal]()
     definition.inputs.map(in => {
       val value = VAL()
-      value.parseFromJavaYaml(in._1)
-      x += (in._1.substring(1) -> value)
+      value.parseFromJavaYaml("$"+in._1)
+      x += (in._1 -> value)
     })
     x
   }
@@ -61,7 +61,7 @@ object AbstractModuleVal{
   def initOutputs(definition:ModuleDef)={
     var x = Map[String,String]()
     definition.outputs.map(out => {
-      x += (out._1.substring(1) -> out._1)
+      x += (out._1 -> out._1)
     })
     x
   }
@@ -76,7 +76,7 @@ case class ModuleVal(override val namespace:String,override val moduledef:Module
 }
 
 
-case class CMDVal(override val namespace:String ,ainputs:Map[String,ModuleParameterVal],aoutputs:Map[String,String]) extends AbstractModuleVal(ainputs,aoutputs) {
+case class CMDVal(val parentWD :String,override val namespace:String ,ainputs:Map[String,ModuleParameterVal],aoutputs:Map[String,String]) extends AbstractModuleVal(ainputs,aoutputs) {
   override val moduledef = CMDDef
 
   override def toProcess(): AProcess = {

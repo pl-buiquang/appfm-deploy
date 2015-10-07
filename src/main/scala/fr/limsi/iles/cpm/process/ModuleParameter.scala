@@ -2,8 +2,6 @@ package fr.limsi.iles.cpm.process
 
 import fr.limsi.iles.cpm.utils.YamlElt
 
-import scala.reflect.ClassTag
-
 
 
 sealed abstract class ModuleParameterVal{
@@ -77,6 +75,22 @@ case class FILE() extends ModuleParameterVal {
   }
 }
 
+
+case class DIR() extends ModuleParameterVal {
+  var rawValue : String = _
+
+  override def parseFromJavaYaml(yaml: Any): Unit = {
+    val value = YamlElt.readAs[String](yaml)
+    rawValue = value match {
+      case Some(theval) => theval
+      case None => "Error reading val value (should be a string)"
+    }
+  }
+
+  override def asString()={
+    rawValue
+  }
+}
 
 /**
  * CORPUS is for now a kind of directory object

@@ -22,7 +22,23 @@ class ModuleDef(
    val outputs:Map[String,AModuleParameter],
    val log:Map[String,String],
    var run:List[AbstractModuleVal]
- )
+ ){
+
+  def getLastModificationDate(): Long ={
+    val file = new java.io.File(confFilePath)
+    file.lastModified()
+  }
+
+  def getWd():String = {
+    val file = new java.io.File(confFilePath)
+    file.getParent
+  }
+
+  val lastModified = getLastModificationDate()
+
+  val wd = getWd()
+
+}
 
 
 
@@ -152,7 +168,7 @@ object ModuleDef extends LazyLogging{
     Map[String,String]()
   }
 
-  def initRun(confMap:java.util.Map[String,Any]) = {
+  def initRun(confMap:java.util.Map[String,Any],wd:String) = {
     var listmodules = Array[String]()
     var run = List[AbstractModuleVal]()
     YamlElt.fromJava(confMap.get("run"))  match{
@@ -190,7 +206,7 @@ object ModuleDef extends LazyLogging{
                   // TODO check for outputs consistency with module def and multiple variable def
                   val modulevaldef = ModuleManager.modules(modulename)
                   if(modulevaldef.inputs.filter(input => {
-                    !inputs.containsKey(input._1.substring(1)) && input._2.value.isEmpty
+                    !inputs.containsKey(input._1) && input._2.value.isEmpty
                   }).size==0){
                     run = ModuleVal(
                       runitemname,
@@ -216,7 +232,7 @@ object ModuleDef extends LazyLogging{
                         case Some(map) => map
                         case None => new java.util.HashMap[String,Any]()
                       }
-                      run = CMDVal(runitemname,AbstractModuleVal.initInputs(CMDDef,inputs),AbstractModuleVal.initOutputs(CMDDef,outputs)) :: run
+                      run = CMDVal(wd,runitemname,AbstractModuleVal.initInputs(CMDDef,inputs),AbstractModuleVal.initOutputs(CMDDef,outputs)) :: run
                     }
                     case _ => throw new Exception("unknown run module item")
                   }
@@ -234,39 +250,39 @@ object ModuleDef extends LazyLogging{
 
   def initCMDInputs()={
     var x = Map[String,AModuleParameter]()
-    x += ("$CMD"->new ModuleParameter[VAL]("VAL",None,None,None))
+    x += ("CMD"->new ModuleParameter[VAL]("VAL",None,None,None))
     x
   }
 
   def initCMDOutputs()={
     var x = Map[String,AModuleParameter]()
-    x += ("$STDOUT"->new ModuleParameter[VAL]("VAL",None,None,None))
+    x += ("STDOUT"->new ModuleParameter[VAL]("VAL",None,None,None))
     x
   }
 
   def initMAPInputs()={
     var x = Map[String,AModuleParameter]()
-    x += ("$IN"->new ModuleParameter[LIST]("LIST",None,None,None))
-    x += ("$RUN"->new ModuleParameter[LIST]("LIST",None,None,None))
+    x += ("IN"->new ModuleParameter[LIST]("LIST",None,None,None))
+    x += ("RUN"->new ModuleParameter[LIST]("LIST",None,None,None))
     x
   }
 
   def initMAPOutputs()={
     var x = Map[String,AModuleParameter]()
-    x += ("$OUT"->new ModuleParameter[LIST]("LIST",None,None,None))
+    x += ("OUT"->new ModuleParameter[LIST]("LIST",None,None,None))
     x
   }
 
   def initFILTERMAPInputs()={
     var x = Map[String,AModuleParameter]()
-    x += ("$IN"->new ModuleParameter[FILE]("LIST",None,None,None))
-    x += ("$RUN"->new ModuleParameter[LIST]("LIST",None,None,None))
+    x += ("IN"->new ModuleParameter[FILE]("LIST",None,None,None))
+    x += ("RUN"->new ModuleParameter[LIST]("LIST",None,None,None))
     x
   }
 
   def initFILTERMAPOutputs()={
     var x = Map[String,AModuleParameter]()
-    x += ("$OUT"->new ModuleParameter[LIST]("LIST",None,None,None))
+    x += ("OUT"->new ModuleParameter[LIST]("LIST",None,None,None))
     x
   }
 

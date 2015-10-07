@@ -31,9 +31,10 @@ object ModuleManager extends LazyLogging{
 
     modules.values.foreach(m => {
       val yaml = new Yaml()
+      val wd = (new File(m.confFilePath)).getParent
       val ios = new FileInputStream(m.confFilePath)
       val confMap = yaml.load(ios).asInstanceOf[java.util.Map[String,Any]]
-      m.run = ModuleDef.initRun(confMap)
+      m.run = ModuleDef.initRun(confMap,wd)
     })
 
     modules.values.foreach(m => {
@@ -41,6 +42,14 @@ object ModuleManager extends LazyLogging{
       m.run.foreach(println _)
 
     })
+  }
+
+  def ls() : String= {
+    var output = ""
+    modules.foreach(el => {
+      output += "Name : "+el._1 + "\nDesc : " + el._2.desc+"\nLast Modified : "+Utils.getHumanReadableDate(el._2.lastModified)+"\n\n"
+    })
+    output
   }
 
   private def findModuleConf(curFile:java.io.File,f:java.io.File => Unit) :Unit={
@@ -85,8 +94,6 @@ object ModuleManager extends LazyLogging{
     }
   }
 
-  def listModules():Unit = {
-    modules.foreach(println _)
-  }
+
 
 }

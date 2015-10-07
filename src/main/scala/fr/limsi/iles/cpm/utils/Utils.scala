@@ -1,5 +1,6 @@
 package fr.limsi.iles.cpm.utils
 
+import java.text.SimpleDateFormat
 import java.util.function.Consumer
 
 import org.slf4j.LoggerFactory
@@ -14,6 +15,14 @@ object Log {
     log.info(message)
   }
 
+}
+
+object Utils{
+  def getHumanReadableDate(datelong:Long) :String = {
+    val date = new java.util.Date(datelong)
+    val formatter = new SimpleDateFormat()
+    formatter.format(date)
+  }
 }
 
 

@@ -25,8 +25,9 @@ abstract class AProcess extends LazyLogging{
     })
     val newenv = new RunEnv(Map[String,ModuleParameterVal]())
     moduleval.inputs.foreach(input=>{
-      logger.info("Looking in parent env for "+input._1+" with value to resolve :"+input._2.asString())
-      input._2.parseFromJavaYaml(parentRunEnv.resolveVars(input._2.asString()))
+      logger.info("Looking in parent env for "+input._1+" with value to resolve : "+input._2.asString())
+      val resolved  = parentRunEnv.resolveVars(input._2.asString())
+      input._2.parseFromJavaYaml(resolved)
       newenv.args += (input._1 -> input._2)
     });
     // moduledef.inputs must be satisfied by inputs
@@ -36,8 +37,16 @@ abstract class AProcess extends LazyLogging{
     }).foreach(input => {
       logger.info("Adding default value for "+input._1)
       input._2.value.get.parseFromJavaYaml(parentRunEnv.resolveVars(input._2.value.get.asString()))
-      newenv.args += (input._1.substring(1) -> input._2.value.get)
+      newenv.args += (input._1 -> input._2.value.get)
     })
+
+    val runresultdir = DIR()
+    runresultdir.parseFromJavaYaml(parentRunEnv.args("_RUN_WD")+"/"+moduleval.namespace)
+    newenv.args += ("_RUN_WD" -> runresultdir)
+
+    val defdir = DIR()
+    defdir.parseFromJavaYaml(moduleval.moduledef.wd)
+    newenv.args += ("_DEF_WD" -> defdir)
 
     env = newenv
     logger.debug("Child env contains : ")
@@ -105,33 +114,6 @@ object AProcess{
 }
 
 
-class ProcessMessage
-
-case class ValidProcessMessage(val sender:String,val status:String) extends ProcessMessage{
-
-  override def toString(): String = {
-    sender+"\n"+status
-  }
-}
-
-case class InvalidProcessMessage() extends ProcessMessage
-
-object ProcessMessage{
-
-  implicit def parse(message:String) : ProcessMessage = {
-    val components = message.split("\n")
-    if(components.size==2){
-      new ValidProcessMessage(components(0),components(1))
-    }else{
-      new InvalidProcessMessage()
-    }
-  }
-
-  implicit def toString(message:ProcessMessage) : String = {
-    message.toString()
-  }
-}
-
 
 
 class ModuleProcess(override val moduleval:ModuleVal) extends AProcess{
@@ -176,7 +158,7 @@ class ModuleProcess(override val moduleval:ModuleVal) extends AProcess{
   }
 
   /**
-   * TODO problem no check if module has already been launched!!
+   *
    * @param parentPort
    */
   def next(parentPort:String) = {
@@ -231,7 +213,7 @@ class ModuleProcess(override val moduleval:ModuleVal) extends AProcess{
       val x = FILE()
       logger.debug("Found :"+env.resolveVars(output._2.value.get.asString()))
       x.parseFromJavaYaml(env.resolveVars(output._2.value.get.asString()))
-      parentEnv.args += (moduleval.namespace+"."+output._1.substring(1) -> x)
+      parentEnv.args += (moduleval.namespace+"."+output._1 -> x)
       logger.debug("New parent env contains : ")
       parentEnv.args.foreach(elt => {
         logger.debug(elt._1+" with value "+elt._2.asString())
@@ -261,7 +243,7 @@ class CMDProcess(override val moduleval:CMDVal) extends AProcess{
     logger.debug("Launching CMD "+env.resolveVars(moduleval.inputs("CMD").asString()))
     var stderr = ""
     var stdout = ""
-    val wd = "."//env.resolveVars(moduleval.inputs("WD").asString())
+    val wd = moduleval.parentWD // "."//env.resolveVars(moduleval.inputs("WD").asString())
     Process(env.resolveVars(moduleval.inputs("CMD").asString()),new java.io.File(wd)) ! ProcessLogger(line => stdout+="\n"+line,line=>stderr+="\n"+line)
     stdoutval.rawValue = stdout
     stdoutval.resolvedValue = stdout

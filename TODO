@@ -11,8 +11,6 @@ inputs.foreach(in =>{
 })
 
 
-test run simple module (with CMD)
-test highorder module
 
 implement FILTER, MAP, FILTERMAP
 

@@ -5,7 +5,12 @@ lazy val root = (project in file(".")).
     scalaVersion := "2.11.7"
   )
 
-libraryDependencies += "joda-time" % "joda-time" % "1.6.2"
+val buildSettings = Defaults.coreDefaultSettings ++ Seq(
+  //…
+  javaOptions += "-Xmx2G"
+  //…
+)
+
 
 /*libraryDependencies +=
   "com.typesafe.akka" %% "akka-actor" % "2.3.13"

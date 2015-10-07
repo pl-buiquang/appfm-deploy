@@ -1,0 +1,21 @@
+== Requirements/Dependencies
+
+Vagrant 
+OR
+Docker + zmq
+
+Java
+Language SDK
+
+
+Scala
+http://www.scala-lang.org/
+Language library
+
+
+SBT
+http://www.scala-sbt.org/
+Build tool
+
+MongoDB
+https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-debian71-3.0.6.tgz

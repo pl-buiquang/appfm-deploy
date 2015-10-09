@@ -8,15 +8,18 @@ import java.io.{BufferedWriter, FileWriter, PrintWriter, File}
 import java.util.concurrent.{Executors, ExecutorService}
 
 object Server {
+  // zmq context initialization (global to whole application instance)
   val context = ZMQ.context(1)
 
+  // run the core server
   def run(port : String) {
-    //  Prepare our context and socket
 
+    // connect to zmq socket
     val socket = context.socket(ZMQ.REP)
     println ("starting")
     socket.bind ("tcp://*:"+port)
 
+    
     val pool: ExecutorService = Executors.newSingleThreadExecutor()
 
 

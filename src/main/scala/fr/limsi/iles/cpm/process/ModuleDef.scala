@@ -46,6 +46,10 @@ object ModuleDef extends LazyLogging{
 
   def initName(providedName:String,confMap:java.util.Map[String,Any]) = YamlElt.fromJava(confMap.get("name")) match {
     case YamlString(s) => {
+      val regex = """^[a-zA-Z][a-zA-Z0-9\-_]+(@[a-zA-Z0-9\-_]+)?$"""
+      if(regex.r.findAllMatchIn(s).isEmpty){
+        throw new Exception("name property ("+s+") must match regex '"+regex+"'!")
+      }
       if(s!= providedName){
         throw new Exception("name property ("+s+") must match module file name ("+providedName+") !")
       }
@@ -93,7 +97,7 @@ object ModuleDef extends LazyLogging{
                   case _ => None
                 }))
                 case "FILE" => moduleinputs += (name -> new ModuleParameter[FILE](intype.get,indesc,informat,inschema))
-                case "LIST" => moduleinputs += (name -> new ModuleParameter[LIST](intype.get,indesc,informat,inschema))
+                case "LIST" => moduleinputs += (name -> new ModuleParameter[LIST[VAL]](intype.get,indesc,informat,inschema))
                 case "CORPUS" => moduleinputs += (name -> new ModuleParameter[CORPUS](intype.get,indesc,informat,inschema))
                 case "MODULE" => moduleinputs += (name -> new ModuleParameter[MODULE](intype.get,indesc,informat,inschema))
                 case _ => throw new Exception("unknown type for input \""+name+"\"")
@@ -146,8 +150,8 @@ object ModuleDef extends LazyLogging{
                   moduleoutputs += (name -> x)
                 }
                 case "LIST" => {
-                  val x = new ModuleParameter[LIST](outtype.get,outdesc,outformat,outschema)
-                  x.setVal(outputdef.get("value"),new LIST());
+                  val x = new ModuleParameter[LIST[VAL]](outtype.get,outdesc,outformat,outschema)
+                  x.setVal(outputdef.get("value"),new LIST[VAL]());
                   moduleoutputs += (name -> x)
                 }
                 case "CORPUS" => {
@@ -275,26 +279,26 @@ object ModuleDef extends LazyLogging{
   def initMAPInputs()={
     var x = Map[String,AModuleParameter]()
     x += ("IN"->new ModuleParameter[DIR]("DIR",None,None,None))
-    x += ("RUN"->new ModuleParameter[LIST]("LIST",None,None,None))
+    x += ("RUN"->new ModuleParameter[LIST[MODULE]]("MODULE+",None,None,None))
     x
   }
 
   def initMAPOutputs()={
     var x = Map[String,AModuleParameter]()
-    x += ("OUT"->new ModuleParameter[LIST]("LIST",None,None,None))
+    x += ("OUT"->new ModuleParameter[LIST[DIR]]("LIST",None,None,None))
     x
   }
 
   def initFILTERMAPInputs()={
     var x = Map[String,AModuleParameter]()
     x += ("IN"->new ModuleParameter[FILE]("LIST",None,None,None))
-    x += ("RUN"->new ModuleParameter[LIST]("LIST",None,None,None))
+    x += ("RUN"->new ModuleParameter[LIST[VAL]]("LIST",None,None,None))
     x
   }
 
   def initFILTERMAPOutputs()={
     var x = Map[String,AModuleParameter]()
-    x += ("OUT"->new ModuleParameter[LIST]("LIST",None,None,None))
+    x += ("OUT"->new ModuleParameter[LIST[VAL]]("LIST",None,None,None))
     x
   }
 

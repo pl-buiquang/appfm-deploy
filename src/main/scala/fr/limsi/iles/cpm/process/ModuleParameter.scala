@@ -95,6 +95,15 @@ case class FILE() extends ModuleParameterVal {
     attrName match {
       case "basename" => {
         val file = new java.io.File(rawValue)
+        val extensionIndex = file.getName.lastIndexOf(".")
+        if(extensionIndex != -1){
+          file.getName.substring(0,extensionIndex)
+        }else{
+          file.getName
+        }
+      }
+      case "filename" => {
+        val file = new java.io.File(rawValue)
         file.getName;
       }
       case "basedir" => {
@@ -162,7 +171,7 @@ case class CORPUS() extends ModuleParameterVal {
  * - CORPUS/FILE : path separated by spaces
  * - MODULE : the yaml list of yaml moduleval instanciation
  */
-case class LIST() extends ModuleParameterVal {
+case class LIST[L]() extends ModuleParameterVal {
   type L <: AModuleParameter
   override def parseFromJavaYaml(yaml: Any): Unit = {
 

@@ -22,7 +22,23 @@ class ModuleDef(
    val outputs:Map[String,AModuleParameter],
    val log:Map[String,String],
    var run:List[AbstractModuleVal]
- )
+ ){
+
+  def getLastModificationDate(): Long ={
+    val file = new java.io.File(confFilePath)
+    file.lastModified()
+  }
+
+  def getWd():String = {
+    val file = new java.io.File(confFilePath)
+    file.getParent
+  }
+
+  val lastModified = getLastModificationDate()
+
+  val wd = getWd()
+
+}
 
 
 
@@ -62,14 +78,18 @@ object ModuleDef extends LazyLogging{
               val informat = YamlElt.readAs[String](inputdef.get("format"))
               val inschema = YamlElt.readAs[String](inputdef.get("schema"))
               val indesc = YamlElt.readAs[String](inputdef.get("desc"))
-              val defaultval = YamlElt.fromJava(inputdef.get("val")) match {
+              val defaultval = YamlElt.fromJava(inputdef.get("value")) match {
                 case YamlString(value) => value
                 case YamlList(list) => list
                 case _ => None
               }
               intype.getOrElse("unknown type") match {
-                case "VAL" => moduleinputs += (name -> new ModuleParameter[VAL](intype.get,indesc,informat,inschema,YamlElt.fromJava(inputdef.get("val")) match {
+                case "VAL" => moduleinputs += (name -> new ModuleParameter[VAL](intype.get,indesc,informat,inschema,YamlElt.fromJava(inputdef.get("value")) match {
                   case YamlString(value) => val x = new VAL(); x.parseFromJavaYaml(value); Some(x)
+                  case _ => None
+                }))
+                case "DIR" => moduleinputs += (name -> new ModuleParameter[DIR](intype.get,indesc,informat,inschema,YamlElt.fromJava(inputdef.get("value")) match {
+                  case YamlString(value) => val x = new DIR(); x.parseFromJavaYaml(value); Some(x)
                   case _ => None
                 }))
                 case "FILE" => moduleinputs += (name -> new ModuleParameter[FILE](intype.get,indesc,informat,inschema))
@@ -104,7 +124,7 @@ object ModuleDef extends LazyLogging{
               val outformat = YamlElt.readAs[String](outputdef.get("format"))
               val outschema = YamlElt.readAs[String](outputdef.get("schema"))
               val outdesc = YamlElt.readAs[String](outputdef.get("desc"))
-              val outval = YamlElt.fromJava(outputdef.get("val")) match {
+              val outval = YamlElt.fromJava(outputdef.get("value")) match {
                 case YamlString(value) => value
                 case YamlList(list) => list
                 case _ => throw new Exception("Missing or malformed value for output \""+name+"\"")
@@ -112,27 +132,32 @@ object ModuleDef extends LazyLogging{
               outtype.getOrElse("unknown type") match {
                 case "VAL" => {
                   val x = new ModuleParameter[VAL](outtype.get,outdesc,outformat,outschema)
-                  x.setVal(outputdef.get("val"),new VAL());
+                  x.setVal(outputdef.get("value"),new VAL());
                   moduleoutputs += (name -> x)
                 }
                 case "FILE" => {
                   val x = new ModuleParameter[FILE](outtype.get,outdesc,outformat,outschema)
-                  x.setVal(outputdef.get("val"),new FILE());
+                  x.setVal(outputdef.get("value"),new FILE());
+                  moduleoutputs += (name -> x)
+                }
+                case "DIR" => {
+                  val x = new ModuleParameter[DIR](outtype.get,outdesc,outformat,outschema)
+                  x.setVal(outputdef.get("value"),new DIR());
                   moduleoutputs += (name -> x)
                 }
                 case "LIST" => {
                   val x = new ModuleParameter[LIST](outtype.get,outdesc,outformat,outschema)
-                  x.setVal(outputdef.get("val"),new LIST());
+                  x.setVal(outputdef.get("value"),new LIST());
                   moduleoutputs += (name -> x)
                 }
                 case "CORPUS" => {
                   val x = new ModuleParameter[CORPUS](outtype.get,outdesc,outformat,outschema)
-                  x.setVal(outputdef.get("val"),new CORPUS());
+                  x.setVal(outputdef.get("value"),new CORPUS());
                   moduleoutputs += (name -> x)
                 }
                 case "MODULE" => {
                   val x = new ModuleParameter[MODULE](outtype.get,outdesc,outformat,outschema)
-                  x.setVal(outputdef.get("val"),new MODULE());
+                  x.setVal(outputdef.get("value"),new MODULE());
                   moduleoutputs += (name -> x)
                 }
                 case _ => throw new Exception("unknown type for input \""+name+"\"")
@@ -152,10 +177,10 @@ object ModuleDef extends LazyLogging{
     Map[String,String]()
   }
 
-  def initRun(confMap:java.util.Map[String,Any]) = {
+  def initRun(confMap:java.util.Map[String,Any],wd:String) = {
     var listmodules = Array[String]()
     var run = List[AbstractModuleVal]()
-    YamlElt.fromJava(confMap.get("run"))  match{
+    YamlElt.fromJava(confMap.get("exec"))  match{
       case YamlList(modulevals) => {
         modulevals.forEach(new Consumer[Any] {
           override def accept(t: Any): Unit = {
@@ -190,7 +215,7 @@ object ModuleDef extends LazyLogging{
                   // TODO check for outputs consistency with module def and multiple variable def
                   val modulevaldef = ModuleManager.modules(modulename)
                   if(modulevaldef.inputs.filter(input => {
-                    !inputs.containsKey(input._1.substring(1)) && input._2.value.isEmpty
+                    !inputs.containsKey(input._1) && input._2.value.isEmpty
                   }).size==0){
                     run = ModuleVal(
                       runitemname,
@@ -202,21 +227,24 @@ object ModuleDef extends LazyLogging{
                     throw new Exception("required module inputs are not all set for module "+modulename)
                   }
                 }else{
+                  val runitemconf : java.util.Map[String,Any] = YamlElt.readAs[java.util.Map[String,Any]](moduleval.get(runitemname)) match {
+                    case Some(map) => map
+                    case None => throw new Exception("malformed module value")
+                  }
+                  val inputs = YamlElt.readAs[java.util.Map[String,Any]](runitemconf.get("input")) match {
+                    case Some(map) => map
+                    case None => new java.util.HashMap[String,Any]()
+                  }
+                  val outputs = YamlElt.readAs[java.util.Map[String,Any]](runitemconf.get("output")) match {
+                    case Some(map) => map
+                    case None => new java.util.HashMap[String,Any]()
+                  }
                   modulename match {
                     case "_CMD" => {
-                      val runitemconf : java.util.Map[String,Any] = YamlElt.readAs[java.util.Map[String,Any]](moduleval.get(runitemname)) match {
-                        case Some(map) => map
-                        case None => throw new Exception("malformed module value")
-                      }
-                      val inputs = YamlElt.readAs[java.util.Map[String,Any]](runitemconf.get("input")) match {
-                        case Some(map) => map
-                        case None => new java.util.HashMap[String,Any]()
-                      }
-                      val outputs = YamlElt.readAs[java.util.Map[String,Any]](runitemconf.get("output")) match {
-                        case Some(map) => map
-                        case None => new java.util.HashMap[String,Any]()
-                      }
-                      run = CMDVal(runitemname,AbstractModuleVal.initInputs(CMDDef,inputs),AbstractModuleVal.initOutputs(CMDDef,outputs)) :: run
+                      run = CMDVal(wd,runitemname,AbstractModuleVal.initInputs(CMDDef,inputs),AbstractModuleVal.initOutputs(CMDDef,outputs)) :: run
+                    }
+                    case "_MAP" => {
+                      run = MAPVal(wd,runitemname,AbstractModuleVal.initInputs(MAPDef,inputs),AbstractModuleVal.initOutputs(MAPDef,outputs)) :: run
                     }
                     case _ => throw new Exception("unknown run module item")
                   }
@@ -234,39 +262,39 @@ object ModuleDef extends LazyLogging{
 
   def initCMDInputs()={
     var x = Map[String,AModuleParameter]()
-    x += ("$CMD"->new ModuleParameter[VAL]("VAL",None,None,None))
+    x += ("CMD"->new ModuleParameter[VAL]("VAL",None,None,None))
     x
   }
 
   def initCMDOutputs()={
     var x = Map[String,AModuleParameter]()
-    x += ("$STDOUT"->new ModuleParameter[VAL]("VAL",None,None,None))
+    x += ("STDOUT"->new ModuleParameter[VAL]("VAL",None,None,None))
     x
   }
 
   def initMAPInputs()={
     var x = Map[String,AModuleParameter]()
-    x += ("$IN"->new ModuleParameter[LIST]("LIST",None,None,None))
-    x += ("$RUN"->new ModuleParameter[LIST]("LIST",None,None,None))
+    x += ("IN"->new ModuleParameter[DIR]("DIR",None,None,None))
+    x += ("RUN"->new ModuleParameter[LIST]("LIST",None,None,None))
     x
   }
 
   def initMAPOutputs()={
     var x = Map[String,AModuleParameter]()
-    x += ("$OUT"->new ModuleParameter[LIST]("LIST",None,None,None))
+    x += ("OUT"->new ModuleParameter[LIST]("LIST",None,None,None))
     x
   }
 
   def initFILTERMAPInputs()={
     var x = Map[String,AModuleParameter]()
-    x += ("$IN"->new ModuleParameter[FILE]("LIST",None,None,None))
-    x += ("$RUN"->new ModuleParameter[LIST]("LIST",None,None,None))
+    x += ("IN"->new ModuleParameter[FILE]("LIST",None,None,None))
+    x += ("RUN"->new ModuleParameter[LIST]("LIST",None,None,None))
     x
   }
 
   def initFILTERMAPOutputs()={
     var x = Map[String,AModuleParameter]()
-    x += ("$OUT"->new ModuleParameter[LIST]("LIST",None,None,None))
+    x += ("OUT"->new ModuleParameter[LIST]("LIST",None,None,None))
     x
   }
 

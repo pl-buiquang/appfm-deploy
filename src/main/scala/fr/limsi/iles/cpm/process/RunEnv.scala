@@ -12,19 +12,39 @@ import org.yaml.snakeyaml.Yaml
 class RunEnv(var args:Map[String,ModuleParameterVal]){
   var logs = Map[String,ModuleParameterVal]()
 
+
+
   def resolveVars(value:String) : String= {
     var resolved = """\$\{(.*?)\}""".r.replaceAllIn(value,m => {
-      this.args(m.group(1)) match{
-        case o:ModuleParameterVal => val s = o.asString(); Log(s);s
-        case _ => "not found"
+      val splitted = m.group(1).split(":")
+      val complexvariable = if(splitted.length>1){
+        (splitted.slice(0,splitted.length-1).mkString("."),splitted(splitted.length-1))
+      }else{
+        (m.group(1),"")
+      }
+      if(this.args.contains(complexvariable._1)){
+        this.args(complexvariable._1) match{
+          case o:ModuleParameterVal => complexvariable._2 match {
+            case "" => o.asString()
+            case _ => o.getAttr(complexvariable._2)
+          }
+          case _ => throw new Exception("undefined value");
+        }
+      }else{
+        m.group(0).replace("$","\\$") // escape "$" to prevent group reference
       }
     })
-    """\$([a-zA-Z_\-]+)""".r.replaceAllIn(resolved,m => {
-      this.args(m.group(1)) match{
-        case o:ModuleParameterVal => o.asString()
-        case _ => "non"
+    resolved = """\$([a-zA-Z_\-]+)""".r.replaceAllIn(resolved,m => {
+      if(this.args.contains(m.group(1))){
+        this.args(m.group(1)) match{
+          case o:ModuleParameterVal => val s = o.asString(); Log(s);s
+          case _ => throw new Exception("undefined value");
+        }
+      }else{
+        m.group(0).replace("$","\\$") // escape "$" to prevent group reference
       }
     })
+    resolved
   }
 
 }

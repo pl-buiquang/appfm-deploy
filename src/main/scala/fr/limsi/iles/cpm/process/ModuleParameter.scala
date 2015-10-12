@@ -2,23 +2,34 @@ package fr.limsi.iles.cpm.process
 
 import fr.limsi.iles.cpm.utils.YamlElt
 
-import scala.reflect.ClassTag
-
 
 
 sealed abstract class ModuleParameterVal{
+
   def parseFromJavaYaml(yaml:Any):Unit
   def asString():String
+
   def extractVariables() : Array[String]={
     val value = asString()
     val complexVars = """\$\{(.+?)\}""".r.findAllMatchIn(value)
     val simpleVars = """\$([a-zA-Z_\-]+)""".r.findAllMatchIn(value)
     var vars = Array[String]()
     while(complexVars.hasNext){
-      vars :+= complexVars.next().group(1)
+      val splitted = complexVars.next().group(1).split(":")
+      val complexvariable = if(splitted.length>1){
+        (splitted.slice(0,splitted.length-1).mkString("."),splitted(splitted.length-1))
+      }else{
+        (complexVars.next().group(1),"")
+      }
+      vars :+= complexvariable._1
+    }
+    while(simpleVars.hasNext){
+      vars :+= simpleVars.next().group(1)
     }
     vars
   }
+
+  def getAttr(attrName:String):String
 
 }
 
@@ -52,6 +63,10 @@ case class VAL() extends ModuleParameterVal {
   override def asString()={
     rawValue
   }
+
+  override def getAttr(attrName: String): String = {
+    throw new Exception("VAL doesn't have any attributes")
+  }
 }
 
 
@@ -75,8 +90,50 @@ case class FILE() extends ModuleParameterVal {
   override def asString()={
     rawValue
   }
+
+  override def getAttr(attrName: String): String = {
+    attrName match {
+      case "basename" => {
+        val file = new java.io.File(rawValue)
+        file.getName;
+      }
+      case "basedir" => {
+        val file = new java.io.File(rawValue)
+        file.getParent
+      }
+    }
+  }
 }
 
+
+case class DIR() extends ModuleParameterVal {
+  var rawValue : String = _
+
+  override def parseFromJavaYaml(yaml: Any): Unit = {
+    val value = YamlElt.readAs[String](yaml)
+    rawValue = value match {
+      case Some(theval) => theval
+      case None => "Error reading val value (should be a string)"
+    }
+  }
+
+  override def asString()={
+    rawValue
+  }
+
+  override def getAttr(attrName: String): String = {
+    attrName match {
+      case "ls" => {
+        val file = new java.io.File(rawValue)
+        file.getName;
+      }
+      case "rls" => {
+        val file = new java.io.File(rawValue)
+        file.getParent
+      }
+    }
+  }
+}
 
 /**
  * CORPUS is for now a kind of directory object
@@ -91,6 +148,10 @@ case class CORPUS() extends ModuleParameterVal {
 
   override def asString()={
     "the corpus root dir path"
+  }
+
+  override def getAttr(attrName: String): String = {
+    throw new Exception("VAL doesn't have any attributes")
   }
 }
 
@@ -110,6 +171,10 @@ case class LIST() extends ModuleParameterVal {
   override def asString()={
     "comma separated or yaml string definition"
   }
+
+  override def getAttr(attrName: String): String = {
+    throw new Exception("VAL doesn't have any attributes")
+  }
 }
 
 /**
@@ -122,6 +187,11 @@ case class MODULE() extends ModuleParameterVal{
 
   override def asString()={
     "yaml string definition"
+  }
+
+
+  override def getAttr(attrName: String): String = {
+    throw new Exception("VAL doesn't have any attributes")
   }
 }
 

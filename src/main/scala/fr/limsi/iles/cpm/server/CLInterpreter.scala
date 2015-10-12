@@ -1,4 +1,4 @@
-package fr.limsi.iles.cpm.core
+package fr.limsi.iles.cpm.server
 
 import fr.limsi.iles.cpm.process._
 
@@ -83,21 +83,14 @@ object CLInterpreter {
   def interpretModuleCommands(args:Seq[String]) = {
     try{
       args(0) match{
-        case "ls" => "List available modules"
+        case "ls" => ModuleManager.ls()
         case "run" => {
-          try{
-            val mod = new ModuleVal("",ModuleManager.modules(args(1)),AbstractModuleVal.initInputs(ModuleManager.modules(args(1))),AbstractModuleVal.initOutputs(ModuleManager.modules(args(1))))
-            val process = mod.toProcess()
-            process.run(RunEnv.initFromConf(args(2)),"",None,false)
-            process.env.args.aggregate("")((toprint,elt) => {elt._1+" = "+elt._2.asString()},_+"\n"+_)
-          }catch{
-            case e:Throwable => e.getMessage
-          }
+          ProcessRunManager.newRun(args(1),args(2))
         }
         case _ => "Invalid argument"
       }
     }catch{
-      case e:Throwable => "Missing argument"
+      case e:Throwable => e.getMessage+ " (Missing argument)"
     }
   }
 

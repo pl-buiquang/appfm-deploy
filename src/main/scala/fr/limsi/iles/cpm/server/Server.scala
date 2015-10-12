@@ -1,27 +1,59 @@
-package fr.limsi.iles.cpm.core
+package fr.limsi.iles.cpm.server
 
 /**
  * Created by buiquang on 9/7/15.
  */
+
+import java.util.UUID
+
+import com.typesafe.scalalogging.LazyLogging
+import fr.limsi.iles.cpm.utils.ConfManager
 import org.zeromq.{ZMQException, ZMQ}
 import java.io.{BufferedWriter, FileWriter, PrintWriter, File}
 import java.util.concurrent.{Executors, ExecutorService}
 
-object Server {
+
+object Server extends LazyLogging{
   // zmq context initialization (global to whole application instance)
   val context = ZMQ.context(1)
 
+  val backendport = ConfManager.get("backend_port")
+
   // run the core server
   def run(port : String) {
+    // TODO  Replace all this with proper load balancer
+    val pool: ExecutorService = Executors.newFixedThreadPool(10)
 
-    // connect to zmq socket
-    val socket = context.socket(ZMQ.REP)
+    // init request handlers workers threads
+    for(i <- (1 to 10)){
+      pool.execute(new RequestHandler())
+    }
+
+    val frontend = context.socket(ZMQ.ROUTER)
+
     println ("starting")
-    socket.bind ("tcp://*:"+port)
+    frontend.bind ("tcp://*:"+port)
 
-    
-    val pool: ExecutorService = Executors.newSingleThreadExecutor()
+    val backend = context.socket(ZMQ.DEALER)
+    backend.bind("tcp://*:"+backendport)
 
+    ZMQ.proxy(frontend,backend,null)
+
+
+    frontend.close()
+    backend.close()
+    context.term()
+  }
+}
+
+class RequestHandler extends Runnable with LazyLogging{
+
+  /**
+   * This is the core request handler to manage user interaction with cpm
+   */
+  def run()={
+    val socket = Server.context.socket(ZMQ.REP)
+    socket.connect ("tcp://localhost:"+Server.backendport)
 
     while (!Thread.currentThread().isInterrupted) {
       //  Wait for next request from client
@@ -32,18 +64,11 @@ object Server {
       // In order to display the 0-terminated string as a String,
       //  we omit the last byte from request
       //val stringinput = new String(request,0,request.length)
-      println ("Received request: ["
+      logger.info("Received request: ["
         + stringinput  //  Creates a String from request, minus the last byte
         + "]")
 
       val answer :String= CLInterpreter.interpret(stringinput)
-
-      val writer = new PrintWriter(new BufferedWriter(new FileWriter("log.txt",true )))
-
-      writer.write(stringinput+"\n")
-      writer.write(answer+"\n")
-      writer.close()
-
 
 
       //  Send reply back to client
@@ -54,7 +79,8 @@ object Server {
       socket.send(reply, 0)
 
     }
+
     socket.close()
-    context.term()
   }
+
 }

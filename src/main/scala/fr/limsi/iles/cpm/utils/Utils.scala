@@ -1,19 +1,39 @@
 package fr.limsi.iles.cpm.utils
 
+import java.text.SimpleDateFormat
 import java.util.function.Consumer
 
 import org.slf4j.LoggerFactory
 import org.yaml.snakeyaml.Yaml
 
+
 /**
  * Created by buiquang on 9/22/15.
  */
 object Log {
+  val log = com.typesafe.scalalogging.Logger(LoggerFactory.getLogger(""))
+
   def apply(message:String) = {
-    val log = com.typesafe.scalalogging.Logger(LoggerFactory.getLogger(""))
+
     log.info(message)
   }
 
+  def error(e:Throwable)={
+    var error = ""
+    e.getStackTrace.foreach(el => {
+      error += el.toString + "\n"
+    })
+    log.error("Stack trace : \n"+error)
+  }
+
+}
+
+object Utils{
+  def getHumanReadableDate(datelong:Long) :String = {
+    val date = new java.util.Date(datelong)
+    val formatter = new SimpleDateFormat()
+    formatter.format(date)
+  }
 }
 
 

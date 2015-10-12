@@ -3,7 +3,7 @@ package fr.limsi.iles.cpm.process
 import java.util.concurrent.Executors
 
 import com.typesafe.scalalogging.LazyLogging
-import fr.limsi.iles.cpm.core.Server
+import fr.limsi.iles.cpm.server.Server
 import org.zeromq.ZMQ
 
 import scala.reflect.io.File
@@ -21,13 +21,23 @@ abstract class AProcess extends LazyLogging{
     logger.debug("Initializing environement for "+moduleval.moduledef.name)
     logger.debug("Parent env contains : ")
     parentRunEnv.args.foreach(elt => {
-      logger.debug(elt._1+" with value "+elt._2.asString())
+      logger.debug(elt._1+" of type "+elt._2.getClass.toGenericString+" with value "+elt._2.asString())
     })
     val newenv = new RunEnv(Map[String,ModuleParameterVal]())
     moduleval.inputs.foreach(input=>{
-      logger.info("Looking in parent env for "+input._1+" with value to resolve :"+input._2.asString())
-      input._2.parseFromJavaYaml(parentRunEnv.resolveVars(input._2.asString()))
-      newenv.args += (input._1 -> input._2)
+      logger.info("Looking in parent env for "+input._1+" of type "+input._2.getClass.toGenericString+" with value to resolve : "+input._2.asString())
+      val variables = input._2.extractVariables()
+      var ready = true
+      variables.foreach(variable => {
+        if(!parentRunEnv.args.contains(variable)){
+          ready = false
+        }
+      })
+      if(ready){
+        val resolved  = parentRunEnv.resolveVars(input._2.asString())
+        input._2.parseFromJavaYaml(resolved)
+        newenv.args += (input._1 -> input._2)
+      }
     });
     // moduledef.inputs must be satisfied by inputs
 
@@ -36,8 +46,16 @@ abstract class AProcess extends LazyLogging{
     }).foreach(input => {
       logger.info("Adding default value for "+input._1)
       input._2.value.get.parseFromJavaYaml(parentRunEnv.resolveVars(input._2.value.get.asString()))
-      newenv.args += (input._1.substring(1) -> input._2.value.get)
+      newenv.args += (input._1 -> input._2.value.get)
     })
+
+    val runresultdir = DIR()
+    runresultdir.parseFromJavaYaml(parentRunEnv.args("_RUN_WD").asString()+"/"+moduleval.namespace)
+    newenv.args += ("_RUN_WD" -> runresultdir)
+
+    val defdir = DIR()
+    defdir.parseFromJavaYaml(moduleval.moduledef.wd)
+    newenv.args += ("_DEF_WD" -> defdir)
 
     env = newenv
     logger.debug("Child env contains : ")
@@ -105,33 +123,6 @@ object AProcess{
 }
 
 
-class ProcessMessage
-
-case class ValidProcessMessage(val sender:String,val status:String) extends ProcessMessage{
-
-  override def toString(): String = {
-    sender+"\n"+status
-  }
-}
-
-case class InvalidProcessMessage() extends ProcessMessage
-
-object ProcessMessage{
-
-  implicit def parse(message:String) : ProcessMessage = {
-    val components = message.split("\n")
-    if(components.size==2){
-      new ValidProcessMessage(components(0),components(1))
-    }else{
-      new InvalidProcessMessage()
-    }
-  }
-
-  implicit def toString(message:ProcessMessage) : String = {
-    message.toString()
-  }
-}
-
 
 
 class ModuleProcess(override val moduleval:ModuleVal) extends AProcess{
@@ -176,7 +167,7 @@ class ModuleProcess(override val moduleval:ModuleVal) extends AProcess{
   }
 
   /**
-   * TODO problem no check if module has already been launched!!
+   *
    * @param parentPort
    */
   def next(parentPort:String) = {
@@ -191,8 +182,9 @@ class ModuleProcess(override val moduleval:ModuleVal) extends AProcess{
           var exist = true
           vars.foreach(varname => {
             logger.info("Looking for "+varname)
-            exist = exist && env.args.exists(varname == _._1)
-            if(exist) logger.info("found") else logger.info("not found")
+            val varexist = env.args.exists(varname == _._1)
+            exist = exist && varexist
+            if(varexist) logger.info("found") else logger.info("not found")
           })
           exist
         },(a,b)=>{a&&b})
@@ -231,7 +223,11 @@ class ModuleProcess(override val moduleval:ModuleVal) extends AProcess{
       val x = FILE()
       logger.debug("Found :"+env.resolveVars(output._2.value.get.asString()))
       x.parseFromJavaYaml(env.resolveVars(output._2.value.get.asString()))
-      parentEnv.args += (moduleval.namespace+"."+output._1.substring(1) -> x)
+      val namespace = moduleval.namespace match {
+        case "" => ""
+        case _ => moduleval.namespace+"."
+      }
+      parentEnv.args += (namespace+output._1 -> x)
       logger.debug("New parent env contains : ")
       parentEnv.args.foreach(elt => {
         logger.debug(elt._1+" with value "+elt._2.asString())
@@ -261,8 +257,10 @@ class CMDProcess(override val moduleval:CMDVal) extends AProcess{
     logger.debug("Launching CMD "+env.resolveVars(moduleval.inputs("CMD").asString()))
     var stderr = ""
     var stdout = ""
-    val wd = "."//env.resolveVars(moduleval.inputs("WD").asString())
-    Process(env.resolveVars(moduleval.inputs("CMD").asString()),new java.io.File(wd)) ! ProcessLogger(line => stdout+="\n"+line,line=>stderr+="\n"+line)
+    val wd = moduleval.parentWD // "."//env.resolveVars(moduleval.inputs("WD").asString())
+    val folder = new java.io.File(wd)
+    DockerManager.baseRun(moduleval.namespace,"localhost",parentPort.get,env.resolveVars(moduleval.inputs("CMD").asString()),folder)
+    //Process(env.resolveVars(moduleval.inputs("CMD").asString()),new java.io.File(wd)) ! ProcessLogger(line => stdout+="\n"+line,line=>stderr+="\n"+line)
     stdoutval.rawValue = stdout
     stdoutval.resolvedValue = stdout
 
@@ -275,16 +273,40 @@ class CMDProcess(override val moduleval:CMDVal) extends AProcess{
   override protected[this] def exitRoutine(parentEnv: RunEnv, ns: String, parentPort: Option[String], detached: Boolean): Unit = {
     parentEnv.logs += (moduleval.namespace -> stderrval)
     parentEnv.args += (moduleval.namespace+".STDOUT" -> stdoutval)
-
+/*
     val socket = Server.context.socket(ZMQ.PUSH)
     socket.connect("tcp://localhost:"+parentPort.get)
-    socket.send(new ValidProcessMessage(moduleval.namespace,"FINISHED"))
+    socket.send(new ValidProcessMessage(moduleval.namespace,"FINISHED"))*/
   }
 
 }
 
-class MAPProcess(){
+class MAPProcess(override val moduleval:MAPVal) extends AProcess{
+  override protected[this] def runProcess(ns: String, parentPort: Option[String], detached: Boolean): Unit = {
+    val dir = new java.io.File(env.resolveVars(moduleval.inputs("IN").asString()))
 
+    dir.listFiles().map(file => {
+
+    })
+    /*
+    val cluster = input("IN")
+    cluster.map(item =>
+      {
+        env.args += ("_" => item)
+        moduleval.anonymousmodule.toProcess().run()
+      }
+    )
+
+
+
+     */
+  }
+
+  override protected[this] def exitRoutine(env: RunEnv, ns: String, parentPort: Option[String], detached: Boolean): Unit = {
+    val socket = Server.context.socket(ZMQ.PUSH)
+    socket.connect("tcp://localhost:"+parentPort.get)
+    socket.send(new ValidProcessMessage(moduleval.namespace,"FINISHED"))
+  }
 }
 
 class FILTERProcess(){

@@ -1,14 +1,30 @@
 # CPM Server Configuration
 
+cpm_home_dir : /home/paul/projects/custom/cpm
 
 # main port to connect client with
 cmd_listen_port : 5555
 
+#
+backend_port : 5005
+
 # modules directory
 # default is modules in cpm package
 modules_dir :
-  - /people/buiquang/projects/custom/cpm/modules
-  - /people/buiquang/projects/custom/cpm_workspace_test/modules
+  - /home/paul/projects/custom/cpm/examples/modules
+  - /home/paul/projects/custom/cpm/modules
+  #- /people/buiquang/projects/custom/cpm/modules
+  #- /people/buiquang/projects/custom/cpm_workspace_test/modules
+
+default_result_dir : /home/paul/projects/custom/cpm/examples/results #/people/buiquang/projects/custom/cpm_workspace_test/results
+
+default_corpus_dir : /home/paul/projects/custom/cpm/examples/corpus
+
+
+# db info
+dbhost : localhost
+dbport : 27017
+dbname : cpmdb
 
 
 

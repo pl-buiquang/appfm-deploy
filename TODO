@@ -1,5 +1,32 @@
 ## TODO
 
+docker run base
+process-shell
+pb server mode
+exit routine (copy files in resultdir (_RUN_WD)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-------------------
+
+
 How to implement a module with docker?
 How to impove performance of multiple dockerized modules (shared librairies, memory overhead, images, containers)?
 

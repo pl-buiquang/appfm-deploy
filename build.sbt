@@ -5,7 +5,12 @@ lazy val root = (project in file(".")).
     scalaVersion := "2.11.7"
   )
 
-libraryDependencies += "joda-time" % "joda-time" % "1.6.2"
+val buildSettings = Defaults.coreDefaultSettings ++ Seq(
+  //…
+  javaOptions += "-Xmx2G"
+  //…
+)
+
 
 /*libraryDependencies +=
   "com.typesafe.akka" %% "akka-actor" % "2.3.13"
@@ -20,6 +25,8 @@ libraryDependencies += "org.yaml" % "snakeyaml" % "1.16"
 libraryDependencies += "org.zeromq" % "jeromq" % "0.3.5"
 
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0"
+
+libraryDependencies += "org.mongodb" %% "casbah" % "2.8.2"
 
 /*libraryDependencies += "org.spark-project.zeromq" % "zeromq-scala-binding_2.11" % "0.0.7-spark"*/
 /*

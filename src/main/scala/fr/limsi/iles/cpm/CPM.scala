@@ -7,8 +7,8 @@ package fr.limsi.iles.cpm
 import java.io.File
 
 import com.typesafe.scalalogging.{Logger, LazyLogging}
-import fr.limsi.iles.cpm.core.Server
-import fr.limsi.iles.cpm.process.{ModuleManager, ModuleDef}
+import fr.limsi.iles.cpm.server.Server
+import fr.limsi.iles.cpm.process.{DockerManager, ModuleManager, ModuleDef}
 import fr.limsi.iles.cpm.utils.{ConfManager}
 import org.slf4j.LoggerFactory
 
@@ -29,6 +29,7 @@ object CPM extends App{
     }
     fr.limsi.iles.cpm.utils.Log("CPM Server Started!")
 
+    // shutdown hook for clean exit
     sys.addShutdownHook({
       println("ShutdownHook called")
       //println(Seq("docker","ps","-a") !!)
@@ -61,9 +62,14 @@ object CPM extends App{
 
      */
 
+    // init module manager
+    // check for modules definition consistency
     ModuleManager.init()
 
+    // check for docker proper initializatin
+    DockerManager.initCheckDefault()
 
+    // start the main loop server
     val port = ConfManager.get("cmd_listen_port").toString
     println("Listening on port : "+port)
     Server.run(port)

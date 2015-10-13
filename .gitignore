@@ -3,6 +3,5 @@ modules/**
 cpm-web-ui/**
 cpm-core/**
 cpm-cli/**
-cpm-process-shell/**
 data/**
 .vagrant/**

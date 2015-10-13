@@ -34,6 +34,21 @@ object Utils{
     val formatter = new SimpleDateFormat()
     formatter.format(date)
   }
+
+  /**
+   * Retrieve a list of space separated arguments in a string (arguments delimited with " or ' are preserved as one)
+   * @param line
+   * @return
+   */
+  def getArgumentsFromString(line:String):List[String]={
+    """('|")(.*?)\1""".r.replaceAllIn(line,matched => {
+      matched.group(2).replaceAll("\\s","_!_SPACE_!_")
+    }).split("\\s+").map(item => {
+      item.replaceAll("_!_SPACE_!_"," ")
+    }).toList
+  }
+
+
 }
 
 

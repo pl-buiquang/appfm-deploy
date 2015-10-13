@@ -1,8 +1,11 @@
-package fr.limsi.iles.cpm.process
+package fr.limsi.iles.cpm.module.process
 
 import java.util.concurrent.Executors
 
 import com.typesafe.scalalogging.LazyLogging
+import fr.limsi.iles.cpm.module.definition.ModuleDef
+import fr.limsi.iles.cpm.module.value.{DIR, VAL, ModuleParameterVal}
+import fr.limsi.iles.cpm.module.value._
 import fr.limsi.iles.cpm.server.Server
 import org.zeromq.ZMQ
 
@@ -34,7 +37,7 @@ abstract class AProcess extends LazyLogging{
         }
       })
       if(ready){
-        val resolved  = parentRunEnv.resolveVars(input._2.asString())
+        val resolved  = parentRunEnv.resolveValueToString(input._2.asString())
         input._2.parseFromJavaYaml(resolved)
         newenv.args += (input._1 -> input._2)
       }
@@ -45,7 +48,7 @@ abstract class AProcess extends LazyLogging{
       !input._2.value.isEmpty && !newenv.args.contains(input._1)
     }).foreach(input => {
       logger.info("Adding default value for "+input._1)
-      input._2.value.get.parseFromJavaYaml(parentRunEnv.resolveVars(input._2.value.get.asString()))
+      input._2.value.get.parseFromJavaYaml(parentRunEnv.resolveValueToString(input._2.value.get.asString()))
       newenv.args += (input._1 -> input._2.value.get)
     })
 
@@ -53,8 +56,14 @@ abstract class AProcess extends LazyLogging{
     runresultdir.parseFromJavaYaml(parentRunEnv.args("_RUN_WD").asString()+"/"+moduleval.namespace)
     newenv.args += ("_RUN_WD" -> runresultdir)
 
-    val defdir = DIR()
-    defdir.parseFromJavaYaml(moduleval.moduledef.wd)
+    // builtin modules haven't any real definition directory, use parent's
+    val defdir = if(ModuleDef.builtinmodules.contains(moduleval.moduledef.name)){
+      parentRunEnv.args("_DEF_WD")
+    }else{
+      val x = DIR()
+      x.parseFromJavaYaml(moduleval.moduledef.wd)
+      x
+    }
     newenv.args += ("_DEF_WD" -> defdir)
 
     env = newenv
@@ -221,8 +230,8 @@ class ModuleProcess(override val moduleval:ModuleVal) extends AProcess{
       })
       logger.debug("Looking to resolve : "+output._2.value.get.asString())
       val x = FILE()
-      logger.debug("Found :"+env.resolveVars(output._2.value.get.asString()))
-      x.parseFromJavaYaml(env.resolveVars(output._2.value.get.asString()))
+      logger.debug("Found :"+env.resolveValueToString(output._2.value.get.asString()))
+      x.parseFromJavaYaml(env.resolveValueToString(output._2.value.get.asString()))
       val namespace = moduleval.namespace match {
         case "" => ""
         case _ => moduleval.namespace+"."
@@ -254,12 +263,12 @@ class CMDProcess(override val moduleval:CMDVal) extends AProcess{
 
   override def runProcess(ns:String,parentPort:Option[String],detached:Boolean): Unit = {
 
-    logger.debug("Launching CMD "+env.resolveVars(moduleval.inputs("CMD").asString()))
+    logger.debug("Launching CMD "+env.resolveValueToString(moduleval.inputs("CMD").asString()))
     var stderr = ""
     var stdout = ""
-    val wd = moduleval.parentWD // "."//env.resolveVars(moduleval.inputs("WD").asString())
+    val wd = env.args("_DEF_WD").asString()
     val folder = new java.io.File(wd)
-    DockerManager.baseRun(moduleval.namespace,"localhost",parentPort.get,env.resolveVars(moduleval.inputs("CMD").asString()),folder)
+    DockerManager.baseRun(moduleval.namespace,"localhost",parentPort.get,env.resolveValueToString(moduleval.inputs("CMD").asString()),folder)
     //Process(env.resolveVars(moduleval.inputs("CMD").asString()),new java.io.File(wd)) ! ProcessLogger(line => stdout+="\n"+line,line=>stderr+="\n"+line)
     stdoutval.rawValue = stdout
     stdoutval.resolvedValue = stdout
@@ -283,7 +292,7 @@ class CMDProcess(override val moduleval:CMDVal) extends AProcess{
 
 class MAPProcess(override val moduleval:MAPVal) extends AProcess{
   override protected[this] def runProcess(ns: String, parentPort: Option[String], detached: Boolean): Unit = {
-    val dir = new java.io.File(env.resolveVars(moduleval.inputs("IN").asString()))
+    val dir = new java.io.File(env.resolveValueToString(moduleval.inputs("IN").asString()))
 
     dir.listFiles().map(file => {
 

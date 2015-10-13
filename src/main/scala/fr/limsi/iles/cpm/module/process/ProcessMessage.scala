@@ -1,4 +1,4 @@
-package fr.limsi.iles.cpm.process
+package fr.limsi.iles.cpm.module.process
 
 /**
  * Created by buiquang on 10/6/15.

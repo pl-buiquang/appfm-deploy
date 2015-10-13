@@ -1,7 +1,0 @@
-[12/10/2015 - 10:58:17] [run-main-0] INFO  - CPM Server Started!
-[12/10/2015 - 10:58:18] [run-main-0] DEBUG fr.limsi.iles.cpm.process.ModuleManager$ - Initiating module stanford-parser
-[12/10/2015 - 10:58:18] [run-main-0] DEBUG fr.limsi.iles.cpm.process.ModuleManager$ - Initiating module pipeline-test
-[12/10/2015 - 10:58:18] [run-main-0] DEBUG fr.limsi.iles.cpm.process.ModuleManager$ - Initiating module bonsai_parser
-[12/10/2015 - 10:58:18] [run-main-0] ERROR fr.limsi.iles.cpm.process.ModuleManager$ - Missing or malformed value for output "OUT"
-[12/10/2015 - 11:27:07] [pool-5-thread-5] INFO fr.limsi.iles.cpm.server.RequestHandler - Received request: [pipeline ls]
-[12/10/2015 - 11:28:05] [pool-5-thread-4] INFO fr.limsi.iles.cpm.server.RequestHandler - Received request: [module ls]

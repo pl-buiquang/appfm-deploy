@@ -1,8 +1,10 @@
-package fr.limsi.iles.cpm.process
+package fr.limsi.iles.cpm.module.process
 
 import java.io.FileInputStream
 import java.util.function.{BiConsumer, Consumer}
 
+
+import fr.limsi.iles.cpm.module.value.{VAL, ModuleParameterVal}
 import fr.limsi.iles.cpm.utils.{Log, YamlElt}
 import org.yaml.snakeyaml.Yaml
 
@@ -12,9 +14,11 @@ import org.yaml.snakeyaml.Yaml
 class RunEnv(var args:Map[String,ModuleParameterVal]){
   var logs = Map[String,ModuleParameterVal]()
 
+  def resolveValue(value:String) : ModuleParameterVal = {
 
+  }
 
-  def resolveVars(value:String) : String= {
+  def resolveValueToString(value:String) : String= {
     var resolved = """\$\{(.*?)\}""".r.replaceAllIn(value,m => {
       val splitted = m.group(1).split(":")
       val complexvariable = if(splitted.length>1){
@@ -26,7 +30,7 @@ class RunEnv(var args:Map[String,ModuleParameterVal]){
         this.args(complexvariable._1) match{
           case o:ModuleParameterVal => complexvariable._2 match {
             case "" => o.asString()
-            case _ => o.getAttr(complexvariable._2)
+            case _ => o.getAttr(complexvariable._2).toString
           }
           case _ => throw new Exception("undefined value");
         }

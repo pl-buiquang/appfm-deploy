@@ -1,11 +1,10 @@
-package fr.limsi.iles.cpm.process
+package fr.limsi.iles.cpm.module
+
+import java.io.{File, FileInputStream}
 
 import com.typesafe.scalalogging.LazyLogging
-import fr.limsi.iles.cpm.utils.YamlElt._
+import fr.limsi.iles.cpm.module.definition.ModuleDef
 import fr.limsi.iles.cpm.utils._
-import java.io.{FileInputStream, File}
-
-
 import org.yaml.snakeyaml.Yaml
 
 /**
@@ -64,7 +63,7 @@ object ModuleManager extends LazyLogging{
         findModuleConf(file,f)
       }
     }else{
-      logger.warn("File at path %s is neither file nor directory!",curFile.getPath)
+      logger.warn("File at path "+curFile.getPath+" is neither file nor directory!")
     }
   }
 
@@ -90,7 +89,7 @@ object ModuleManager extends LazyLogging{
         case None => modules += (modulename -> module)
       }
     }catch{
-      case e: Throwable => logger.error(e.getMessage)
+      case e: Throwable => logger.error("Wrong module defintion in "+moduleConfFile.getCanonicalPath+"\n"+e.getMessage)
     }
   }
 

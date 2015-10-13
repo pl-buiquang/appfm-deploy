@@ -1,6 +1,7 @@
 package fr.limsi.iles.cpm.server
 
-import fr.limsi.iles.cpm.process._
+import fr.limsi.iles.cpm.module.ModuleManager
+import fr.limsi.iles.cpm.module.process.ProcessRunManager
 
 import scala.sys.process._
 

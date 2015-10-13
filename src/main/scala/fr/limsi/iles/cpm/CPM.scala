@@ -7,8 +7,9 @@ package fr.limsi.iles.cpm
 import java.io.File
 
 import com.typesafe.scalalogging.{Logger, LazyLogging}
+import fr.limsi.iles.cpm.module.ModuleManager
+import fr.limsi.iles.cpm.module.process.DockerManager
 import fr.limsi.iles.cpm.server.Server
-import fr.limsi.iles.cpm.process.{DockerManager, ModuleManager, ModuleDef}
 import fr.limsi.iles.cpm.utils.{ConfManager}
 import org.slf4j.LoggerFactory
 

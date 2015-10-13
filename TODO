@@ -7,7 +7,11 @@ exit routine (copy files in resultdir (_RUN_WD)
 
 
 
+----------
 
+MAP (String,ModuleParamVal)
+_MAP output type MAP
+refactor RunEnv args (MAP) + resolve var , etc.
 
 
 

@@ -2,8 +2,6 @@
  * Created by buiquang on 9/15/15.
  */
 
-import fr.limsi.iles.cpm.process.{VAL, ModuleParameter, RunEnv}
-
 import collection.mutable.Stack
 import org.scalatest._
 

@@ -1,4 +1,4 @@
-package fr.limsi.iles.cpm.process
+package fr.limsi.iles.cpm.module.process
 
 import java.io.FileInputStream
 import java.util.UUID
@@ -6,6 +6,9 @@ import java.util.function.BiConsumer
 
 import com.mongodb.casbah.commons.MongoDBObject
 import com.typesafe.scalalogging.LazyLogging
+import fr.limsi.iles.cpm.module.ModuleManager
+import fr.limsi.iles.cpm.module.value.{DIR, ModuleParameterVal}
+import fr.limsi.iles.cpm.module.value.{AbstractModuleVal, ModuleVal}
 import fr.limsi.iles.cpm.utils.{ConfManager, DB}
 import org.yaml.snakeyaml.Yaml
 

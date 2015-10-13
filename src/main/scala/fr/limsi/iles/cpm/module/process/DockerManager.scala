@@ -1,4 +1,4 @@
-package fr.limsi.iles.cpm.process
+package fr.limsi.iles.cpm.module.process
 
 import java.io.PrintWriter
 
@@ -36,9 +36,8 @@ object DockerManager extends LazyLogging{
   def baseRun(name:String,host:String,port:String,cmd:String,foldersync:java.io.File) = {
     val mount = "-v "+foldersync.getCanonicalPath+":"+foldersync.getCanonicalPath
     val mount2 = " -v /tmp:/tmp -v "+ConfManager.get("default_result_dir")+":"+ConfManager.get("default_result_dir")+" -v "+ConfManager.get("default_corpus_dir")+":"+ConfManager.get("default_corpus_dir")+" "
-    val mount3 = " -v /home/paul/lib:/home/paul/lib "
     val absolutecmd = cmd.replace("\n"," ").replace("\"","\\\"").replaceAll("^./",foldersync.getCanonicalPath+"/")
-    val dockercmd = "docker run "+mount+mount2+mount3+" -td "+ConfManager.defaultDockerBaseImage+" "+name+" "+port+" "+absolutecmd+""
+    val dockercmd = "docker run "+mount+mount2+" -td "+ConfManager.defaultDockerBaseImage+" "+name+" "+port+" "+absolutecmd+""
     logger.debug(dockercmd)
     dockercmd.!!
   }

@@ -32,13 +32,13 @@ Implémentation integration docker générique
 Implémentation run status report & diagnose (via cli api)
 Implémentation result streamer, pathresolver (via cli api)
 
-CPM v0.2 (~ fin novembre)
+CPM v0.2 (~ mi novembre)
 
 v0.3
 ======
 Minimum default / addons modules (Pulsar needs min) ok
 
-CPM v0.3 (~ fin décembre)
+CPM v0.3 (~ mi/fin décembre)
 
 v0.4
 ======
@@ -47,7 +47,7 @@ Scalability issues (mono machine, cluster)?
 Tarball easy install / packaging / documentation ok
 Demo little python server calling cpm cli to make a pipeline server processing streams
 
-CPM v0.4 (~ fin janvier)
+CPM v0.4 (~ début décembre)
 
 
 v1
@@ -60,7 +60,7 @@ Webserver client kernel
 Module/Pipeline graphical browser
 Module/Pipeline graphical editor
 
-CPM v1.1 (~ fin mars)
+CPM v1.1 (~ mi/fin décembre)
 
 
 v1.2

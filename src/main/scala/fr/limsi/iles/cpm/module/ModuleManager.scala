@@ -33,12 +33,12 @@ object ModuleManager extends LazyLogging{
       val wd = (new File(m.confFilePath)).getParent
       val ios = new FileInputStream(m.confFilePath)
       val confMap = yaml.load(ios).asInstanceOf[java.util.Map[String,Any]]
-      m.run = ModuleDef.initRun(confMap,wd)
+      m.exec = ModuleDef.initRun(confMap,wd)
     })
 
     modules.values.foreach(m => {
       println(m.name)
-      m.run.foreach(println _)
+      m.exec.foreach(println _)
 
     })
   }

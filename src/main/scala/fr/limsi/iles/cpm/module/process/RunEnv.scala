@@ -4,18 +4,27 @@ import java.io.FileInputStream
 import java.util.function.{BiConsumer, Consumer}
 
 
-import fr.limsi.iles.cpm.module.value.{VAL, ModuleParameterVal}
+import fr.limsi.iles.cpm.module.value.{AbstractParameterVal, VAL, AbstractParameterVal$}
 import fr.limsi.iles.cpm.utils.{Log, YamlElt}
 import org.yaml.snakeyaml.Yaml
 
 /**
  * Created by buiquang on 9/24/15.
  */
-class RunEnv(var args:Map[String,ModuleParameterVal]){
-  var logs = Map[String,ModuleParameterVal]()
+class RunEnv(var args:Map[String,AbstractParameterVal]){
+  var logs = Map[String,AbstractParameterVal]()
 
-  def resolveValue(value:String) : ModuleParameterVal = {
+  def copy():RunEnv={
+    var newargs = Map[String,AbstractParameterVal]()
+    args.foreach(paramval => {
+      newargs += (paramval._1 -> paramval._2)
+    })
+    val newenv = new RunEnv(newargs)
+    newenv
+  }
 
+  def resolveValue(value:String) : AbstractParameterVal = {
+    new VAL()
   }
 
   def resolveValueToString(value:String) : String= {
@@ -28,9 +37,9 @@ class RunEnv(var args:Map[String,ModuleParameterVal]){
       }
       if(this.args.contains(complexvariable._1)){
         this.args(complexvariable._1) match{
-          case o:ModuleParameterVal => complexvariable._2 match {
+          case o:AbstractParameterVal => complexvariable._2 match {
             case "" => o.asString()
-            case _ => o.getAttr(complexvariable._2).toString
+            case _ => o.getAttr(complexvariable._2).asString()
           }
           case _ => throw new Exception("undefined value");
         }
@@ -41,7 +50,7 @@ class RunEnv(var args:Map[String,ModuleParameterVal]){
     resolved = """\$([a-zA-Z_\-]+)""".r.replaceAllIn(resolved,m => {
       if(this.args.contains(m.group(1))){
         this.args(m.group(1)) match{
-          case o:ModuleParameterVal => val s = o.asString(); Log(s);s
+          case o:AbstractParameterVal => val s = o.asString(); Log(s);s
           case _ => throw new Exception("undefined value");
         }
       }else{
@@ -55,7 +64,7 @@ class RunEnv(var args:Map[String,ModuleParameterVal]){
 
 object RunEnv {
   def initFromConf(content:String) = {
-    var args = Map[String,ModuleParameterVal]()
+    var args = Map[String,AbstractParameterVal]()
     val yaml = new Yaml()
     val ios = new FileInputStream(content)
     val confMap = yaml.load(ios).asInstanceOf[java.util.Map[String,Any]]
@@ -64,7 +73,7 @@ object RunEnv {
         map.forEach(new BiConsumer[String,String] {
           override def accept(t: String, u: String): Unit = {
             val x = VAL()
-            x.parseFromJavaYaml(u)
+            x.parseYaml(u)
             args += (t -> x)
           }
         })

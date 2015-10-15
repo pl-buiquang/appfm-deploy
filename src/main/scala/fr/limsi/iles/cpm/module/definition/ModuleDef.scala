@@ -19,7 +19,7 @@ class ModuleDef(
    val inputs:Map[String,AbstractModuleParameter],
    val outputs:Map[String,AbstractModuleParameter],
    val log:Map[String,String],
-   var run:List[AbstractModuleVal]
+   var exec:List[AbstractModuleVal]
  ){
 
   def getLastModificationDate(): Long ={
@@ -30,6 +30,11 @@ class ModuleDef(
   def getWd():String = {
     val file = new java.io.File(confFilePath)
     file.getParent
+  }
+
+  def toProcess() = {
+    val modval = new ModuleVal("",this,None)
+    modval.toProcess()
   }
 
   val lastModified = getLastModificationDate()
@@ -119,7 +124,7 @@ object ModuleDef extends LazyLogging{
       }
       case _ => throw new Exception("Module does not provide run information!")
     }
-    run
+    run.reverse
   }
 
   def initCMDInputs()={
@@ -137,7 +142,11 @@ object ModuleDef extends LazyLogging{
   def initMAPInputs()={
     var x = Map[String,AbstractModuleParameter]()
     x += ("IN"->new ModuleParameter[DIR]("DIR",None,None,None))
-    x += ("RUN"->new ModuleParameter[LIST[MODULE]]("MODULE+",None,None,None))
+    x += ("RUN"->new ModuleParameter[LIST[MODVAL]]("MODULE+",None,None,None))
+
+    val chunk_size = VAL()
+    chunk_size.parseYaml("20")
+    x += ("CHUNK_SIZE"->new ModuleParameter[VAL]("VAL",Some("Number of files to be processed in parallel"),None,None,Some(chunk_size)))
     x
   }
 
@@ -160,10 +169,13 @@ object ModuleDef extends LazyLogging{
     x
   }
 
-  val builtinmodules :List[String] = List("_CMD","_MAP","_FILTER")
+  val builtinmodules :List[String] = List("_CMD","_MAP","_FILTER","_ANONYMOUS")
 
 }
 
+class AnonymousDef(modulelist:List[AbstractModuleVal]) extends ModuleDef("/no/path","_ANONYMOUS","",Map[String,AbstractModuleParameter](),Map[String,AbstractModuleParameter](),Map[String,String](),modulelist){
+
+}
 
 object CMDDef extends ModuleDef("/no/path","_CMD","Built-in module that run a UNIX commad",ModuleDef.initCMDInputs(),ModuleDef.initCMDOutputs(),Map[String,String](),List[AbstractModuleVal]()){
 

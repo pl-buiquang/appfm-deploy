@@ -7,8 +7,7 @@ import java.util.function.BiConsumer
 import com.mongodb.casbah.commons.MongoDBObject
 import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.ModuleManager
-import fr.limsi.iles.cpm.module.value.{DIR, ModuleParameterVal}
-import fr.limsi.iles.cpm.module.value.{AbstractModuleVal, ModuleVal}
+import fr.limsi.iles.cpm.module.value._
 import fr.limsi.iles.cpm.utils.{ConfManager, DB}
 import org.yaml.snakeyaml.Yaml
 
@@ -20,6 +19,15 @@ object ProcessRunManager extends LazyLogging{
   val processCollection = DB.get("runids")
 
   var list : Set[UUID] = Set[UUID]()
+
+  def getStatus(uuid:String)={
+    val query = MongoDBObject("ruid"->uuid)
+    processCollection.findOne(query) match {
+      case Some(thing) => thing // retrieve process, retrieve status
+      case None => "no process found with that uuid"
+    }
+  }
+
 
   def newRun(modulename:String,conffile:String) :String = {
     var uuid = UUID.randomUUID()
@@ -34,7 +42,7 @@ object ProcessRunManager extends LazyLogging{
 
     }
 
-    var args = Map[String,ModuleParameterVal]()
+    var args = Map[String,AbstractParameterVal]()
     val yaml = new Yaml()
     val ios = new FileInputStream(conffile)
     val confMap = yaml.load(ios).asInstanceOf[java.util.Map[String,Any]]
@@ -68,13 +76,12 @@ object ProcessRunManager extends LazyLogging{
 
       val env = RunEnv.initFromConf(conffile)
       val resultdirval = DIR()
-      resultdirval.parseFromJavaYaml(runresultdir)
-      env.args += ("_RUN_WD" -> resultdirval)
+      resultdirval.parseYaml(runresultdir)
+      env.args += ("_RUN_DIR" -> resultdirval)
       val defdirval = DIR()
-      defdirval.parseFromJavaYaml(module.wd)
-      env.args += ("_DEF_WD" -> defdirval)
-      val mod = new ModuleVal("",module,AbstractModuleVal.initInputs(module),AbstractModuleVal.initOutputs(module))
-      val process = mod.toProcess()
+      defdirval.parseYaml(module.wd)
+      env.args += ("_DEF_DIR" -> defdirval)
+      val process = module.toProcess()
       process.run(env,"",None,false)
       env.args.foldLeft("")((toprint,elt) => {toprint+"\n"+elt._1+" = "+elt._2.asString()})
     }catch{

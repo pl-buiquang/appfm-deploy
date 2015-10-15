@@ -8,8 +8,8 @@ import org.yaml.snakeyaml.Yaml
 
 object ConfManager {
   val defaultDockerBaseImage = "base_cpm_shell"
-
-
+  val moduleDefinitionDirectory = "_DEF_DIR"
+  val runWorkingDirectory = "_RUN_DIR"
 
   var confMap : java.util.Map[String,Any] = null
   val defaultConfFile = "/conf.yml"

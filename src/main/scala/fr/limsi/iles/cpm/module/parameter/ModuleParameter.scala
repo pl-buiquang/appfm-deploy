@@ -10,29 +10,93 @@ import fr.limsi.iles.cpm.utils.{YamlElt, YamlList, YamlMap, YamlString}
 
 
 abstract class AbstractModuleParameter{
-  type T <: ModuleParameterVal
+  type T <: AbstractParameterVal
 
   var value : Option[T] = None
   var paramType : String
 
   def setVal(yaml:Any,theval:T)={
     value = Some(theval)
-    value.get.parseFromJavaYaml(yaml)
+    value.get.parseYaml(yaml)
   }
+
+  def createVal(): AbstractParameterVal
 }
 
-class ModuleParameter[U <: ModuleParameterVal](theparamType:String,val desc:Option[String],  val format:Option[String], val schema:Option[String], defaultval : Option[U]) extends AbstractModuleParameter{
+class ModuleParameter[U <: AbstractParameterVal](theparamType:String,val desc:Option[String],  val format:Option[String], val schema:Option[String], defaultval : Option[U])(implicit manifest: Manifest[U]) extends AbstractModuleParameter{
   override type T = U
   override var paramType: String = theparamType
   value = defaultval
 
-  def this(theparamType:String,desc:Option[String],format:Option[String],schema:Option[String]) = this(theparamType,desc,format,schema,None)
+  def this(theparamType:String,desc:Option[String],format:Option[String],schema:Option[String])(implicit manifest: Manifest[U]) = this(theparamType,desc,format,schema,None)
+
+  /* Problem with LIST[T] , T is lost and newInstance fail on instancing a LIST without parameters
+  override def createVal(): U = {
+      manifest.runtimeClass.newInstance().asInstanceOf[U]
+  }*/
+  override def createVal() : AbstractParameterVal ={
+    """(\w+)\s*(\+|\*)?""".r.findFirstMatchIn(paramType) match {
+      case Some(matched) => {
+        matched.group(2) match {
+          case arity:String => {
+            matched.group(1) match {
+              case "VAL" => LIST[VAL]()
+              case "FILE" => LIST[FILE]()
+              case "DIR" => LIST[DIR]()
+              case "CORPUS" => LIST[CORPUS]()
+              case "MODULE" => LIST[MODVAL]()
+              case _ => throw new Exception("unknown type \""+paramType+"\"")
+            }
+          }
+          case _ => {
+            matched.group(1) match {
+              case "VAL" => VAL()
+              case "FILE" => FILE()
+              case "DIR" => DIR()
+              case "CORPUS" => CORPUS()
+              case "MODULE" => MODVAL()
+              case _ => throw new Exception("unknown type \"" + paramType + "\"")
+            }
+          }
+        }
+      }
+      case None => throw new Exception("unknown type \""+paramType+"\"")
+    }
+  }
 }
 
 object AbstractModuleParameter{
+  def createVal(typestr:String) : AbstractParameterVal ={
+    """(\w+)\s*(\+|\*)?""".r.findFirstMatchIn(typestr) match {
+      case Some(matched) => {
+        matched.group(2) match {
+          case arity:String => {
+            matched.group(1) match {
+              case "VAL" => LIST[VAL]()
+              case "FILE" => LIST[FILE]()
+              case "DIR" => LIST[DIR]()
+              case "CORPUS" => LIST[CORPUS]()
+              case "MODULE" => LIST[MODVAL]()
+              case _ => throw new Exception("unknown type \""+typestr+"\"")
+            }
+          }
+          case _ => {
+            matched.group(1) match {
+              case "VAL" => VAL()
+              case "FILE" => FILE()
+              case "DIR" => DIR()
+              case "CORPUS" => CORPUS()
+              case "MODULE" => MODVAL()
+              case _ => throw new Exception("unknown type \"" + typestr + "\"")
+            }
+          }
+        }
+      }
+      case None => throw new Exception("unknown type \""+typestr+"\"")
+    }
+  }
 
-
-  def createVal[T <: ModuleParameterVal](
+  def createParam[T <: AbstractParameterVal](
       name : String,
       paramdef:java.util.HashMap[String,Any],
       type_ :Option[String],
@@ -67,21 +131,21 @@ object AbstractModuleParameter{
             matched.group(2) match {
               case arity:String => {
                 matched.group(1) match {
-                  case "VAL" => AbstractModuleParameter.createVal[LIST[VAL]](name,paramdef,type_,encoding,desc,format,schema,requireValue)
-                  case "FILE" => AbstractModuleParameter.createVal[LIST[FILE]](name,paramdef,type_,encoding,desc,format,schema,requireValue)
-                  case "DIR" => AbstractModuleParameter.createVal[LIST[DIR]](name,paramdef,type_,encoding,desc,format,schema,requireValue)
-                  case "CORPUS" => AbstractModuleParameter.createVal[LIST[CORPUS]](name,paramdef,type_,encoding,desc,format,schema,requireValue)
-                  case "MODULE" => AbstractModuleParameter.createVal[LIST[MODULE]](name,paramdef,type_,encoding,desc,format,schema,requireValue)
+                  case "VAL" => AbstractModuleParameter.createParam[LIST[VAL]](name,paramdef,type_,encoding,desc,format,schema,requireValue)
+                  case "FILE" => AbstractModuleParameter.createParam[LIST[FILE]](name,paramdef,type_,encoding,desc,format,schema,requireValue)
+                  case "DIR" => AbstractModuleParameter.createParam[LIST[DIR]](name,paramdef,type_,encoding,desc,format,schema,requireValue)
+                  case "CORPUS" => AbstractModuleParameter.createParam[LIST[CORPUS]](name,paramdef,type_,encoding,desc,format,schema,requireValue)
+                  case "MODULE" => AbstractModuleParameter.createParam[LIST[MODVAL]](name,paramdef,type_,encoding,desc,format,schema,requireValue)
                   case _ => throw new Exception("unknown type for input \""+name+"\"")
                 }
               }
               case _ => {
                 matched.group(1) match {
-                  case "VAL" => AbstractModuleParameter.createVal[VAL](name, paramdef, type_, encoding, desc, format, schema, requireValue)
-                  case "FILE" => AbstractModuleParameter.createVal[FILE](name, paramdef, type_, encoding, desc, format, schema, requireValue)
-                  case "DIR" => AbstractModuleParameter.createVal[DIR](name, paramdef, type_, encoding, desc, format, schema, requireValue)
-                  case "CORPUS" => AbstractModuleParameter.createVal[CORPUS](name, paramdef, type_, encoding, desc, format, schema, requireValue)
-                  case "MODULE" => AbstractModuleParameter.createVal[MODULE](name, paramdef, type_, encoding, desc, format, schema, requireValue)
+                  case "VAL" => AbstractModuleParameter.createParam[VAL](name, paramdef, type_, encoding, desc, format, schema, requireValue)
+                  case "FILE" => AbstractModuleParameter.createParam[FILE](name, paramdef, type_, encoding, desc, format, schema, requireValue)
+                  case "DIR" => AbstractModuleParameter.createParam[DIR](name, paramdef, type_, encoding, desc, format, schema, requireValue)
+                  case "CORPUS" => AbstractModuleParameter.createParam[CORPUS](name, paramdef, type_, encoding, desc, format, schema, requireValue)
+                  case "MODULE" => AbstractModuleParameter.createParam[MODVAL](name, paramdef, type_, encoding, desc, format, schema, requireValue)
                   case _ => throw new Exception("unknown type for input \"" + name + "\"")
                 }
               }

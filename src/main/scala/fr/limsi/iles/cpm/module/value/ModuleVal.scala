@@ -12,11 +12,11 @@ import fr.limsi.iles.cpm.utils.{YamlMap, YamlElt}
  */
 
 
-abstract class AbstractModuleVal(val inputs:Map[String,ModuleParameterVal],val outputs:Map[String,String]) extends LazyLogging{
+abstract class AbstractModuleVal(val moduledef:ModuleDef,conf:Option[java.util.Map[String,Any]]) extends LazyLogging{
   val namespace:String
-  val moduledef : ModuleDef
+  val inputs:Map[String,AbstractParameterVal] = AbstractModuleVal.initInputs(moduledef,conf)
 
-  def toProcess():AProcess
+  def toProcess():AbstractProcess
 }
 
 
@@ -29,10 +29,10 @@ object AbstractModuleVal{
           throw new Exception("Module run item error")
         }
         val runitemname = moduleval.keySet().iterator().next()
-        val cmdmatch = """((?:\w|-)+)(\.(\w+))?""".r.findFirstMatchIn(runitemname)
+        val cmdmatch = """((?:\w|-)+:)?((?:\w|-)+)""".r.findFirstMatchIn(runitemname)
         val modulename = cmdmatch match {
           case Some(result) => {
-            result.group(1)
+            result.group(2)
           }
           case None => {
             throw new Exception("Error parsing module value name")
@@ -59,8 +59,7 @@ object AbstractModuleVal{
             ModuleVal(
               runitemname,
               modulevaldef,
-              AbstractModuleVal.initInputs(modulevaldef, inputs),
-              AbstractModuleVal.initOutputs(modulevaldef,outputs)
+              Some(inputs)
             )
           }else{
             throw new Exception("required module inputs are not all set for module "+modulename)
@@ -80,10 +79,10 @@ object AbstractModuleVal{
           }
           modulename match {
             case "_CMD" => {
-              CMDVal(runitemname,AbstractModuleVal.initInputs(CMDDef,inputs),AbstractModuleVal.initOutputs(CMDDef,outputs))
+              CMDVal(runitemname,Some(inputs))
             }
             case "_MAP" => {
-              MAPVal(runitemname,AbstractModuleVal.initInputs(MAPDef,inputs),AbstractModuleVal.initOutputs(MAPDef,outputs))
+              MAPVal(runitemname,Some(inputs))
             }
             case _ => throw new Exception("unknown run module item")
           }
@@ -93,33 +92,29 @@ object AbstractModuleVal{
     }
   }
 
+  def initInputs(definition:ModuleDef,conf:Option[java.util.Map[String,Any]]) :Map[String,AbstractParameterVal] ={
+    conf match {
+      case Some(yaml) => initInputs(definition,yaml)
+      case None => initInputs(definition)
+    }
+  }
 
-  def initInputs(definition:ModuleDef,conf:java.util.Map[String,Any])={
-    var inputs = Map[String,ModuleParameterVal]()
+  def initInputs(definition:ModuleDef,conf:java.util.Map[String,Any]) :Map[String,AbstractParameterVal]={
+    var inputs = Map[String,AbstractParameterVal]()
     val paramnames = conf.keySet()
     val it = paramnames.iterator()
     while(it.hasNext){
       val paramname = it.next()
-      val value = definition.inputs(paramname).paramType match {
-        case "VAL" => VAL()
-        case "DIR" => DIR()
-        case "FILE" => FILE()
-        case "CORPUS" => CORPUS()
-        case "LIST" => LIST[VAL]()
-        case "MODULE+" => LIST[MODULE]()
-      }
-      value.parseFromJavaYaml(conf.get(paramname))
+      val value = definition.inputs(paramname).createVal()
+      value.parseYaml(conf.get(paramname))
       inputs += (paramname -> value)
     }
     inputs
   }
 
-  def initOutputs(definition:ModuleDef,conf:java.util.Map[String,Any])={
-    Map[String,String]()
-  }
 
-  def initInputs(definition:ModuleDef)={
-    var x = Map[String,ModuleParameterVal]()
+  def initInputs(definition:ModuleDef):Map[String,AbstractParameterVal]={
+    var x = Map[String,AbstractParameterVal]()
     definition.inputs.map(in => {
       val value = in._2.paramType match {
         case "VAL" => VAL()
@@ -128,43 +123,35 @@ object AbstractModuleVal{
         case "CORPUS" => CORPUS()
         case "LIST" => LIST()
       }
-      value.parseFromJavaYaml("$"+in._1)
+      value.parseYaml("$"+in._1)
       x += (in._1 -> value)
     })
     x
   }
 
-  def initOutputs(definition:ModuleDef)={
-    var x = Map[String,String]()
-    definition.outputs.map(out => {
-      x += (out._1 -> out._1)
-    })
-    x
-  }
-
 }
 
 
-case class ModuleVal(override val namespace:String,override val moduledef:ModuleDef,ainputs:Map[String,ModuleParameterVal],aoutputs:Map[String,String]) extends AbstractModuleVal(ainputs,aoutputs){
-  override def toProcess(): AProcess = {
+
+case class ModuleVal(override val namespace:String,override val moduledef:ModuleDef,conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(moduledef,conf){
+
+  override def toProcess(): AbstractProcess = {
     new ModuleProcess(this)
   }
 }
 
 
-case class CMDVal(override val namespace:String ,ainputs:Map[String,ModuleParameterVal],aoutputs:Map[String,String]) extends AbstractModuleVal(ainputs,aoutputs) {
-  override val moduledef = CMDDef
+case class CMDVal(override val namespace:String,conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(CMDDef,conf){
 
-  override def toProcess(): AProcess = {
+  override def toProcess(): AbstractProcess = {
     new CMDProcess(this)
   }
 
 }
 
-case class MAPVal(override val namespace:String ,ainputs:Map[String,ModuleParameterVal],aoutputs:Map[String,String]) extends AbstractModuleVal(ainputs,aoutputs) {
-  override val moduledef = MAPDef
+case class MAPVal(override val namespace:String,conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(MAPDef,conf){
 
-  override def toProcess(): AProcess = {
+  override def toProcess(): AbstractProcess = {
     new MAPProcess(this)
   }
 

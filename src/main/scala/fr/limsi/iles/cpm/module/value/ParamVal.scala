@@ -9,11 +9,29 @@ import fr.limsi.iles.cpm.utils.{YamlMap, YamlString, YamlList, YamlElt}
 
 import scala.collection
 
+/**
+ * Abstract base class for param typed values
+ * Primitive types are :
+ * VAL
+ * FILE
+ * DIR
+ * CORPUS
+ * Container types are :
+ * MAP
+ * LIST
+ */
+sealed abstract class AbstractParameterVal{
+  type MyType <: AbstractParameterVal
+  var yamlVal : Any = _
+  val _mytype : String
 
-sealed abstract class ModuleParameterVal{
-
-  def parseFromJavaYaml(yaml:Any):Unit
+  def fromYaml(yaml:Any):Unit = {
+    yamlVal = yaml
+    parseYaml(yaml)
+  }
+  def parseYaml(yaml:Any):Unit
   def asString():String
+  override def toString()=asString()
 
   def extractVariables() : Array[String]={
     val value = asString()
@@ -35,11 +53,14 @@ sealed abstract class ModuleParameterVal{
     vars
   }
 
-  def getAttr(attrName:String):ModuleParameterVal
+  def getAttr(attrName:String):AbstractParameterVal
 
+  def newEmpty():AbstractParameterVal={
+    AbstractModuleParameter.createVal(_mytype)
+  }
 }
 
-object ModuleParameterVal{
+object AbstractParameterVal{
   /*implicit def stringToVAL(stringval:String):ModuleParameterVal={
     val x = VAL()
     x.parseFromJavaYaml(stringval)
@@ -51,11 +72,13 @@ object ModuleParameterVal{
 /**
  * VAL are string value, they may be internally stored to save the result of a run but are passed as a full string value
  */
-case class VAL() extends ModuleParameterVal {
+case class VAL() extends AbstractParameterVal {
   var rawValue : String = _
   var resolvedValue : String = _
+  override val _mytype = "VAL"
 
-  override def parseFromJavaYaml(yaml: Any): Unit = {
+
+  override def parseYaml(yaml: Any): Unit = {
     if(yaml == null){
       return
     }
@@ -67,22 +90,26 @@ case class VAL() extends ModuleParameterVal {
   }
 
   override def asString()={
-    rawValue
+    this.rawValue
   }
 
-  override def getAttr(attrName: String): ModuleParameterVal = {
+  override def getAttr(attrName: String): AbstractParameterVal = {
     throw new Exception("VAL doesn't have any attributes")
   }
 }
 
 
-
-
-
-case class DIR() extends ModuleParameterVal {
+/**
+ * FILE are representated by their file path
+ * they display the following properties :
+ * - basename : the name of the file without last extension
+ * - dirname : the name of its directory
+ */
+case class FILE() extends AbstractParameterVal {
   var rawValue : String = _
+  override val _mytype = "FILE"
 
-  override def parseFromJavaYaml(yaml: Any): Unit = {
+  override def parseYaml(yaml: Any): Unit = {
     val value = YamlElt.readAs[String](yaml)
     rawValue = value match {
       case Some(theval) => theval
@@ -94,12 +121,61 @@ case class DIR() extends ModuleParameterVal {
     rawValue
   }
 
-  override def getAttr(attrName: String): ModuleParameterVal = {
+  override def getAttr(attrName: String): AbstractParameterVal = {
+    attrName match {
+      case "basename" => {
+        val file = new java.io.File(rawValue)
+        val extensionIndex = file.getName.lastIndexOf(".")
+        if(extensionIndex != -1){
+          val x = new VAL()
+          x.parseYaml(file.getName.substring(0,extensionIndex))
+          x
+        }else{
+          val x = new VAL()
+          x.parseYaml(file.getName)
+          x
+        }
+      }
+      case "filename" => {
+        val x = new VAL()
+        val file = new java.io.File(rawValue)
+        x.parseYaml(file.getName)
+        x
+      }
+      case "basedir" => {
+        val x = new DIR()
+        val file = new java.io.File(rawValue)
+        x.parseYaml(file.getParent)
+        x
+      }
+    }
+  }
+}
+
+
+
+case class DIR() extends AbstractParameterVal {
+  var rawValue : String = _
+  override val _mytype = "DIR"
+
+  override def parseYaml(yaml: Any): Unit = {
+    val value = YamlElt.readAs[String](yaml)
+    rawValue = value match {
+      case Some(theval) => theval
+      case None => "Error reading val value (should be a string)"
+    }
+  }
+
+  override def asString()={
+    rawValue
+  }
+
+  override def getAttr(attrName: String): AbstractParameterVal = {
     attrName match {
       case "ls" => {
         val x = new LIST[FILE]()
         val file = new java.io.File(rawValue)
-        x.parseFromJavaYaml(file.listFiles().foldLeft("")((str,thefile)=>{
+        x.parseYaml(file.listFiles().foldLeft("")((str,thefile)=>{
           if(thefile.isFile)
             str + " " + thefile.getCanonicalPath
           else
@@ -121,7 +197,7 @@ case class DIR() extends ModuleParameterVal {
             }
           })
         }
-        x.parseFromJavaYaml(recListFiles(file))
+        x.parseYaml(recListFiles(file))
         x
       }
     }
@@ -134,8 +210,9 @@ case class DIR() extends ModuleParameterVal {
  * it displays the following properties :
  * - list : the list of file contained in the corpus/directory
  */
-case class CORPUS() extends ModuleParameterVal {
-  override def parseFromJavaYaml(yaml: Any): Unit = {
+case class CORPUS() extends AbstractParameterVal {
+  override val _mytype = "CORPUS"
+  override def parseYaml(yaml: Any): Unit = {
 
   }
 
@@ -143,10 +220,32 @@ case class CORPUS() extends ModuleParameterVal {
     "the corpus root dir path"
   }
 
-  override def getAttr(attrName: String): ModuleParameterVal = {
+  override def getAttr(attrName: String): AbstractParameterVal = {
     throw new Exception("VAL doesn't have any attributes")
   }
 }
+
+/**
+ * MODULE is a ModuleVal represented by its yaml instanciation
+ */
+case class MODVAL() extends AbstractParameterVal{
+  override val _mytype = "MODVAL"
+  var moduleval : AbstractModuleVal = _
+
+  override def parseYaml(yaml: Any): Unit = {
+    moduleval = AbstractModuleVal.fromConf(yaml)
+  }
+
+  override def asString()={
+    "yaml string definition"
+  }
+
+
+  override def getAttr(attrName: String): AbstractParameterVal = {
+    throw new Exception("VAL doesn't have any attributes")
+  }
+}
+
 
 /**
  * LIST is a list of other paramval
@@ -155,31 +254,34 @@ case class CORPUS() extends ModuleParameterVal {
  * - CORPUS/FILE : path separated by spaces
  * - MODULE : the yaml list of yaml moduleval instanciation
  */
-case class LIST[P <: ModuleParameterVal](implicit manifest: Manifest[P]) extends ModuleParameterVal {
-  var list : Seq[P] = _
+case class LIST[P <: AbstractParameterVal](implicit manifest: Manifest[P]) extends AbstractParameterVal {
+  override val _mytype = {
+    manifest.runtimeClass.getCanonicalName+"*"
+  }
+  var list : List[P] = _
 
   def make: P = manifest.runtimeClass.newInstance.asInstanceOf[P]
 
-  override def parseFromJavaYaml(yaml: Any): Unit = {
+  override def parseYaml(yaml: Any): Unit = {
 
     list = YamlElt.fromJava(yaml) match {
       case YamlList(list) => {
-        var thelist :Seq[P]= Seq[P]()
+        var thelist :List[P]= List[P]()
         list.forEach(new Consumer[Any]() {
 
           override def accept(t: Any): Unit = {
             val el : P = make
-            el.parseFromJavaYaml(t)
+            el.parseYaml(t)
             thelist = thelist :+ el
           }
         })
         thelist
       }
       case YamlString(implicitlist) => {
-        var thelist :Seq[P]= Seq[P]()
+        var thelist :List[P]= List[P]()
         implicitlist.split("\\s+").foreach(t => {
           val el: P = make
-          el.parseFromJavaYaml(t)
+          el.parseYaml(t)
           thelist = thelist :+ el
         })
         thelist
@@ -196,94 +298,24 @@ case class LIST[P <: ModuleParameterVal](implicit manifest: Manifest[P]) extends
     })
   }
 
-  override def getAttr(attrName: String): ModuleParameterVal = {
+  override def getAttr(attrName: String): AbstractParameterVal = {
     throw new Exception("VAL doesn't have any attributes")
   }
 }
 
-case class MAP() extends ModuleParameterVal{
-  var map : Map[String,ModuleParameterVal] = Map[String,ModuleParameterVal]()
+case class MAP() extends AbstractParameterVal{
+  override val _mytype = "MAP"
+  var map : Map[String,AbstractParameterVal] = Map[String,AbstractParameterVal]()
 
-  override def parseFromJavaYaml(yaml: Any): Unit = {
-      
+  override def parseYaml(yaml: Any): Unit = {
+
   }
 
   override def asString(): String = {
     "???"
   }
 
-  override def getAttr(attrName: String): ModuleParameterVal = ???
+  override def getAttr(attrName: String): AbstractParameterVal = ???
 }
 
 
-/**
- * MODULE is a ModuleVal represented by its yaml instanciation
- */
-case class MODULE() extends ModuleParameterVal{
-  var moduleval : AbstractModuleVal = _
-
-  override def parseFromJavaYaml(yaml: Any): Unit = {
-    moduleval = AbstractModuleVal.fromConf(yaml)
-  }
-
-  override def asString()={
-    "yaml string definition"
-  }
-
-
-  override def getAttr(attrName: String): ModuleParameterVal = {
-    throw new Exception("VAL doesn't have any attributes")
-  }
-}
-
-/**
-  * FILE are representated by their file path
-  * they display the following properties :
-  * - basename : the name of the file without last extension
-  * - dirname : the name of its directory
-  */
-case class FILE() extends ModuleParameterVal {
-   var rawValue : String = _
-
-   override def parseFromJavaYaml(yaml: Any): Unit = {
-     val value = YamlElt.readAs[String](yaml)
-     rawValue = value match {
-       case Some(theval) => theval
-       case None => "Error reading val value (should be a string)"
-     }
-   }
-
-   override def asString()={
-     rawValue
-   }
-
-   override def getAttr(attrName: String): ModuleParameterVal = {
-     attrName match {
-       case "basename" => {
-         val file = new java.io.File(rawValue)
-         val extensionIndex = file.getName.lastIndexOf(".")
-         if(extensionIndex != -1){
-           val x = new VAL()
-           x.parseFromJavaYaml(file.getName.substring(0,extensionIndex))
-           x
-         }else{
-           val x = new VAL()
-           x.parseFromJavaYaml(file.getName)
-           x
-         }
-       }
-       case "filename" => {
-         val x = new VAL()
-         val file = new java.io.File(rawValue)
-         x.parseFromJavaYaml(file.getName)
-         x
-       }
-       case "basedir" => {
-         val x = new DIR()
-         val file = new java.io.File(rawValue)
-         x.parseFromJavaYaml(file.getParent)
-         x
-       }
-     }
-   }
- }

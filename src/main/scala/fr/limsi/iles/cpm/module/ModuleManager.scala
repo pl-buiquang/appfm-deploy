@@ -89,7 +89,7 @@ object ModuleManager extends LazyLogging{
         case None => modules += (modulename -> module)
       }
     }catch{
-      case e: Throwable => logger.error("Wrong module defintion in "+moduleConfFile.getCanonicalPath+"\n"+e.getMessage)
+      case e: Throwable => logger.error("Wrong module defintion in "+moduleConfFile.getCanonicalPath+"\n"+e.getMessage+"\n This module will not be registered.")
     }
   }
 

@@ -15,8 +15,14 @@ refactor RunEnv args (MAP) + resolve var , etc.
 
 
 
+---------
+
+refactor Moduledef (initinputs/outpus class methods overriden in builtin modules objects)
 
 
+----------
+
+shared object / global/run/module mutable variable (db, var, file, dir, ...)
 
 
 

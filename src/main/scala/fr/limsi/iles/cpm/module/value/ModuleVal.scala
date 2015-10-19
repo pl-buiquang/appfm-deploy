@@ -20,7 +20,7 @@ abstract class AbstractModuleVal(val moduledef:ModuleDef,conf:Option[java.util.M
 }
 
 
-object AbstractModuleVal{
+object AbstractModuleVal extends LazyLogging{
 
   def fromConf(yaml:Any) : AbstractModuleVal= {
     YamlElt.fromJava(yaml) match {
@@ -101,14 +101,30 @@ object AbstractModuleVal{
 
   def initInputs(definition:ModuleDef,conf:java.util.Map[String,Any]) :Map[String,AbstractParameterVal]={
     var inputs = Map[String,AbstractParameterVal]()
+    definition.inputs.map(in => {
+      val value = in._2.createVal()
+      if(conf.containsKey(in._1)){
+        value.fromYaml(conf.get(in._1))
+      }else if(!in._2.value.isEmpty){
+        value.fromYaml(in._2.value.get.asString())
+      }else{
+        throw new Exception("missing input value")
+      }
+      inputs += (in._1 -> value)
+    })
+/*
     val paramnames = conf.keySet()
     val it = paramnames.iterator()
     while(it.hasNext){
       val paramname = it.next()
-      val value = definition.inputs(paramname).createVal()
-      value.parseYaml(conf.get(paramname))
-      inputs += (paramname -> value)
-    }
+      if(!definition.inputs.contains(paramname)){
+        logger.warn("Warning, "+definition.name+" moduledef does not contain this input "+paramname)
+      }else{
+        val value = definition.inputs(paramname).createVal()
+        value.parseYaml(conf.get(paramname))
+        inputs += (paramname -> value)
+      }
+    }*/
     inputs
   }
 

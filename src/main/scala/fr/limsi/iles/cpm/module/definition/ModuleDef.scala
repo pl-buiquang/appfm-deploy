@@ -41,6 +41,8 @@ class ModuleDef(
 
   val wd = getWd()
 
+
+
 }
 
 
@@ -130,6 +132,9 @@ object ModuleDef extends LazyLogging{
   def initCMDInputs()={
     var x = Map[String,AbstractModuleParameter]()
     x += ("CMD"->new ModuleParameter[VAL]("VAL",None,None,None))
+    val dockerfiledefault = FILE()
+    dockerfiledefault.parseYaml(ConfManager.defaultDockerBaseImage)
+    x += ("DOCKERFILE"->new ModuleParameter[FILE]("FILE",None,None,None,Some(dockerfiledefault)))
     x
   }
 

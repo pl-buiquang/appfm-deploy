@@ -8,6 +8,7 @@ import fr.limsi.iles.cpm.module.definition.{AnonymousDef, ModuleDef}
 import fr.limsi.iles.cpm.module.value.{DIR, VAL, AbstractParameterVal}
 import fr.limsi.iles.cpm.module.value._
 import fr.limsi.iles.cpm.server.Server
+import fr.limsi.iles.cpm.utils.ConfManager
 import org.zeromq.ZMQ
 
 import scala.reflect.io.File
@@ -136,6 +137,18 @@ abstract class AbstractProcess() extends LazyLogging{
     }
     newargs += ("_DEF_DIR" -> defdir)
 
+    val (mod_context,cur_mod) = if(ModuleDef.builtinmodules.contains(moduleval.moduledef.name)){
+      val x = VAL()
+      x.parseYaml("_MAIN")
+      (parentRunEnv.args.getOrElse("_MOD_CONTEXT",x),parentRunEnv.args.getOrElse("_MOD_CONTEXT",x))
+    }else{
+      val x = VAL()
+      x.parseYaml(moduleval.moduledef.name)
+      (parentRunEnv.args.getOrElse("_CUR_MOD",x),x)
+    }
+    newargs += ("_MOD_CONTEXT" -> mod_context)
+    newargs += ("_CUR_MOD" -> cur_mod)
+
 
     moduleval.inputs.foreach(input=>{
       logger.info("Looking in parent env for "+input._1+" of type "+input._2.getClass.toGenericString+" with value to resolve : "+input._2.asString())
@@ -147,7 +160,7 @@ abstract class AbstractProcess() extends LazyLogging{
         }
       })
       if(ready){
-
+        logger.info("Found")
         variables.foreach(variable => {
           val value = if(moduleval.moduledef.inputs.contains(variable)){
             moduleval.moduledef.inputs(variable).createVal()
@@ -160,11 +173,12 @@ abstract class AbstractProcess() extends LazyLogging{
       }
     });
 
+    // done in moduleval initialization
     moduleval.moduledef.inputs.filter(input => {
       !input._2.value.isEmpty && !newargs.contains(input._1)
     }).foreach(input => {
       logger.info("Adding default value for "+input._1)
-      val value = input._2.createVal()
+      val value = input._2.createVal() //val value = moduleval.inputs(input._1) //
       value.parseYaml(parentRunEnv.resolveValueToString(input._2.value.get.asString()))
       newargs += (input._1 -> value)
     })
@@ -339,7 +353,21 @@ class CMDProcess(override val moduleval:CMDVal) extends AbstractProcess{
     var stdout = ""
     val wd = env.args("_DEF_DIR").asString()
     val folder = new java.io.File(wd)
-    DockerManager.baseRun(moduleval.namespace,"localhost",parentPort.get,env.resolveValueToString(moduleval.inputs("CMD").asString()),folder)
+
+    val dockerimage = {
+      env.resolveValueToString(moduleval.inputs("DOCKERFILE").asString()) match {
+        case ConfManager.defaultDockerBaseImage => ConfManager.defaultDockerBaseImage
+        case x :String => {
+          val name = (env.args("_MOD_CONTEXT").asString()+"_"+moduleval.inputs("DOCKERFILE").getAttr("basename")).toLowerCase
+          if(!DockerManager.exist(name)){
+            DockerManager.build(name,x)
+          }
+          name
+        }
+        case _ =>  ConfManager.defaultDockerBaseImage
+      }
+    }
+    DockerManager.run(moduleval.namespace,"localhost",parentPort.get,env.resolveValueToString(moduleval.inputs("CMD").asString()),folder,dockerimage)
     //Process(env.resolveVars(moduleval.inputs("CMD").asString()),new java.io.File(wd)) ! ProcessLogger(line => stdout+="\n"+line,line=>stderr+="\n"+line)
     stdoutval.rawValue = stdout
     stdoutval.resolvedValue = stdout

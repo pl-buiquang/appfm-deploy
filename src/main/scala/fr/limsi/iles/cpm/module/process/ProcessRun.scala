@@ -3,6 +3,7 @@ package fr.limsi.iles.cpm.module.process
 import java.util.UUID
 import java.util.concurrent.Executors
 
+import com.mongodb.casbah.commons.MongoDBObject
 import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.definition.{AnonymousDef, ModuleDef}
 import fr.limsi.iles.cpm.module.value.{DIR, VAL, AbstractParameterVal}
@@ -24,7 +25,7 @@ case class Waiting() extends ProcessStatus
 /**
  * Created by buiquang on 9/30/15.
  */
-abstract class AbstractProcess() extends LazyLogging{
+abstract class AbstractProcess(val parentProcess:Option[AbstractProcess]) extends LazyLogging{
   val id = UUID.randomUUID()
   var parentEnv : RunEnv = null
   var env : RunEnv = null
@@ -55,6 +56,10 @@ abstract class AbstractProcess() extends LazyLogging{
       case Exited(errorcode) => throw new Exception("Process already run and exited with status code "+errorcode)
     }
     logger.info("Executing "+moduleval.moduledef.name)
+
+    // save process to db
+    ProcessRunManager.list += (id -> this)
+    this.saveStateToDB()
 
     resultnamespace = ns
     // init runenv from parent env
@@ -215,6 +220,11 @@ abstract class AbstractProcess() extends LazyLogging{
     // set outputs value to env
     updateParentEnv()
 
+
+    status = Exited("0")
+    ProcessRunManager.list -= id
+    saveStateToDB()
+
     socket match {
       case Some(sock) => {
         logger.debug("Sending completion signal")
@@ -225,6 +235,18 @@ abstract class AbstractProcess() extends LazyLogging{
       }
     }
 
+  }
+
+  private def serializeToMongoObject : MongoDBObject = {
+    val obj = MongoDBObject("ruid" -> id.toString,"def" -> moduleval.moduledef.confFilePath)
+    new MongoDBObject()
+  }
+
+
+  def saveStateToDB() : Boolean = {
+    val result = ProcessRunManager.processCollection.insert(this.serializeToMongoObject)
+    // TODO check if everything went fine
+    true
   }
 }
 
@@ -256,7 +278,7 @@ object AbstractProcess{
 
 
 
-class ModuleProcess(override val moduleval:ModuleVal) extends AbstractProcess{
+class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:Option[AbstractProcess]) extends AbstractProcess(parentProcess){
   var runningModules = Map[String,AbstractProcess]()
   var completedModules = Map[String,AbstractProcess]()
 
@@ -309,7 +331,7 @@ class ModuleProcess(override val moduleval:ModuleVal) extends AbstractProcess{
     });
     runnableModules.foreach(module => {
       logger.debug("Launching "+module.moduledef.name)
-      val process = module.toProcess()
+      val process = module.toProcess(Some(this))
       runningModules += (module.namespace -> process)
       process.run(env,moduleval.moduledef.name,Some(processPort),true) // not top level modules (called by cpm cli) always run demonized
     })
@@ -341,7 +363,7 @@ class ModuleProcess(override val moduleval:ModuleVal) extends AbstractProcess{
 }
 
 
-class CMDProcess(override val moduleval:CMDVal) extends AbstractProcess{
+class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option[AbstractProcess]) extends AbstractProcess(parentProcess){
   var stdoutval : VAL = VAL()
   var stderrval : VAL = VAL()
   var run = false
@@ -396,7 +418,7 @@ class CMDProcess(override val moduleval:CMDVal) extends AbstractProcess{
   }
 }
 
-class MAPProcess(override val moduleval:MAPVal) extends AbstractProcess{
+class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option[AbstractProcess]) extends AbstractProcess(parentProcess){
   val dir = new java.io.File(env.resolveValueToString(moduleval.inputs("IN").asString()))
   var chunksize = Integer.valueOf(env.resolveValueToString(moduleval.inputs("CHUNK_SIZE").asString()))
   val modules : List[AbstractModuleVal] = paramToScalaListModval(moduleval.inputs("RUN").asInstanceOf[LIST[MODVAL]])
@@ -445,7 +467,7 @@ class MAPProcess(override val moduleval:MAPVal) extends AbstractProcess{
       x.parseYaml(file.getCanonicalPath)
       newenv.args += ("_" -> x)
       val module = new AnonymousDef(modules)
-      val process = module.toProcess()
+      val process = module.toProcess(Some(this))
       process.run(newenv,moduleval.namespace,Some(processPort),true)
     })
   }

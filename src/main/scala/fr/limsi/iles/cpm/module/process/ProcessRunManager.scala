@@ -8,7 +8,7 @@ import com.mongodb.casbah.commons.MongoDBObject
 import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.ModuleManager
 import fr.limsi.iles.cpm.module.value._
-import fr.limsi.iles.cpm.utils.{ConfManager, DB}
+import fr.limsi.iles.cpm.utils.{YamlElt, ConfManager, DB}
 import org.yaml.snakeyaml.Yaml
 
 /**
@@ -18,7 +18,7 @@ object ProcessRunManager extends LazyLogging{
 
   val processCollection = DB.get("runids")
 
-  var list : Set[UUID] = Set[UUID]()
+  var list : Map[UUID,AbstractProcess] = Map[UUID,AbstractProcess]()
 
   def getStatus(uuid:String)={
     val query = MongoDBObject("ruid"->uuid)
@@ -29,28 +29,37 @@ object ProcessRunManager extends LazyLogging{
   }
 
 
-  def newRun(modulename:String,conffile:String) :String = {
-    var uuid = UUID.randomUUID()
-    while(list.contains(uuid)){
-      uuid = UUID.randomUUID()
-    }
+  def streamStatus(uuid:String) = {
 
+  }
+
+
+
+
+  def newRun(modulename:String,conffile:String) :String = {
+    /*
     val it = processCollection.find()
     while(it.hasNext){
       val el = it.next()
       logger.info(el.get("ruid").toString)
 
+    }*/
+    if(ModuleManager.modules.contains(modulename)){
+      return "no module named "+modulename+" found!"
     }
+    // fetching module definition
+    val module = ModuleManager.modules(modulename)
 
+    // fetching configuration file for current run
     var args = Map[String,AbstractParameterVal]()
     val yaml = new Yaml()
     val ios = new FileInputStream(conffile)
     val confMap = yaml.load(ios).asInstanceOf[java.util.Map[String,Any]]
-    /*val resultdirpath = YamlElt.readAs[java.util.HashMap[String,String]](confMap) match {
+    val resultdirpath = YamlElt.readAs[java.util.HashMap[String,String]](confMap) match {
       case Some(map) => {
         map.get("RESULT_DIR") match {
           case x:String => x
-          case _ => throw new Exception("missing RESULT_DIR value")
+          case _ => ConfManager.get("default_result_dir").toString+"/"+modulename
         }
       }
       case None => {
@@ -58,35 +67,39 @@ object ProcessRunManager extends LazyLogging{
       }
     }
 
-    logger.debug("attempting to create result dir in "+resultdirpath)*/
-    val resultdirpath = ConfManager.get("default_result_dir").toString+"/"+modulename
+
+    // check if similar run exist (=> same modulename + same configuration settings), ask to overwrite/continue(if exist and paused)/create new result folder
+    /*
+    val query = MongoDBObject("def"->module.confFilePath)
+    processCollection.findOne(query) match {
+      case Some(thing) => logger.debug(thing.get("ruid").toString)
+      case None => logger.debug("creating new base result dir")
+    }*/
+
+    // create process object
+    val process = module.toProcess(None)
+    val uuid = process.id
+
+    // creating base run result dir
     val runresultdir = createRunResultDir(resultdirpath,uuid)
 
-    try{
-      val module = ModuleManager.modules(modulename)
+    // setting run environment from conf and default variables
+    val env = RunEnv.initFromConf(conffile)
+    val resultdirval = DIR()
+    resultdirval.parseYaml(runresultdir)
+    env.args += ("_RUN_DIR" -> resultdirval)
+    val defdirval = DIR()
+    defdirval.parseYaml(module.wd)
+    env.args += ("_DEF_DIR" -> defdirval)
 
-      val query = MongoDBObject("def"->module.confFilePath)
-      processCollection.findOne(query) match {
-        case Some(thing) => logger.debug(thing.get("ruid").toString)
-        case None => logger.debug("creating new base result dir")
-      }
 
-      val obj = MongoDBObject("ruid" -> uuid.toString,"def" -> module.confFilePath)
-      processCollection.insert(obj)
 
-      val env = RunEnv.initFromConf(conffile)
-      val resultdirval = DIR()
-      resultdirval.parseYaml(runresultdir)
-      env.args += ("_RUN_DIR" -> resultdirval)
-      val defdirval = DIR()
-      defdirval.parseYaml(module.wd)
-      env.args += ("_DEF_DIR" -> defdirval)
-      val process = module.toProcess()
-      process.run(env,"",None,false)
-      env.args.foldLeft("")((toprint,elt) => {toprint+"\n"+elt._1+" = "+elt._2.asString()})
-    }catch{
-      case e:Throwable => e.getMessage
-    }
+
+
+    // finally launch the process and return the id of it
+    process.run(env,"",None,true).toString
+    //env.args.foldLeft("")((toprint,elt) => {toprint+"\n"+elt._1+" = "+elt._2.asString()})
+
   }
 
 

@@ -32,9 +32,9 @@ class ModuleDef(
     file.getParent
   }
 
-  def toProcess() = {
+  def toProcess(parentProcess:Option[AbstractProcess]) = {
     val modval = new ModuleVal("",this,None)
-    modval.toProcess()
+    modval.toProcess(parentProcess)
   }
 
   val lastModified = getLastModificationDate()

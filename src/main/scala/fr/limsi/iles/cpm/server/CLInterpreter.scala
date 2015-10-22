@@ -2,6 +2,8 @@ package fr.limsi.iles.cpm.server
 
 import fr.limsi.iles.cpm.module.ModuleManager
 import fr.limsi.iles.cpm.module.process.ProcessRunManager
+import fr.limsi.iles.cpm.module.value.AbstractModuleVal
+import fr.limsi.iles.cpm.utils.ConfManager
 
 import scala.sys.process._
 
@@ -25,10 +27,12 @@ object CLInterpreter {
           interpretProcessCommands(args.slice(1,args.length))
         case "module" =>
           interpretModuleCommands(args.slice(1,args.length))
-        case "pipeline" =>
-          interpretPipelineCommands(args.slice(1,args.length))
-        case "reload" =>
-          "Reload cpm with configuration"
+        case "exec" =>
+          interpretExecCommands(args.slice(1,args.length))
+        case "reload" => {
+          ModuleManager.reload()
+          "ok"
+        }
         case "restart" =>
           "Restart cpm"
         case "test" => Thread.sleep(10000); "ok"
@@ -67,12 +71,16 @@ object CLInterpreter {
   def interpretProcessCommands(args:Seq[String]) = {
     try{
       args(0) match{
-        case "ls" => try {Seq("docker","ps","-a") !!} catch {case e:Throwable => "Error :"+e.getMessage}
-        case "run" => try{
-          Seq("bash",
-            "/vagrant/modules/addons/bonsai_parser/parse_all_embed.sh",
-            "/vagrant/data/corpus/munshitest",
-            "/vagrant/data/results/munshitest") !!
+        case "ls" => try {
+          val it = ProcessRunManager.processCollection.find()
+          var toprint = ""
+          while(it.hasNext){
+            toprint += it.next().get("ruid").toString+"\n"
+          }
+          toprint
+        } catch {case e:Throwable => "Error :"+e.getMessage}
+        case "status" => try{
+          ProcessRunManager.getStatus(args(1))
         }catch {case e:Throwable => "Error :"+e.getMessage}
         case _ => "Invalid argument"
       }
@@ -95,10 +103,10 @@ object CLInterpreter {
     }
   }
 
-  def interpretPipelineCommands(args:Seq[String]) = {
+  def interpretExecCommands(args:Seq[String]) = {
     try{
       args(0) match{
-        case _ => "Invalid argument"
+        case _ => args!!
       }
     }catch{
       case e:Throwable => "Missing argument"

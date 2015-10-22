@@ -9,6 +9,7 @@ import java.io.File
 import com.typesafe.scalalogging.{Logger, LazyLogging}
 import fr.limsi.iles.cpm.module.ModuleManager
 import fr.limsi.iles.cpm.module.process.DockerManager
+import fr.limsi.iles.cpm.module.value.MODVAL
 import fr.limsi.iles.cpm.server.Server
 import fr.limsi.iles.cpm.utils.{ConfManager}
 import org.slf4j.LoggerFactory
@@ -67,6 +68,7 @@ object CPM extends App{
     // check for modules definition consistency
     ModuleManager.init()
 
+
     // check for docker proper initializatin
     DockerManager.initCheckDefault()
 
@@ -76,8 +78,6 @@ object CPM extends App{
     Server.run(port)
   }
 
-  def test(): Unit = {
-    println("test")
-  }
+
 
 }

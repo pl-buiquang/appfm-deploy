@@ -35,6 +35,17 @@ object Utils{
     formatter.format(date)
   }
 
+  def addOffset(offset:String,content:String)={
+    val splitted = content.split("\n")
+    var retstring = splitted(0)
+    var i = 1;
+    while(i<splitted.length){
+      retstring += "\n"+offset+splitted(i)
+      i+=1
+    }
+    retstring
+  }
+
   /**
    * Retrieve a list of space separated arguments in a string (arguments delimited with " or ' are preserved as one)
    * @param line
@@ -86,7 +97,14 @@ object YamlElt{
       }else if(thing.isInstanceOf[java.util.ArrayList[Any]]){
         YamlList(thing.asInstanceOf[java.util.ArrayList[Any]])
       }else if(thing.isInstanceOf[String]){
-        YamlString(thing.asInstanceOf[String])
+        val content = thing.asInstanceOf[String]
+        if(content.contains('\n')){
+          val yaml = new Yaml()
+          val confMap = yaml.load(content)
+          YamlElt.fromJava(confMap)
+        }else{
+          YamlString(thing.asInstanceOf[String])
+        }
       }else if(thing.isInstanceOf[Boolean]){
         YamlString(thing.asInstanceOf[Boolean].toString)
       }else{

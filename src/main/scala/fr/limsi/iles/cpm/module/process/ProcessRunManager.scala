@@ -8,7 +8,7 @@ import com.mongodb.casbah.commons.MongoDBObject
 import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.ModuleManager
 import fr.limsi.iles.cpm.module.value._
-import fr.limsi.iles.cpm.utils.{ConfManager, DB}
+import fr.limsi.iles.cpm.utils.{YamlElt, ConfManager, DB}
 import org.yaml.snakeyaml.Yaml
 
 /**
@@ -16,20 +16,37 @@ import org.yaml.snakeyaml.Yaml
  */
 object ProcessRunManager extends LazyLogging{
 
+  // the mongodb process collection
   val processCollection = DB.get("runids")
 
   var list : Set[UUID] = Set[UUID]()
 
+  /**
+   * Get the status of a process id
+   * @param uuid
+   * @return
+   */
   def getStatus(uuid:String)={
     val query = MongoDBObject("ruid"->uuid)
-    processCollection.findOne(query) match {
-      case Some(thing) => thing // retrieve process, retrieve status
+    val tmp = processCollection.findOne(query) match {
+      case Some(thing) => thing.toString// retrieve process, retrieve status
       case None => "no process found with that uuid"
     }
+    tmp
   }
 
-
+  /**
+   * Create a new run
+   * @param modulename
+   * @param conffile
+   * @return
+   */
   def newRun(modulename:String,conffile:String) :String = {
+    // first check if module exist in registered modules
+    if(!ModuleManager.modules.contains(modulename)){
+      return "No module named '"+modulename+"' found!"
+    }
+
     var uuid = UUID.randomUUID()
     while(list.contains(uuid)){
       uuid = UUID.randomUUID()
@@ -46,24 +63,25 @@ object ProcessRunManager extends LazyLogging{
     val yaml = new Yaml()
     val ios = new FileInputStream(conffile)
     val confMap = yaml.load(ios).asInstanceOf[java.util.Map[String,Any]]
-    /*val resultdirpath = YamlElt.readAs[java.util.HashMap[String,String]](confMap) match {
+
+    // creation of the result dir
+    val resultdirpath = YamlElt.readAs[java.util.HashMap[String,String]](confMap) match {
       case Some(map) => {
         map.get("RESULT_DIR") match {
           case x:String => x
-          case _ => throw new Exception("missing RESULT_DIR value")
+          case _ => ConfManager.get("default_result_dir").toString+"/"+modulename
         }
       }
       case None => {
         throw new Exception("malformed configuration file")
       }
     }
-
-    logger.debug("attempting to create result dir in "+resultdirpath)*/
-    val resultdirpath = ConfManager.get("default_result_dir").toString+"/"+modulename
+    logger.debug("attempting to create result dir in "+resultdirpath)
     val runresultdir = createRunResultDir(resultdirpath,uuid)
 
+    val module = ModuleManager.modules(modulename)
+
     try{
-      val module = ModuleManager.modules(modulename)
 
       val query = MongoDBObject("def"->module.confFilePath)
       processCollection.findOne(query) match {
@@ -112,3 +130,13 @@ object ProcessRunManager extends LazyLogging{
   }
 
 }
+
+
+trait ProcessDBObject {
+  def getID():String
+  def getModuleName():String
+  def getSubprocess():List[String]
+  def getCom():Int // communication port
+
+}
+

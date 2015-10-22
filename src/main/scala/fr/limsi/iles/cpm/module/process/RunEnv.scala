@@ -23,8 +23,11 @@ class RunEnv(var args:Map[String,AbstractParameterVal]){
     newenv
   }
 
-  def resolveValue(value:String) : AbstractParameterVal = {
-    new VAL()
+  def resolveValue(value:AbstractParameterVal) : AbstractParameterVal = {
+    val resolved = value.newEmpty()
+    val resolvedstring = resolveValueToString(value.asString())
+    resolved.fromYaml(resolvedstring)
+    resolved
   }
 
   def resolveValueToString(value:String) : String= {

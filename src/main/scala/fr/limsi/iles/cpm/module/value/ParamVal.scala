@@ -5,7 +5,7 @@ import java.util.function.Consumer
 import fr.limsi.iles.cpm.module.ModuleManager
 import fr.limsi.iles.cpm.module.definition.{MAPDef, CMDDef}
 import fr.limsi.iles.cpm.module.parameter.AbstractModuleParameter
-import fr.limsi.iles.cpm.utils.{YamlMap, YamlString, YamlList, YamlElt}
+import fr.limsi.iles.cpm.utils.{Utils, YamlString, YamlList, YamlElt}
 
 import scala.collection
 
@@ -32,6 +32,17 @@ sealed abstract class AbstractParameterVal{
   def parseYaml(yaml:Any):Unit
   def asString():String
   override def toString()=asString()
+
+  def isExpression() : Boolean = {
+    val value = asString().trim
+
+    val complexVarsRemoved = """\$\{(.+?)\}""".r.replaceFirstIn(value,"")
+    if(complexVarsRemoved == ""){
+      return false
+    }
+    val simpleVarsRemoved = """\$([a-zA-Z_\-]+)""".r.replaceFirstIn(complexVarsRemoved,"")
+    !(simpleVarsRemoved == "" && value.length == complexVarsRemoved.length)
+  }
 
   def extractVariables() : Array[String]={
     val value = asString()
@@ -233,11 +244,13 @@ case class MODVAL() extends AbstractParameterVal{
   var moduleval : AbstractModuleVal = _
 
   override def parseYaml(yaml: Any): Unit = {
-    moduleval = AbstractModuleVal.fromConf(yaml)
+    moduleval = AbstractModuleVal.fromConf(yaml,List[AbstractModuleVal](),Map[String,AbstractModuleParameter]())
   }
 
   override def asString()={
-    "yaml string definition"
+    moduleval.namespace+" :\n  input : "+moduleval.inputs.foldLeft("")((prev,elt) => {
+      prev + "\n    "+elt._1+" : "+Utils.addOffset("    ",elt._2.asString())
+    })
   }
 
 
@@ -256,7 +269,7 @@ case class MODVAL() extends AbstractParameterVal{
  */
 case class LIST[P <: AbstractParameterVal](implicit manifest: Manifest[P]) extends AbstractParameterVal {
   override val _mytype = {
-    manifest.runtimeClass.getCanonicalName+"*"
+    manifest.runtimeClass.getSimpleName+"*"
   }
   var list : List[P] = _
 
@@ -294,7 +307,7 @@ case class LIST[P <: AbstractParameterVal](implicit manifest: Manifest[P]) exten
 
   override def asString()={
     list.foldLeft("")((str,el) => {
-      str +" "+ el.asString()
+      str +"\n  - "+ Utils.addOffset("    ",el.asString())
     })
   }
 

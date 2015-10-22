@@ -44,7 +44,7 @@ class ModuleParameter[U <: AbstractParameterVal](theparamType:String,val desc:Op
               case "FILE" => LIST[FILE]()
               case "DIR" => LIST[DIR]()
               case "CORPUS" => LIST[CORPUS]()
-              case "MODULE" => LIST[MODVAL]()
+              case "MODVAL" => LIST[MODVAL]()
               case _ => throw new Exception("unknown type \""+paramType+"\"")
             }
           }
@@ -54,7 +54,7 @@ class ModuleParameter[U <: AbstractParameterVal](theparamType:String,val desc:Op
               case "FILE" => FILE()
               case "DIR" => DIR()
               case "CORPUS" => CORPUS()
-              case "MODULE" => MODVAL()
+              case "MODVAL" => MODVAL()
               case _ => throw new Exception("unknown type \"" + paramType + "\"")
             }
           }
@@ -76,7 +76,7 @@ object AbstractModuleParameter{
               case "FILE" => LIST[FILE]()
               case "DIR" => LIST[DIR]()
               case "CORPUS" => LIST[CORPUS]()
-              case "MODULE" => LIST[MODVAL]()
+              case "MODVAL" => LIST[MODVAL]()
               case _ => throw new Exception("unknown type \""+typestr+"\"")
             }
           }
@@ -86,7 +86,7 @@ object AbstractModuleParameter{
               case "FILE" => FILE()
               case "DIR" => DIR()
               case "CORPUS" => CORPUS()
-              case "MODULE" => MODVAL()
+              case "MODVAL" => MODVAL()
               case _ => throw new Exception("unknown type \"" + typestr + "\"")
             }
           }
@@ -135,7 +135,7 @@ object AbstractModuleParameter{
                   case "FILE" => AbstractModuleParameter.createParam[LIST[FILE]](name,paramdef,type_,encoding,desc,format,schema,requireValue)
                   case "DIR" => AbstractModuleParameter.createParam[LIST[DIR]](name,paramdef,type_,encoding,desc,format,schema,requireValue)
                   case "CORPUS" => AbstractModuleParameter.createParam[LIST[CORPUS]](name,paramdef,type_,encoding,desc,format,schema,requireValue)
-                  case "MODULE" => AbstractModuleParameter.createParam[LIST[MODVAL]](name,paramdef,type_,encoding,desc,format,schema,requireValue)
+                  case "MODVAL" => AbstractModuleParameter.createParam[LIST[MODVAL]](name,paramdef,type_,encoding,desc,format,schema,requireValue)
                   case _ => throw new Exception("unknown type for input \""+name+"\"")
                 }
               }
@@ -145,7 +145,7 @@ object AbstractModuleParameter{
                   case "FILE" => AbstractModuleParameter.createParam[FILE](name, paramdef, type_, encoding, desc, format, schema, requireValue)
                   case "DIR" => AbstractModuleParameter.createParam[DIR](name, paramdef, type_, encoding, desc, format, schema, requireValue)
                   case "CORPUS" => AbstractModuleParameter.createParam[CORPUS](name, paramdef, type_, encoding, desc, format, schema, requireValue)
-                  case "MODULE" => AbstractModuleParameter.createParam[MODVAL](name, paramdef, type_, encoding, desc, format, schema, requireValue)
+                  case "MODVAL" => AbstractModuleParameter.createParam[MODVAL](name, paramdef, type_, encoding, desc, format, schema, requireValue)
                   case _ => throw new Exception("unknown type for input \"" + name + "\"")
                 }
               }

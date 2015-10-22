@@ -1,11 +1,13 @@
 package fr.limsi.iles.cpm.module.value
 
+import java.util.function.Consumer
+
 import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.ModuleManager
-import fr.limsi.iles.cpm.module.definition.{CMDDef, MAPDef, ModuleDef}
+import fr.limsi.iles.cpm.module.definition.{AnonymousDef, CMDDef, MAPDef, ModuleDef}
 import fr.limsi.iles.cpm.module.parameter._
 import fr.limsi.iles.cpm.module.process._
-import fr.limsi.iles.cpm.utils.{YamlMap, YamlElt}
+import fr.limsi.iles.cpm.utils.{YamlList, YamlMap, YamlElt}
 
 /**
  * Created by buiquang on 9/7/15.
@@ -17,12 +19,21 @@ abstract class AbstractModuleVal(val moduledef:ModuleDef,conf:Option[java.util.M
   val inputs:Map[String,AbstractParameterVal] = AbstractModuleVal.initInputs(moduledef,conf)
 
   def toProcess():AbstractProcess
+  def getInput(paramName:String,env:RunEnv)={
+    inputs(paramName) match {
+      case x:AbstractParameterVal => env.resolveValue(x)
+      case _ => env.args(paramName) match {
+        case x:AbstractParameterVal => x
+        case _ => throw new Exception("couldn't resolve any value for this input ("+paramName+")")
+      }
+    }
+  }
 }
 
 
 object AbstractModuleVal extends LazyLogging{
 
-  def fromConf(yaml:Any) : AbstractModuleVal= {
+  def fromConf(yaml:Any,context:List[AbstractModuleVal],env:Map[String,AbstractModuleParameter]) : AbstractModuleVal= {
     YamlElt.fromJava(yaml) match {
       case YamlMap(moduleval) => {
         if(moduleval.keySet().size()!=1){
@@ -88,6 +99,17 @@ object AbstractModuleVal extends LazyLogging{
           }
         }
       }
+      case YamlList(list) => {
+        var modulelist = List[AbstractModuleVal]()
+        list.forEach(new Consumer[Any] {
+          override def accept(t: Any): Unit = {
+            modulelist ::= AbstractModuleVal.fromConf(t,context,env)
+          }
+        })
+        modulelist = modulelist.reverse
+        val anonymousmodule = new AnonymousDef(modulelist,context,env)
+        ModuleVal("",anonymousmodule,None)
+      }
       case _ => throw new Exception("Malformed run definition")
     }
   }
@@ -132,13 +154,7 @@ object AbstractModuleVal extends LazyLogging{
   def initInputs(definition:ModuleDef):Map[String,AbstractParameterVal]={
     var x = Map[String,AbstractParameterVal]()
     definition.inputs.map(in => {
-      val value = in._2.paramType match {
-        case "VAL" => VAL()
-        case "DIR" => DIR()
-        case "FILE" => FILE()
-        case "CORPUS" => CORPUS()
-        case "LIST" => LIST()
-      }
+      val value = in._2.createVal()
       value.parseYaml("$"+in._1)
       x += (in._1 -> value)
     })
@@ -152,7 +168,7 @@ object AbstractModuleVal extends LazyLogging{
 case class ModuleVal(override val namespace:String,override val moduledef:ModuleDef,conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(moduledef,conf){
 
   override def toProcess(): AbstractProcess = {
-    new ModuleProcess(this)
+    new ModuleProcess(new ModuleVal(namespace,this.moduledef,conf))
   }
 }
 
@@ -160,7 +176,7 @@ case class ModuleVal(override val namespace:String,override val moduledef:Module
 case class CMDVal(override val namespace:String,conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(CMDDef,conf){
 
   override def toProcess(): AbstractProcess = {
-    new CMDProcess(this)
+    new CMDProcess(new CMDVal(namespace,conf))
   }
 
 }
@@ -168,7 +184,7 @@ case class CMDVal(override val namespace:String,conf:Option[java.util.Map[String
 case class MAPVal(override val namespace:String,conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(MAPDef,conf){
 
   override def toProcess(): AbstractProcess = {
-    new MAPProcess(this)
+    new MAPProcess(new MAPVal(namespace,conf))
   }
 
 }

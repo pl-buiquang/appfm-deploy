@@ -5,6 +5,7 @@ import java.util.concurrent.Executors
 
 import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.definition.{AnonymousDef, ModuleDef}
+import fr.limsi.iles.cpm.module.parameter.AbstractModuleParameter
 import fr.limsi.iles.cpm.module.value.{DIR, VAL, AbstractParameterVal}
 import fr.limsi.iles.cpm.module.value._
 import fr.limsi.iles.cpm.server.Server
@@ -40,7 +41,7 @@ abstract class AbstractProcess() extends LazyLogging{
   var resultnamespace : String = null
 //  var rawlog : List[String]
 
-
+  protected[this] def postInit():Unit={}
   protected[this] def step():Unit
   protected[this] def update(message:ProcessMessage)
   protected[this] def endCondition() : Boolean
@@ -60,6 +61,7 @@ abstract class AbstractProcess() extends LazyLogging{
     // init runenv from parent env
     try{
       initRunEnv(parentEnv)
+      postInit()
     }catch{
       case e:Throwable => logger.error(e.getMessage); exitRoutine(); return id
 
@@ -149,29 +151,43 @@ abstract class AbstractProcess() extends LazyLogging{
     newargs += ("_MOD_CONTEXT" -> mod_context)
     newargs += ("_CUR_MOD" -> cur_mod)
 
-
-    moduleval.inputs.foreach(input=>{
-      logger.info("Looking in parent env for "+input._1+" of type "+input._2.getClass.toGenericString+" with value to resolve : "+input._2.asString())
-      val variables = input._2.extractVariables()
-      var ready = true
-      variables.foreach(variable => {
-        if(!parentRunEnv.args.contains(variable)){
-          ready = false
-        }
+    val donotoverride = List("_MOD_CONTEXT","_CUR_MOD","_DEF_DIR","_RUN_DIR")
+    if(moduleval.moduledef.name == "_ANONYMOUS"){
+      parentEnv.args.filter(arg => {
+        !donotoverride.contains(arg._1)
+      }).foreach(arg => {
+        newargs += (arg._1 -> arg._2)
       })
-      if(ready){
-        logger.info("Found")
+
+    }else{
+      moduleval.inputs.foreach(input=>{
+        logger.info("Looking in parent env for "+input._1+" of type "+input._2.getClass.toGenericString+" with value to resolve : "+input._2.asString())
+        val variables = input._2.extractVariables()
+        var ready = true
         variables.foreach(variable => {
-          val value = if(moduleval.moduledef.inputs.contains(variable)){
-            moduleval.moduledef.inputs(variable).createVal()
-          }else{
-            parentEnv.args(variable).newEmpty()
+          if(!parentRunEnv.args.contains(variable)){
+            ready = false
           }
-          value.fromYaml(parentRunEnv.args(variable).asString())
-          newargs += (variable -> value)
         })
-      }
-    });
+        if(ready){
+          logger.info("Found")
+          input._2.parseYaml(parentEnv.resolveValueToString(input._2.asString()))
+          newargs += (input._1 -> input._2)
+          /*
+          variables.foreach(variable => {
+            val value = if(moduleval.moduledef.inputs.contains(variable)){
+              moduleval.moduledef.inputs(variable).createVal()
+            }else{
+              parentEnv.args(variable).newEmpty()
+            }
+            value.fromYaml(parentRunEnv.args(variable).asString())
+            newargs += (variable -> value)
+          })*/
+        }
+      });
+
+
+    }
 
     // done in moduleval initialization
     moduleval.moduledef.inputs.filter(input => {
@@ -203,7 +219,6 @@ abstract class AbstractProcess() extends LazyLogging{
       case Some(port) => {
         val socket = Server.context.socket(ZMQ.PUSH)
         socket.connect("tcp://localhost:"+port)
-        logger.info("Connected")
         Some(socket)
       }
       case None => {
@@ -214,6 +229,7 @@ abstract class AbstractProcess() extends LazyLogging{
     logger.debug("Setting results to parent env")
     // set outputs value to env
     updateParentEnv()
+
 
     socket match {
       case Some(sock) => {
@@ -294,7 +310,21 @@ class ModuleProcess(override val moduleval:ModuleVal) extends AbstractProcess{
       if(runningModules.contains(module.namespace)){
         false
       }else{
-        module.inputs.aggregate(true)((result,input) => {
+        /**
+         *
+         * temporary, check if map module (or any high order module, and change check variables
+         * new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
+         *
+         * if(module.moduledef.name=="_MAP"){
+        process.asInstanceOf[MAPProcess].parentInputsDef = moduleval.moduledef.inputs
+        var context = List[AbstractModuleVal]()
+        runningModules.foreach(elt => {
+          context ::= elt._2.moduleval
+        })
+        process.asInstanceOf[MAPProcess].context = context
+      }
+         */
+        module.inputs.foldLeft(true)((result,input) => {
           val vars = input._2.extractVariables()
           var exist = true
           vars.foreach(varname => {
@@ -303,8 +333,8 @@ class ModuleProcess(override val moduleval:ModuleVal) extends AbstractProcess{
             exist = exist && varexist
             if(varexist) logger.info("found") else logger.info("not found")
           })
-          exist
-        },(a,b)=>{a&&b})
+          exist && result
+        })
       }
     });
     runnableModules.foreach(module => {
@@ -316,11 +346,11 @@ class ModuleProcess(override val moduleval:ModuleVal) extends AbstractProcess{
   }
 
   override def updateParentEnv() = {
+    logger.debug("Process env contains : ")
+    env.args.foreach(elt => {
+      logger.debug(elt._1+" with value "+elt._2.asString())
+    })
     moduleval.moduledef.outputs.foreach(output=>{
-      logger.debug("Process env contains : ")
-      env.args.foreach(elt => {
-        logger.debug(elt._1+" with value "+elt._2.asString())
-      })
       logger.debug("Looking to resolve : "+output._2.value.get.asString())
       val x = output._2.createVal()
       logger.debug("Found :"+env.resolveValueToString(output._2.value.get.asString()))
@@ -330,11 +360,11 @@ class ModuleProcess(override val moduleval:ModuleVal) extends AbstractProcess{
         case _ => moduleval.namespace+"."
       }
       parentEnv.args += (namespace+output._1 -> x)
-      logger.debug("New parent env contains : ")
-      parentEnv.args.foreach(elt => {
-        logger.debug(elt._1+" with value "+elt._2.asString())
-      })
     });
+    logger.debug("New parent env contains : ")
+    parentEnv.args.foreach(elt => {
+      logger.debug(elt._1+" with value "+elt._2.asString())
+    })
   }
 
 
@@ -367,7 +397,7 @@ class CMDProcess(override val moduleval:CMDVal) extends AbstractProcess{
         case _ =>  ConfManager.defaultDockerBaseImage
       }
     }
-    DockerManager.run(moduleval.namespace,"localhost",parentPort.get,env.resolveValueToString(moduleval.inputs("CMD").asString()),folder,dockerimage)
+    DockerManager.run(moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),folder,dockerimage)
     //Process(env.resolveVars(moduleval.inputs("CMD").asString()),new java.io.File(wd)) ! ProcessLogger(line => stdout+="\n"+line,line=>stderr+="\n"+line)
     stdoutval.rawValue = stdout
     stdoutval.resolvedValue = stdout
@@ -397,14 +427,19 @@ class CMDProcess(override val moduleval:CMDVal) extends AbstractProcess{
 }
 
 class MAPProcess(override val moduleval:MAPVal) extends AbstractProcess{
-  val dir = new java.io.File(env.resolveValueToString(moduleval.inputs("IN").asString()))
-  var chunksize = Integer.valueOf(env.resolveValueToString(moduleval.inputs("CHUNK_SIZE").asString()))
-  val modules : List[AbstractModuleVal] = paramToScalaListModval(moduleval.inputs("RUN").asInstanceOf[LIST[MODVAL]])
-
-  val files = dir.listFiles()
+  var values = Map[String,Any]()
   var offset = 0
+  var parentInputsDef : Map[String,AbstractModuleParameter] = Map[String,AbstractModuleParameter]()
+  var context : List[AbstractModuleVal] = List[AbstractModuleVal]()
 
-
+  override def postInit():Unit={
+    values += ("dir" -> new java.io.File(moduleval.getInput("IN",env).asString()))
+    values += ("chunksize" -> Integer.valueOf(moduleval.getInput("CHUNK_SIZE",env).asString()))
+    val modvals = moduleval.getInput("RUN",env).asInstanceOf[LIST[MODVAL]]
+    values += ("modules" -> paramToScalaListModval(modvals))
+    values += ("process" -> List[AbstractProcess]())
+    values += ("completed" -> 0)
+  }
 
   def paramToScalaListModval(modulevallist:LIST[MODVAL]) : List[AbstractModuleVal]={
     var modulelist : List[AbstractModuleVal]= List[AbstractModuleVal]()
@@ -415,39 +450,55 @@ class MAPProcess(override val moduleval:MAPVal) extends AbstractProcess{
   }
 
   override protected[this] def updateParentEnv(): Unit = {
-    modules.foreach(module=>{
-      module.moduledef.outputs.foreach(el=>{
-        parentEnv.args += (resultnamespace+"._MAP."+module.namespace+"."+el._1 -> env.resolveValue(el._2.value.get.asString()))
+    logger.debug("Process env contains : ")
+    env.args.foreach(elt => {
+      logger.debug(elt._1+" with value "+elt._2.asString())
+    })
+    values("process").asInstanceOf[List[AbstractProcess]].foreach(process=>{
+      process.moduleval.moduledef.outputs.foreach(el=>{
+        parentEnv.args += (resultnamespace+"._MAP."+process.moduleval.namespace+"."+el._1 -> env.resolveValue(el._2.value.get))
       })
+    })
+    logger.debug("New parent env contains : ")
+    parentEnv.args.foreach(elt => {
+      logger.debug(elt._1+" with value "+elt._2.asString())
     })
   }
 
   override protected [this] def update(message:ProcessMessage)={
-    chunksize = 1
+    values += ("chunksize" -> 1)
+    val n : Int= values("completed").asInstanceOf[Int]
+    values += ("completed" -> (n+1))
   }
 
   override protected[this] def endCondition():Boolean = {
-    offset>=files.length
+    offset>=values("dir").asInstanceOf[java.io.File].listFiles().length &&
+      values("completed").asInstanceOf[Int] == (values("process").asInstanceOf[List[AbstractProcess]]).length
   }
 
   override protected[this] def step()={
-    val to = if(offset+chunksize>=files.length){
-      files.length-1
+    val to = if(offset+values("chunksize").asInstanceOf[Int]>=values("dir").asInstanceOf[java.io.File].listFiles().length){
+      values("dir").asInstanceOf[java.io.File].listFiles().length
     }else{
-      offset + chunksize
+      offset + values("chunksize").asInstanceOf[Int]
     }
 
-    val toProcessFiles = files.slice(offset,to)
+    val toProcessFiles = values("dir").asInstanceOf[java.io.File].listFiles().slice(offset,to)
 
     toProcessFiles.foreach(file => {
       val newenv = env
       val x = FILE()
       x.parseYaml(file.getCanonicalPath)
       newenv.args += ("_" -> x)
-      val module = new AnonymousDef(modules)
+      val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
       val process = module.toProcess()
+      var list = values("process").asInstanceOf[List[AbstractProcess]]
+      list ::= process
+      values += ("process" -> list)
       process.run(newenv,moduleval.namespace,Some(processPort),true)
     })
+
+    offset = to
   }
 
 }

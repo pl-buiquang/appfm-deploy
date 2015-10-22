@@ -113,14 +113,14 @@ object ModuleDef extends LazyLogging{
     Map[String,String]()
   }
 
-  def initRun(confMap:java.util.Map[String,Any],wd:String) = {
+  def initRun(confMap:java.util.Map[String,Any],wd:String,inputs:Map[String,AbstractModuleParameter]) = {
     var listmodules = Array[String]()
     var run = List[AbstractModuleVal]()
     YamlElt.fromJava(confMap.get("exec"))  match{
       case YamlList(modulevals) => {
         modulevals.forEach(new Consumer[Any] {
           override def accept(t: Any): Unit = {
-            run = AbstractModuleVal.fromConf(t) :: run
+            run = AbstractModuleVal.fromConf(t,run,inputs) :: run
           }
         })
       }
@@ -147,10 +147,10 @@ object ModuleDef extends LazyLogging{
   def initMAPInputs()={
     var x = Map[String,AbstractModuleParameter]()
     x += ("IN"->new ModuleParameter[DIR]("DIR",None,None,None))
-    x += ("RUN"->new ModuleParameter[LIST[MODVAL]]("MODULE+",None,None,None))
+    x += ("RUN"->new ModuleParameter[LIST[MODVAL]]("MODVAL+",None,None,None))
 
     val chunk_size = VAL()
-    chunk_size.parseYaml("20")
+    chunk_size.parseYaml("1")
     x += ("CHUNK_SIZE"->new ModuleParameter[VAL]("VAL",Some("Number of files to be processed in parallel"),None,None,Some(chunk_size)))
     x
   }
@@ -178,8 +178,57 @@ object ModuleDef extends LazyLogging{
 
 }
 
-class AnonymousDef(modulelist:List[AbstractModuleVal]) extends ModuleDef("/no/path","_ANONYMOUS","",Map[String,AbstractModuleParameter](),Map[String,AbstractModuleParameter](),Map[String,String](),modulelist){
+class AnonymousDef(modulelist:List[AbstractModuleVal],context:List[AbstractModuleVal],env:Map[String,AbstractModuleParameter]) extends ModuleDef("/no/path","_ANONYMOUS","",AnonymousDef.initInputs(modulelist,context,env),AnonymousDef.initOutputs(modulelist),Map[String,String](),modulelist){
 
+}
+
+object AnonymousDef extends LazyLogging{
+  def initOutputs(modulelist:List[AbstractModuleVal]):Map[String,AbstractModuleParameter]={
+    var x = Map[String,AbstractModuleParameter]()
+    modulelist.foreach(moduleval => {
+      moduleval.moduledef.outputs.foreach(output => {
+        x += (moduleval.namespace+"."+output._1 -> output._2)
+      })
+    })
+    x
+  }
+
+  def initInputs(modulelist:List[AbstractModuleVal],context:List[AbstractModuleVal],env:Map[String,AbstractModuleParameter]):Map[String,AbstractModuleParameter]={
+    val implicitvars = List("_","_RUN_DIR","_DEF_DIR","_CUR_MOD","_MOD_CONTEXT")
+    var outervariables = Map[String,AbstractModuleParameter]()
+    var innervariables = Map[String,AbstractModuleParameter]()
+    modulelist.foreach(moduleval => {
+      moduleval.inputs.foreach(input => {
+        val variables = input._2.extractVariables()
+        variables.foreach(variable => {
+          if(!innervariables.contains(variable) && !implicitvars.contains(variable)){
+            val value = if(variables.length == 1 && !input._2.isExpression()){
+              moduleval.moduledef.inputs(variable)
+            }else{
+              context.find(contextualmoduleval => {
+                contextualmoduleval.moduledef.outputs.contains(variable)
+              }) match {
+                case Some(contextualmoduleval) => contextualmoduleval.moduledef.outputs(variable)
+                case None => {
+                  if(env.contains(variable)){
+                    env(variable)
+                  }else{
+                    new ModuleParameter[VAL](variable,None,None,None,None)
+                  }
+                }
+              }
+            }
+            outervariables += (variable -> value)
+          }
+        })
+      })
+      moduleval.moduledef.outputs.foreach(output => {
+        innervariables += (moduleval.namespace+"."+output._1 -> output._2)
+        logger.debug("added "+moduleval.namespace+"."+output._1)
+      })
+    })
+    outervariables
+  }
 }
 
 object CMDDef extends ModuleDef("/no/path","_CMD","Built-in module that run a UNIX commad",ModuleDef.initCMDInputs(),ModuleDef.initCMDOutputs(),Map[String,String](),List[AbstractModuleVal]()){

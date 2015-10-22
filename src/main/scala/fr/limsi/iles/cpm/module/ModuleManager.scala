@@ -4,6 +4,7 @@ import java.io.{File, FileInputStream}
 
 import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.definition.ModuleDef
+import fr.limsi.iles.cpm.module.value.AbstractModuleVal
 import fr.limsi.iles.cpm.utils._
 import org.yaml.snakeyaml.Yaml
 
@@ -20,6 +21,9 @@ object ModuleManager extends LazyLogging{
    */
   def init()={
     // list all modules and init independant fields
+    if(!ConfManager.confMap.containsKey("modules_dir")){
+      throw new Exception("no module directories set in configuration!")
+    }
     val list : java.util.ArrayList[String] = ConfManager.get("modules_dir").asInstanceOf[java.util.ArrayList[String]]
     val iterator = list.iterator()
     while(iterator.hasNext){
@@ -33,7 +37,7 @@ object ModuleManager extends LazyLogging{
       val wd = (new File(m.confFilePath)).getParent
       val ios = new FileInputStream(m.confFilePath)
       val confMap = yaml.load(ios).asInstanceOf[java.util.Map[String,Any]]
-      m.exec = ModuleDef.initRun(confMap,wd)
+      m.exec = ModuleDef.initRun(confMap,wd,m.inputs)
     })
 
     modules.values.foreach(m => {
@@ -41,6 +45,11 @@ object ModuleManager extends LazyLogging{
       m.exec.foreach(println _)
 
     })
+  }
+
+  def reload()={
+    modules = Map[String,ModuleDef]()
+    init()
   }
 
   def ls() : String= {

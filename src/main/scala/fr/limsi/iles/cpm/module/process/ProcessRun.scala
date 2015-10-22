@@ -3,6 +3,7 @@ package fr.limsi.iles.cpm.module.process
 import java.util.UUID
 import java.util.concurrent.Executors
 
+import com.mongodb.casbah.commons.MongoDBObject
 import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.definition.{AnonymousDef, ModuleDef}
 import fr.limsi.iles.cpm.module.parameter.AbstractModuleParameter
@@ -25,7 +26,7 @@ case class Waiting() extends ProcessStatus
 /**
  * Created by buiquang on 9/30/15.
  */
-abstract class AbstractProcess() extends LazyLogging{
+abstract class AbstractProcess(val parentProcess:Option[AbstractProcess]) extends LazyLogging{
   val id = UUID.randomUUID()
   var parentEnv : RunEnv = null
   var env : RunEnv = null
@@ -56,6 +57,10 @@ abstract class AbstractProcess() extends LazyLogging{
       case Exited(errorcode) => throw new Exception("Process already run and exited with status code "+errorcode)
     }
     logger.info("Executing "+moduleval.moduledef.name)
+
+    // save process to db
+    ProcessRunManager.list += (id -> this)
+    this.saveStateToDB()
 
     resultnamespace = ns
     // init runenv from parent env
@@ -231,6 +236,11 @@ abstract class AbstractProcess() extends LazyLogging{
     updateParentEnv()
 
 
+    status = Exited("0")
+    ProcessRunManager.list -= id
+    saveStateToDB()
+
+
     socket match {
       case Some(sock) => {
         logger.debug("Sending completion signal")
@@ -241,6 +251,18 @@ abstract class AbstractProcess() extends LazyLogging{
       }
     }
 
+  }
+
+  private def serializeToMongoObject : MongoDBObject = {
+    val obj = MongoDBObject("ruid" -> id.toString,"def" -> moduleval.moduledef.confFilePath)
+    new MongoDBObject()
+  }
+
+
+  def saveStateToDB() : Boolean = {
+    val result = ProcessRunManager.processCollection.insert(this.serializeToMongoObject)
+    // TODO check if everything went fine
+    true
   }
 }
 
@@ -272,7 +294,7 @@ object AbstractProcess{
 
 
 
-class ModuleProcess(override val moduleval:ModuleVal) extends AbstractProcess{
+class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:Option[AbstractProcess]) extends AbstractProcess(parentProcess){
   var runningModules = Map[String,AbstractProcess]()
   var completedModules = Map[String,AbstractProcess]()
 
@@ -339,7 +361,7 @@ class ModuleProcess(override val moduleval:ModuleVal) extends AbstractProcess{
     });
     runnableModules.foreach(module => {
       logger.debug("Launching "+module.moduledef.name)
-      val process = module.toProcess()
+      val process = module.toProcess(Some(this))
       runningModules += (module.namespace -> process)
       process.run(env,moduleval.moduledef.name,Some(processPort),true) // not top level modules (called by cpm cli) always run demonized
     })
@@ -371,7 +393,7 @@ class ModuleProcess(override val moduleval:ModuleVal) extends AbstractProcess{
 }
 
 
-class CMDProcess(override val moduleval:CMDVal) extends AbstractProcess{
+class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option[AbstractProcess]) extends AbstractProcess(parentProcess){
   var stdoutval : VAL = VAL()
   var stderrval : VAL = VAL()
   var run = false
@@ -426,8 +448,11 @@ class CMDProcess(override val moduleval:CMDVal) extends AbstractProcess{
   }
 }
 
-class MAPProcess(override val moduleval:MAPVal) extends AbstractProcess{
+
+
+class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option[AbstractProcess]) extends AbstractProcess(parentProcess){
   var values = Map[String,Any]()
+
   var offset = 0
   var parentInputsDef : Map[String,AbstractModuleParameter] = Map[String,AbstractModuleParameter]()
   var context : List[AbstractModuleVal] = List[AbstractModuleVal]()
@@ -490,8 +515,9 @@ class MAPProcess(override val moduleval:MAPVal) extends AbstractProcess{
       val x = FILE()
       x.parseYaml(file.getCanonicalPath)
       newenv.args += ("_" -> x)
+
       val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
-      val process = module.toProcess()
+      val process = module.toProcess(Some(this))
       var list = values("process").asInstanceOf[List[AbstractProcess]]
       list ::= process
       values += ("process" -> list)

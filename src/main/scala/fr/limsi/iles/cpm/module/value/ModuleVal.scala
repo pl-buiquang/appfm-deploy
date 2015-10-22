@@ -18,7 +18,7 @@ abstract class AbstractModuleVal(val moduledef:ModuleDef,conf:Option[java.util.M
   val namespace:String
   val inputs:Map[String,AbstractParameterVal] = AbstractModuleVal.initInputs(moduledef,conf)
 
-  def toProcess():AbstractProcess
+
   def getInput(paramName:String,env:RunEnv)={
     inputs(paramName) match {
       case x:AbstractParameterVal => env.resolveValue(x)
@@ -28,6 +28,9 @@ abstract class AbstractModuleVal(val moduledef:ModuleDef,conf:Option[java.util.M
       }
     }
   }
+
+  def toProcess(parentProcess:Option[AbstractProcess]):AbstractProcess
+
 }
 
 
@@ -167,24 +170,28 @@ object AbstractModuleVal extends LazyLogging{
 
 case class ModuleVal(override val namespace:String,override val moduledef:ModuleDef,conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(moduledef,conf){
 
-  override def toProcess(): AbstractProcess = {
-    new ModuleProcess(new ModuleVal(namespace,this.moduledef,conf))
+  override def toProcess(parentProcess:Option[AbstractProcess]): AbstractProcess = {
+    new ModuleProcess(new ModuleVal(namespace,this.moduledef,conf),parentProcess)
+
   }
 }
 
 
 case class CMDVal(override val namespace:String,conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(CMDDef,conf){
 
-  override def toProcess(): AbstractProcess = {
-    new CMDProcess(new CMDVal(namespace,conf))
+
+  override def toProcess(parentProcess:Option[AbstractProcess]): AbstractProcess = {
+    new CMDProcess(new CMDVal(namespace,conf),parentProcess)
+
   }
 
 }
 
 case class MAPVal(override val namespace:String,conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(MAPDef,conf){
 
-  override def toProcess(): AbstractProcess = {
-    new MAPProcess(new MAPVal(namespace,conf))
+
+  override def toProcess(parentProcess:Option[AbstractProcess]): AbstractProcess = {
+    new MAPProcess(new MAPVal(namespace,conf),parentProcess)
   }
 
 }

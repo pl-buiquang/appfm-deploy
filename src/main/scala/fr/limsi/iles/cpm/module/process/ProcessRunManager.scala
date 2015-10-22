@@ -19,7 +19,7 @@ object ProcessRunManager extends LazyLogging{
   // the mongodb process collection
   val processCollection = DB.get("runids")
 
-  var list : Set[UUID] = Set[UUID]()
+  var list : Map[UUID,AbstractProcess] = Map[UUID,AbstractProcess]()
 
   /**
    * Get the status of a process id
@@ -35,36 +35,34 @@ object ProcessRunManager extends LazyLogging{
     tmp
   }
 
-  /**
-   * Create a new run
-   * @param modulename
-   * @param conffile
-   * @return
-   */
+
+  def streamStatus(uuid:String) = {
+
+  }
+
+
+
+
+
   def newRun(modulename:String,conffile:String) :String = {
-    // first check if module exist in registered modules
-    if(!ModuleManager.modules.contains(modulename)){
-      return "No module named '"+modulename+"' found!"
-    }
-
-    var uuid = UUID.randomUUID()
-    while(list.contains(uuid)){
-      uuid = UUID.randomUUID()
-    }
-
+    /*
     val it = processCollection.find()
     while(it.hasNext){
       val el = it.next()
       logger.info(el.get("ruid").toString)
 
+    }*/
+    if(ModuleManager.modules.contains(modulename)){
+      return "no module named "+modulename+" found!"
     }
+    // fetching module definition
+    val module = ModuleManager.modules(modulename)
 
+    // fetching configuration file for current run
     var args = Map[String,AbstractParameterVal]()
     val yaml = new Yaml()
     val ios = new FileInputStream(conffile)
     val confMap = yaml.load(ios).asInstanceOf[java.util.Map[String,Any]]
-
-    // creation of the result dir
     val resultdirpath = YamlElt.readAs[java.util.HashMap[String,String]](confMap) match {
       case Some(map) => {
         map.get("RESULT_DIR") match {
@@ -76,35 +74,40 @@ object ProcessRunManager extends LazyLogging{
         throw new Exception("malformed configuration file")
       }
     }
-    logger.debug("attempting to create result dir in "+resultdirpath)
+
+
+    // check if similar run exist (=> same modulename + same configuration settings), ask to overwrite/continue(if exist and paused)/create new result folder
+    /*
+    val query = MongoDBObject("def"->module.confFilePath)
+    processCollection.findOne(query) match {
+      case Some(thing) => logger.debug(thing.get("ruid").toString)
+      case None => logger.debug("creating new base result dir")
+    }*/
+
+    // create process object
+    val process = module.toProcess(None)
+    val uuid = process.id
+
+    // creating base run result dir
     val runresultdir = createRunResultDir(resultdirpath,uuid)
 
-    val module = ModuleManager.modules(modulename)
+    // setting run environment from conf and default variables
+    val env = RunEnv.initFromConf(conffile)
+    val resultdirval = DIR()
+    resultdirval.parseYaml(runresultdir)
+    env.args += ("_RUN_DIR" -> resultdirval)
+    val defdirval = DIR()
+    defdirval.parseYaml(module.wd)
+    env.args += ("_DEF_DIR" -> defdirval)
 
-    try{
 
-      val query = MongoDBObject("def"->module.confFilePath)
-      processCollection.findOne(query) match {
-        case Some(thing) => logger.debug(thing.get("ruid").toString)
-        case None => logger.debug("creating new base result dir")
-      }
 
-      val obj = MongoDBObject("ruid" -> uuid.toString,"def" -> module.confFilePath)
-      processCollection.insert(obj)
 
-      val env = RunEnv.initFromConf(conffile)
-      val resultdirval = DIR()
-      resultdirval.parseYaml(runresultdir)
-      env.args += ("_RUN_DIR" -> resultdirval)
-      val defdirval = DIR()
-      defdirval.parseYaml(module.wd)
-      env.args += ("_DEF_DIR" -> defdirval)
-      val process = module.toProcess()
-      process.run(env,"",None,false)
-      env.args.foldLeft("")((toprint,elt) => {toprint+"\n"+elt._1+" = "+elt._2.asString()})
-    }catch{
-      case e:Throwable => e.getMessage
-    }
+
+    // finally launch the process and return the id of it
+    process.run(env,"",None,true).toString
+    //env.args.foldLeft("")((toprint,elt) => {toprint+"\n"+elt._1+" = "+elt._2.asString()})
+
   }
 
 

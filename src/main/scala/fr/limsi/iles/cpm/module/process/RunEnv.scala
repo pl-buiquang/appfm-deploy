@@ -24,13 +24,32 @@ class RunEnv(var args:Map[String,AbstractParameterVal]){
   }
 
   def resolveValue(value:AbstractParameterVal) : AbstractParameterVal = {
+    RunEnv.resolveValue(this.args,value)
+  }
+
+  def resolveValueToString(value:String) : String= {
+    RunEnv.resolveValueToString(this.args,value)
+  }
+
+}
+
+object RunEnv {
+
+  def forcePathToBeRelativeTo(basedir:String,path:String) : String = {
+    if(!path.startsWith(basedir)){
+      basedir+path
+    }
+    path
+  }
+
+  def resolveValue(env:Map[String,AbstractParameterVal],value:AbstractParameterVal) : AbstractParameterVal = {
     val resolved = value.newEmpty()
-    val resolvedstring = resolveValueToString(value.asString())
+    val resolvedstring = RunEnv.resolveValueToString(env,value.asString())
     resolved.fromYaml(resolvedstring)
     resolved
   }
 
-  def resolveValueToString(value:String) : String= {
+  def resolveValueToString(env:Map[String,AbstractParameterVal],value:String) :String={
     var resolved = """\$\{(.*?)\}""".r.replaceAllIn(value,m => {
       val splitted = m.group(1).split(":")
       val complexvariable = if(splitted.length>1){
@@ -38,8 +57,8 @@ class RunEnv(var args:Map[String,AbstractParameterVal]){
       }else{
         (m.group(1),"")
       }
-      if(this.args.contains(complexvariable._1)){
-        this.args(complexvariable._1) match{
+      if(env.contains(complexvariable._1)){
+        env(complexvariable._1) match{
           case o:AbstractParameterVal => complexvariable._2 match {
             case "" => o.asString()
             case _ => o.getAttr(complexvariable._2).asString()
@@ -51,8 +70,8 @@ class RunEnv(var args:Map[String,AbstractParameterVal]){
       }
     })
     resolved = """\$([a-zA-Z_\-]+)""".r.replaceAllIn(resolved,m => {
-      if(this.args.contains(m.group(1))){
-        this.args(m.group(1)) match{
+      if(env.contains(m.group(1))){
+        env(m.group(1)) match{
           case o:AbstractParameterVal => val s = o.asString(); Log(s);s
           case _ => throw new Exception("undefined value");
         }
@@ -63,9 +82,6 @@ class RunEnv(var args:Map[String,AbstractParameterVal]){
     resolved
   }
 
-}
-
-object RunEnv {
   def initFromConf(content:String) = {
     var args = Map[String,AbstractParameterVal]()
     val yaml = new Yaml()

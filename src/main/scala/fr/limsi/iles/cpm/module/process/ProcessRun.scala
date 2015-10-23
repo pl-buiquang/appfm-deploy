@@ -4,13 +4,14 @@ import java.util.UUID
 import java.util.concurrent.Executors
 
 import com.mongodb.casbah.commons.MongoDBObject
+import com.mongodb.casbah.Imports._
 import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.definition.{AnonymousDef, ModuleDef}
 import fr.limsi.iles.cpm.module.parameter.AbstractModuleParameter
 import fr.limsi.iles.cpm.module.value.{DIR, VAL, AbstractParameterVal}
 import fr.limsi.iles.cpm.module.value._
 import fr.limsi.iles.cpm.server.Server
-import fr.limsi.iles.cpm.utils.ConfManager
+import fr.limsi.iles.cpm.utils.{Utils, ConfManager}
 import org.zeromq.ZMQ
 
 import scala.reflect.io.File
@@ -23,20 +24,50 @@ case class Exited(exitcode:String) extends ProcessStatus
 case class Waiting() extends ProcessStatus
 
 
+object AbstractProcess{
+  var runningProcesses = Map[Int,AbstractProcess]()
+  var portUsed = Array[String]()
+
+  def newPort() : String = {
+    // TODO optimize
+    var newport = Random.nextInt(65535)
+    while(newport<1024 && portUsed.exists(newport.toString == _)){
+      newport = Random.nextInt(65535)
+    }
+    newport.toString
+  }
+
+  def getStatus(process:Int)={
+    runningProcesses(process)
+  }
+
+  def getResults(process:Int,param:String)={
+
+  }
+
+  def fromMongoDBObject(obj:MongoDBObject):AbstractProcess = {
+    new CMDProcess(new CMDVal("",None),None,UUID.fromString(obj.get("ruid").toString))
+  }
+
+
+}
+
 /**
  * Created by buiquang on 9/30/15.
  */
-abstract class AbstractProcess(val parentProcess:Option[AbstractProcess]) extends LazyLogging{
-  val id = UUID.randomUUID()
+abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id :UUID) extends LazyLogging{
+
   var parentEnv : RunEnv = null
   var env : RunEnv = null
   val moduleval : AbstractModuleVal
   var parentPort : Option[String] = None
-  val processPort = {
+  var processPort = {
     val newport = AbstractProcess.newPort()
     AbstractProcess.portUsed = AbstractProcess.portUsed :+ newport
     newport
   }
+
+  var childrenProcess = List[UUID]()
 
   var status : ProcessStatus = Waiting() // running | returncode
   var resultnamespace : String = null
@@ -96,8 +127,19 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess]) extend
 
   private def runSupervisor() = {
     val socket = Server.context.socket(ZMQ.PULL)
-    socket.bind("tcp://*:" + processPort)
-    logger.info("New supervisor at port " + processPort + " for module " + moduleval.moduledef.name)
+    var connected = 10
+    while(connected!=0)
+    try {
+      socket.bind("tcp://*:" + processPort)
+      connected = 0
+    }catch {
+      case e:Throwable => {
+        processPort = AbstractProcess.newPort()
+        connected -= 1
+        logger.info("Couldn't connect at port "+processPort+" retrying (try : "+(10-connected)+")")
+      }
+    }
+      logger.info("New supervisor at port " + processPort + " for module " + moduleval.moduledef.name)
 
     try{
       while (!endCondition()) {
@@ -253,48 +295,33 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess]) extend
 
   }
 
-  private def serializeToMongoObject : MongoDBObject = {
-    val obj = MongoDBObject("ruid" -> id.toString,"def" -> moduleval.moduledef.confFilePath)
+  private def serializeToMongoObject() : MongoDBObject = {
+    val obj = MongoDBObject(
+      "ruid" -> id.toString,
+      "def" -> moduleval.moduledef.confFilePath,
+      "name" -> moduleval.moduledef.name,
+      "status" -> status,
+      "children" -> childrenProcess.foldLeft("")((agg,child) => {agg+","+child.toString})
+    )
     new MongoDBObject()
   }
 
 
   def saveStateToDB() : Boolean = {
-    val result = ProcessRunManager.processCollection.insert(this.serializeToMongoObject)
+    val result = ProcessRunManager.processCollection.insert(this.serializeToMongoObject())
     // TODO check if everything went fine
     true
   }
 }
 
-object AbstractProcess{
-  var runningProcesses = Map[Int,AbstractProcess]()
-  var portUsed = Array[String]()
-
-  def newPort() : String = {
-    // TODO optimize
-    var newport = Random.nextInt(65535)
-    while(newport<1024 && portUsed.exists(newport.toString == _)){
-      newport = Random.nextInt(65535)
-    }
-    newport.toString
-  }
-
-  def getStatus(process:Int)={
-    runningProcesses(process)
-  }
-
-  def getResults(process:Int,param:String)={
-
-  }
-
-
-}
 
 
 
 
 
-class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:Option[AbstractProcess]) extends AbstractProcess(parentProcess){
+class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:Option[AbstractProcess],override val id:UUID) extends AbstractProcess(parentProcess,id){
+  def this(moduleval:ModuleVal,parentProcess:Option[AbstractProcess]) = this(moduleval,parentProcess,UUID.randomUUID())
+
   var runningModules = Map[String,AbstractProcess]()
   var completedModules = Map[String,AbstractProcess]()
 
@@ -315,7 +342,7 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
         }
         case s : String => logger.warn("WTF? : "+s)
       }
-      case InvalidProcessMessage() => "ow shit"
+      case _ => "ow shit"
     }
   }
 
@@ -332,12 +359,13 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
       if(runningModules.contains(module.namespace)){
         false
       }else{
-        /**
-         *
-         * temporary, check if map module (or any high order module, and change check variables
-         * new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
-         *
-         * if(module.moduledef.name=="_MAP"){
+        module.isExecutable(env)
+      }
+    });
+    runnableModules.foreach(module => {
+      logger.debug("Launching "+module.moduledef.name)
+      val process = module.toProcess(Some(this))
+      if(module.moduledef.name=="_MAP"){
         process.asInstanceOf[MAPProcess].parentInputsDef = moduleval.moduledef.inputs
         var context = List[AbstractModuleVal]()
         runningModules.foreach(elt => {
@@ -345,25 +373,8 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
         })
         process.asInstanceOf[MAPProcess].context = context
       }
-         */
-        module.inputs.foldLeft(true)((result,input) => {
-          val vars = input._2.extractVariables()
-          var exist = true
-          vars.foreach(varname => {
-            logger.info("Looking for "+varname)
-            val varexist = env.args.exists(varname == _._1)
-            exist = exist && varexist
-            if(varexist) logger.info("found") else logger.info("not found")
-          })
-          exist && result
-        })
-      }
-    });
-    runnableModules.foreach(module => {
-      logger.debug("Launching "+module.moduledef.name)
-      val process = module.toProcess(Some(this))
       runningModules += (module.namespace -> process)
-      process.run(env,moduleval.moduledef.name,Some(processPort),true) // not top level modules (called by cpm cli) always run demonized
+      process.run(env,moduleval.namespace,Some(processPort),true) // not top level modules (called by cpm cli) always run demonized
     })
   }
 
@@ -392,8 +403,31 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
 
 }
 
+class AnonymousModuleProcess(override val moduleval:ModuleVal,override val parentProcess:Option[AbstractProcess],override val id:UUID)  extends ModuleProcess(moduleval,parentProcess,id){
+  def this(moduleval:ModuleVal,parentProcess:Option[AbstractProcess]) = this(moduleval,parentProcess,UUID.randomUUID())
 
-class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option[AbstractProcess]) extends AbstractProcess(parentProcess){
+  override def updateParentEnv() = {
+    logger.debug("Process env contains : ")
+    (env.args ++ moduleval.inputs).foreach(elt => {
+      logger.debug(elt._1+" with value "+elt._2.asString())
+    })
+    parentEnv.args ++= env.args.filter(elt => {
+
+      moduleval.moduledef.exec.foldLeft(false)((agg,modval) => {
+        agg || elt._1.startsWith(modval.namespace)
+      })
+
+    }).foldLeft(Map[String,AbstractParameterVal]())((map,elt)=>{map + (moduleval.namespace+"."+elt._1->elt._2)})
+    logger.debug("New parent env contains : ")
+    parentEnv.args.foreach(elt => {
+      logger.debug(elt._1+" with value "+elt._2.asString())
+    })
+  }
+}
+
+
+class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option[AbstractProcess],override val id:UUID) extends AbstractProcess(parentProcess,id){
+  def this(moduleval:CMDVal,parentProcess:Option[AbstractProcess]) = this(moduleval,parentProcess,UUID.randomUUID())
   var stdoutval : VAL = VAL()
   var stderrval : VAL = VAL()
   var run = false
@@ -450,7 +484,8 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
 
 
 
-class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option[AbstractProcess]) extends AbstractProcess(parentProcess){
+class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option[AbstractProcess],override val id:UUID) extends AbstractProcess(parentProcess,id){
+  def this(moduleval:MAPVal,parentProcess:Option[AbstractProcess]) = this(moduleval,parentProcess,UUID.randomUUID())
   var values = Map[String,Any]()
 
   var offset = 0
@@ -461,29 +496,32 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     values += ("dir" -> new java.io.File(moduleval.getInput("IN",env).asString()))
     values += ("chunksize" -> Integer.valueOf(moduleval.getInput("CHUNK_SIZE",env).asString()))
     val modvals = moduleval.getInput("RUN",env).asInstanceOf[LIST[MODVAL]]
-    values += ("modules" -> paramToScalaListModval(modvals))
+    values += ("modules" -> AbstractParameterVal.paramToScalaListModval(modvals))
     values += ("process" -> List[AbstractProcess]())
     values += ("completed" -> 0)
   }
 
-  def paramToScalaListModval(modulevallist:LIST[MODVAL]) : List[AbstractModuleVal]={
-    var modulelist : List[AbstractModuleVal]= List[AbstractModuleVal]()
-    modulevallist.list.foreach(modval=>{
-      modulelist ::= modval.moduleval
-    })
-    modulelist.reverse
-  }
+
 
   override protected[this] def updateParentEnv(): Unit = {
     logger.debug("Process env contains : ")
     env.args.foreach(elt => {
       logger.debug(elt._1+" with value "+elt._2.asString())
     })
-    values("process").asInstanceOf[List[AbstractProcess]].foreach(process=>{
+    parentEnv.args ++= env.args.filter(elt => {
+      elt._1.startsWith(resultnamespace)
+    }).foldLeft(Map[String,AbstractParameterVal]())((map,elt)=>{map + (resultnamespace+"._MAP."+elt._1->elt._2)})
+    /*values("process").asInstanceOf[List[AbstractProcess]].foreach(process=>{
       process.moduleval.moduledef.outputs.foreach(el=>{
-        parentEnv.args += (resultnamespace+"._MAP."+process.moduleval.namespace+"."+el._1 -> env.resolveValue(el._2.value.get))
+        if(!el._2.value.isEmpty){
+          parentEnv.args += (
+            resultnamespace+"._MAP."+process.moduleval.namespace+"."+el._1
+            ->
+              RunEnv.resolveValue(env.args++process.moduleval.inputs.mapValues(input => {env.resolveValue(input)}),el._2.value.get)
+            )
+        }
       })
-    })
+    })*/
     logger.debug("New parent env contains : ")
     parentEnv.args.foreach(elt => {
       logger.debug(elt._1+" with value "+elt._2.asString())
@@ -510,6 +548,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
     val toProcessFiles = values("dir").asInstanceOf[java.io.File].listFiles().slice(offset,to)
 
+    var i = 0;
     toProcessFiles.foreach(file => {
       val newenv = env
       val x = FILE()
@@ -517,7 +556,12 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
       newenv.args += ("_" -> x)
 
       val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
-      val process = module.toProcess(Some(this))
+
+      val moduleval = new ModuleVal((offset+i).toString,module,Some(Utils.scalaMap2JavaMap(newenv.args.mapValues(paramval => {
+        paramval.asString()
+      }))))
+      i+=1
+      val process = new AnonymousModuleProcess(moduleval,Some(this))
       var list = values("process").asInstanceOf[List[AbstractProcess]]
       list ::= process
       values += ("process" -> list)

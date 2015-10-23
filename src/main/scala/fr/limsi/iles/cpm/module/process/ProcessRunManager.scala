@@ -44,7 +44,7 @@ object ProcessRunManager extends LazyLogging{
 
 
 
-  def newRun(modulename:String,conffile:String) :String = {
+  def newRun(modulename:String,conffile:String,async:Boolean) :String = {
     /*
     val it = processCollection.find()
     while(it.hasNext){
@@ -52,7 +52,7 @@ object ProcessRunManager extends LazyLogging{
       logger.info(el.get("ruid").toString)
 
     }*/
-    if(ModuleManager.modules.contains(modulename)){
+    if(!ModuleManager.modules.contains(modulename)){
       return "no module named "+modulename+" found!"
     }
     // fetching module definition
@@ -105,7 +105,7 @@ object ProcessRunManager extends LazyLogging{
 
 
     // finally launch the process and return the id of it
-    process.run(env,"",None,true).toString
+    process.run(env,"",None,async).toString
     //env.args.foldLeft("")((toprint,elt) => {toprint+"\n"+elt._1+" = "+elt._2.asString()})
 
   }

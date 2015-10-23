@@ -77,7 +77,13 @@ object AbstractParameterVal{
     x.parseFromJavaYaml(stringval)
     x
   }*/
-
+  def paramToScalaListModval(modulevallist:LIST[MODVAL]) : List[AbstractModuleVal]={
+    var modulelist : List[AbstractModuleVal]= List[AbstractModuleVal]()
+    modulevallist.list.foreach(modval=>{
+      modulelist ::= modval.moduleval
+    })
+    modulelist.reverse
+  }
 }
 
 /**

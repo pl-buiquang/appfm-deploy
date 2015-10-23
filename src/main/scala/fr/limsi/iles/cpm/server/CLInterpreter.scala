@@ -94,7 +94,7 @@ object CLInterpreter {
       args(0) match{
         case "ls" => ModuleManager.ls()
         case "run" => {
-          ProcessRunManager.newRun(args(1),args(2))
+          ProcessRunManager.newRun(args(1),args(2),false)
         }
         case _ => "Invalid argument"
       }

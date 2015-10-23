@@ -1,6 +1,7 @@
 package fr.limsi.iles.cpm.utils
 
 import java.text.SimpleDateFormat
+import java.util
 import java.util.function.Consumer
 
 import org.slf4j.LoggerFactory
@@ -29,6 +30,15 @@ object Log {
 }
 
 object Utils{
+
+  def scalaMap2JavaMap(map:Map[String,Any]):java.util.Map[String,Any]={
+    var javamap = new java.util.HashMap[String,Any]()
+    map.foreach(elt => {
+      javamap.put(elt._1,elt._2)
+    })
+    javamap
+  }
+
   def getHumanReadableDate(datelong:Long) :String = {
     val date = new java.util.Date(datelong)
     val formatter = new SimpleDateFormat()

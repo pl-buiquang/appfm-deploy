@@ -4,6 +4,7 @@ import java.util.function.Consumer
 
 import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.ModuleManager
+import fr.limsi.iles.cpm.module.definition.AnonymousDef._
 import fr.limsi.iles.cpm.module.definition.{AnonymousDef, CMDDef, MAPDef, ModuleDef}
 import fr.limsi.iles.cpm.module.parameter._
 import fr.limsi.iles.cpm.module.process._
@@ -29,6 +30,19 @@ abstract class AbstractModuleVal(val moduledef:ModuleDef,conf:Option[java.util.M
     }
   }
 
+  def isExecutable(env:RunEnv):Boolean = {
+    inputs.foldLeft(true)((result,input) => {
+      val vars = input._2.extractVariables()
+      var exist = true
+      vars.foreach(varname => {
+        logger.info("Looking for "+varname)
+        val varexist = env.args.exists(varname == _._1)
+        exist = exist && varexist
+        if(varexist) logger.info("found") else logger.info("not found")
+      })
+      exist && result
+    })
+  }
   def toProcess(parentProcess:Option[AbstractProcess]):AbstractProcess
 
 }
@@ -174,6 +188,7 @@ case class ModuleVal(override val namespace:String,override val moduledef:Module
     new ModuleProcess(new ModuleVal(namespace,this.moduledef,conf),parentProcess)
 
   }
+
 }
 
 
@@ -194,5 +209,41 @@ case class MAPVal(override val namespace:String,conf:Option[java.util.Map[String
     new MAPProcess(new MAPVal(namespace,conf),parentProcess)
   }
 
+  override def isExecutable(env: RunEnv): Boolean = {
+    inputs.foldLeft(true)((result,input) => {
+      val vars = if(input._1 == "RUN"){
+        val modulelist = AbstractParameterVal.paramToScalaListModval(input._2.asInstanceOf[LIST[MODVAL]])
+        val implicitvars = List("_","_RUN_DIR","_DEF_DIR","_CUR_MOD","_MOD_CONTEXT")
+        var outervariables = Array[String]()
+        var innervariables = Map[String,AbstractModuleParameter]()
+        modulelist.foreach(moduleval => {
+          moduleval.inputs.foreach(input => {
+            val variables = input._2.extractVariables()
+            variables.foreach(variable => {
+              if(!innervariables.contains(variable) && !implicitvars.contains(variable)){
+                outervariables = outervariables :+ variable
+              }
+            })
+          })
+          moduleval.moduledef.outputs.foreach(output => {
+            innervariables += (moduleval.namespace+"."+output._1 -> output._2)
+            logger.debug("added "+moduleval.namespace+"."+output._1)
+          })
+        })
+        outervariables
+      }else{
+        input._2.extractVariables()
+      }
+      var exist = true
+      vars.foreach(varname => {
+        logger.info("Looking for "+varname)
+        val varexist = env.args.exists(varname == _._1)
+        exist = exist && varexist
+        if(varexist) logger.info("found") else logger.info("not found")
+      })
+      exist && result
+    })
+
+  }
 }
 

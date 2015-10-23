@@ -55,7 +55,7 @@ object ModuleManager extends LazyLogging{
   def ls() : String= {
     var output = ""
     modules.foreach(el => {
-      output += "Name : "+el._1 + "\nDesc : " + el._2.desc+"\nLast Modified : "+Utils.getHumanReadableDate(el._2.lastModified)+"\n\n"
+      output += el._2.toString
     })
     output
   }

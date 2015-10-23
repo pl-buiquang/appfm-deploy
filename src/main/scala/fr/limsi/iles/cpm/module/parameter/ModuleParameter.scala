@@ -14,6 +14,9 @@ abstract class AbstractModuleParameter{
 
   var value : Option[T] = None
   var paramType : String
+  val desc:Option[String]
+  val format:Option[String]
+  val schema:Option[String]
 
   def setVal(yaml:Any,theval:T)={
     value = Some(theval)
@@ -21,12 +24,22 @@ abstract class AbstractModuleParameter{
   }
 
   def createVal(): AbstractParameterVal
+
+  override def toString():String={
+    val descin = if(desc.isEmpty){
+      ""
+    }else{
+      "// "+desc.get
+    }
+    paramType + "( format : " + format.getOrElse("none") + " ; schema : " +schema.getOrElse("none")+ ")" + descin
+  }
 }
 
-class ModuleParameter[U <: AbstractParameterVal](theparamType:String,val desc:Option[String],  val format:Option[String], val schema:Option[String], defaultval : Option[U])(implicit manifest: Manifest[U]) extends AbstractModuleParameter{
+class ModuleParameter[U <: AbstractParameterVal](theparamType:String,override val desc:Option[String], override val format:Option[String], override val schema:Option[String], defaultval : Option[U])(implicit manifest: Manifest[U]) extends AbstractModuleParameter{
   override type T = U
   override var paramType: String = theparamType
   value = defaultval
+
 
   def this(theparamType:String,desc:Option[String],format:Option[String],schema:Option[String])(implicit manifest: Manifest[U]) = this(theparamType,desc,format,schema,None)
 

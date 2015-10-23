@@ -42,6 +42,15 @@ class ModuleDef(
   val wd = getWd()
 
 
+  override def toString:String={
+    "Name : "+name + "\nDesc : " + desc+"\nLast Modified : "+Utils.getHumanReadableDate(lastModified)+"\n"+
+      inputs.foldLeft("Inputs : ")((agg,input)=>{
+        agg + "\n\t" + input._1 + ": " + input._2.toString()
+      }) + "\n" + outputs.foldLeft("Outputs : ")((agg,output)=>{
+      agg + "\n\t" + output._1 + ": " + output._2.toString()
+    }) + "\n\n"
+  }
+
 
 }
 
@@ -184,10 +193,13 @@ class AnonymousDef(modulelist:List[AbstractModuleVal],context:List[AbstractModul
 
 object AnonymousDef extends LazyLogging{
   def initOutputs(modulelist:List[AbstractModuleVal]):Map[String,AbstractModuleParameter]={
+    val implicitvars = List("_","_RUN_DIR","_DEF_DIR","_CUR_MOD","_MOD_CONTEXT")
     var x = Map[String,AbstractModuleParameter]()
     modulelist.foreach(moduleval => {
       moduleval.moduledef.outputs.foreach(output => {
-        x += (moduleval.namespace+"."+output._1 -> output._2)
+        if(!output._2.value.isEmpty) {
+          x += (moduleval.namespace + "." + output._1 -> output._2)
+        }
       })
     })
     x

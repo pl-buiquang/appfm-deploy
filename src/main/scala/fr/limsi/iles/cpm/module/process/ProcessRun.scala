@@ -46,6 +46,13 @@ object AbstractProcess{
   }
 
   def fromMongoDBObject(obj:MongoDBObject):AbstractProcess = {
+    /*obj.get("type") match {
+      case "CMD" =>
+      case "MAP" =>
+      case "CUSTOM" => new CMDProcess(new CMDVal("",None),None,UUID.fromString(obj.get("ruid").toString))
+      case "ANONYMOUS" =>
+      case _ =>
+    }*/
     new CMDProcess(new CMDVal("",None),None,UUID.fromString(obj.get("ruid").toString))
   }
 
@@ -508,9 +515,53 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     env.args.foreach(elt => {
       logger.debug(elt._1+" with value "+elt._2.asString())
     })
+
+    val namespace = resultnamespace match {
+      case "" => ""
+      case _ => resultnamespace+"."
+    }
+
     parentEnv.args ++= env.args.filter(elt => {
-      elt._1.startsWith(resultnamespace)
-    }).foldLeft(Map[String,AbstractParameterVal]())((map,elt)=>{map + (resultnamespace+"._MAP."+elt._1->elt._2)})
+      elt._1.startsWith("_MAP.")
+    }).groupBy[String](el=>{
+      val modnamestartindex = el._1.substring(5).indexOf(".")
+      val modnameendindex = el._1.substring(5+modnamestartindex+1).indexOf(".")
+      "_MAP."+el._1.substring(5+modnamestartindex+1)//.substring(0,modnameendindex)
+    }).transform((key,content) => {
+      val newel = LIST[AbstractParameterVal]()
+      newel.list = List[AbstractParameterVal]()
+      content.foldLeft(newel)((agg,elt) => {
+        agg.list ::= elt._2
+        agg
+      })
+    })
+
+      /*.aggregate(Map[String,AbstractParameterVal]())((agg,el)=>{
+      val modnamestartindex = el._1.substring(5).indexOf(".")
+      val modnameendindex = el._1.substring(5+modnamestartindex+1).indexOf(".")
+      val modname = el._1.substring(5+modnamestartindex+1).substring(0,modnameendindex)
+      var ellist = AbstractModuleParameter.createVal(el._2._mytype+"*")
+      ellist.parseYaml(el._2.asString())
+      agg + (modname -> ellist)
+    },(el1,el2) => {
+      var el0 = Map[String,AbstractParameterVal]()
+      el1.foreach(el => {
+        el0 += ("_MAP."+el._1 -> el._2)
+      })
+      el2.foreach(el => {
+        if(!el0.contains(el._1)){
+          el0 += (el._1 -> el._2)
+        }else{
+          (el0(el._1).asInstanceOf[LIST[AbstractParameterVal]]).list :::= el._2.asInstanceOf[LIST[AbstractParameterVal]].list
+        }
+      })
+      el0
+    })*/
+      /**/
+
+    /*parentEnv.args ++= env.args.filter(elt => {
+      elt._1.startsWith("_MAP.")
+    }).foldLeft(Map[String,AbstractParameterVal]())((map,elt)=>{map + (namespace+"_MAP."+elt._1->elt._2)})*/
     /*values("process").asInstanceOf[List[AbstractProcess]].foreach(process=>{
       process.moduleval.moduledef.outputs.foreach(el=>{
         if(!el._2.value.isEmpty){
@@ -557,7 +608,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
       val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
 
-      val moduleval = new ModuleVal((offset+i).toString,module,Some(Utils.scalaMap2JavaMap(newenv.args.mapValues(paramval => {
+      val moduleval = new ModuleVal("_MAP."+(offset+i).toString,module,Some(Utils.scalaMap2JavaMap(newenv.args.mapValues(paramval => {
         paramval.asString()
       }))))
       i+=1

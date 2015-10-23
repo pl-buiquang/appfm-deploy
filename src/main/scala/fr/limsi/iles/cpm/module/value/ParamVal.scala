@@ -50,11 +50,12 @@ sealed abstract class AbstractParameterVal{
     val simpleVars = """\$([a-zA-Z_\-]+)""".r.findAllMatchIn(value)
     var vars = Array[String]()
     while(complexVars.hasNext){
-      val splitted = complexVars.next().group(1).split(":")
+      val complexvar = complexVars.next()
+      val splitted = complexvar.group(1).split(":")
       val complexvariable = if(splitted.length>1){
         (splitted.slice(0,splitted.length-1).mkString("."),splitted(splitted.length-1))
       }else{
-        (complexVars.next().group(1),"")
+        (complexvar.group(1),"")
       }
       vars :+= complexvariable._1
     }

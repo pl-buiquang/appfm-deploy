@@ -1,5 +1,6 @@
 package fr.limsi.iles.cpm.module.definition
 
+
 import java.util.function.Consumer
 
 import com.typesafe.scalalogging.LazyLogging
@@ -11,6 +12,20 @@ import fr.limsi.iles.cpm.utils._
 
 /**
  * Created by buiquang on 9/16/15.
+ * TODO refactor this package : clearer instanciation of inputs/outputs/exec for default module def and special modules
+ */
+
+/**
+ * Module definition.
+ * <p> Reflects the configuration file for a module in yaml format
+ *
+ * @param confFilePath the filepath of the module configuration path
+ * @param name the unique name of the module [a-zA-Z][a-zA-Z0-9\-_]+(@[a-zA-Z0-9\-_]+)?
+ * @param desc the description of the module
+ * @param inputs the inputs of the module
+ * @param outputs the expected produced outputs of the module
+ * @param log
+ * @param exec the execution process of the module, consisting of a sequence of instanciated module
  */
 class ModuleDef(
    val confFilePath:String,
@@ -22,26 +37,48 @@ class ModuleDef(
    var exec:List[AbstractModuleVal]
  ){
 
+  /**
+   * Returns the last modification date of the configuration file for the module
+   * @return
+   */
   def getLastModificationDate(): Long ={
     val file = new java.io.File(confFilePath)
     file.lastModified()
   }
 
-  def getWd():String = {
+  /**
+   * Returns the defintion directory of this module
+   * @return
+   */
+  def getDefDir():String = {
     val file = new java.io.File(confFilePath)
     file.getParent
   }
 
+  /**
+   * Create a process object from this module definition
+   * @param parentProcess an optional parent process of the newly created process
+   * @return
+   */
   def toProcess(parentProcess:Option[AbstractProcess]) = {
     val modval = new ModuleVal("",this,None)
     modval.toProcess(parentProcess)
   }
 
+  /**
+   * The last modification date of this module definition
+   */
   val lastModified = getLastModificationDate()
 
-  val wd = getWd()
+  /**
+   * The definition directory of this module
+   */
+  val defdir = getDefDir()
 
-
+  /**
+   * Returns a pretty string representation of this module (for human reading)
+   * @return
+   */
   override def toString:String={
     "Name : "+name + "\nDesc : " + desc+"\nLast Modified : "+Utils.getHumanReadableDate(lastModified)+"\n"+
       inputs.foldLeft("Inputs : ")((agg,input)=>{
@@ -142,7 +179,7 @@ object ModuleDef extends LazyLogging{
     var x = Map[String,AbstractModuleParameter]()
     x += ("CMD"->new ModuleParameter[VAL]("VAL",None,None,None))
     val dockerfiledefault = FILE()
-    dockerfiledefault.parseYaml(ConfManager.defaultDockerBaseImage)
+    dockerfiledefault.fromYaml(ConfManager.defaultDockerBaseImage)
     x += ("DOCKERFILE"->new ModuleParameter[FILE]("FILE",None,None,None,Some(dockerfiledefault)))
     x
   }
@@ -159,7 +196,7 @@ object ModuleDef extends LazyLogging{
     x += ("RUN"->new ModuleParameter[LIST[MODVAL]]("MODVAL+",None,None,None))
 
     val chunk_size = VAL()
-    chunk_size.parseYaml("1")
+    chunk_size.fromYaml("1")
     x += ("CHUNK_SIZE"->new ModuleParameter[VAL]("VAL",Some("Number of files to be processed in parallel"),None,None,Some(chunk_size)))
     x
   }

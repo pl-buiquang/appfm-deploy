@@ -20,7 +20,7 @@ abstract class AbstractModuleParameter{
 
   def setVal(yaml:Any,theval:T)={
     value = Some(theval)
-    value.get.parseYaml(yaml)
+    value.get.fromYaml(yaml)
   }
 
   def createVal(): AbstractParameterVal
@@ -79,6 +79,7 @@ class ModuleParameter[U <: AbstractParameterVal](theparamType:String,override va
 }
 
 object AbstractModuleParameter{
+  // TODO add (\+|\*)*) to take into account nested list type
   def createVal(typestr:String) : AbstractParameterVal ={
     """(\w+)\s*(\+|\*)?""".r.findFirstMatchIn(typestr) match {
       case Some(matched) => {

@@ -1,5 +1,7 @@
 package fr.limsi.iles.cpm.server
 
+import java.util.UUID
+
 import fr.limsi.iles.cpm.module.ModuleManager
 import fr.limsi.iles.cpm.module.process.ProcessRunManager
 import fr.limsi.iles.cpm.module.value.AbstractModuleVal
@@ -72,15 +74,27 @@ object CLInterpreter {
     try{
       args(0) match{
         case "ls" => try {
+          val all = if(args.size > 1 && args(1)=="-a"){
+            true
+          }else{
+            false
+          }
           val it = ProcessRunManager.processCollection.find()
           var toprint = ""
           while(it.hasNext){
-            toprint += it.next().get("ruid").toString+"\n"
+            val pobj = it.next()
+            if(all || Boolean.unbox(pobj.get("master"))){
+              toprint += pobj.get("name") + "\t" + pobj.get("ruid").toString+"\n"
+            }
           }
           toprint
         } catch {case e:Throwable => "Error :"+e.getMessage}
         case "status" => try{
-          ProcessRunManager.getStatus(args(1))
+          if(args.size > 1){
+            ProcessRunManager.getProcess(UUID.fromString(args(1))).getStatus(true)
+          }else{
+            "Missing pid"
+          }
         }catch {case e:Throwable => "Error :"+e.getMessage}
         case _ => "Invalid argument"
       }
@@ -92,10 +106,18 @@ object CLInterpreter {
   def interpretModuleCommands(args:Seq[String]) = {
     try{
       args(0) match{
-        case "ls" => ModuleManager.ls()
-        case "run" => {
-          ProcessRunManager.newRun(args(1),args(2),false)
+        case "ls" => {
+          val onlyname = if(args.size > 1 && args(1)=="--name"){
+            true
+          }else{
+            false
+          }
+          ModuleManager.ls(onlyname)
         }
+        case "run" => {
+          ProcessRunManager.newRun(args(1),args(2),true)
+        }
+
         case _ => "Invalid argument"
       }
     }catch{

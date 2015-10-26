@@ -21,7 +21,7 @@ import scala.collection
  * LIST
  */
 sealed abstract class AbstractParameterVal{
-  type MyType <: AbstractParameterVal
+
   var yamlVal : Any = _
   val _mytype : String
 
@@ -29,12 +29,16 @@ sealed abstract class AbstractParameterVal{
     yamlVal = yaml
     parseYaml(yaml)
   }
-  def parseYaml(yaml:Any):Unit
+
+  protected def parseYaml(yaml:Any):Unit
+
+  def toYaml():String
+
   def asString():String
   override def toString()=asString()
 
   def isExpression() : Boolean = {
-    val value = asString().trim
+    val value = toYaml().trim
 
     val complexVarsRemoved = """\$\{(.+?)\}""".r.replaceFirstIn(value,"")
     if(complexVarsRemoved == ""){
@@ -45,7 +49,7 @@ sealed abstract class AbstractParameterVal{
   }
 
   def extractVariables() : Array[String]={
-    val value = asString()
+    val value = toYaml()
     val complexVars = """\$\{(.+?)\}""".r.findAllMatchIn(value)
     val simpleVars = """\$([a-zA-Z_\-]+)""".r.findAllMatchIn(value)
     var vars = Array[String]()
@@ -96,7 +100,7 @@ case class VAL() extends AbstractParameterVal {
   override val _mytype = "VAL"
 
 
-  override def parseYaml(yaml: Any): Unit = {
+  override protected def parseYaml(yaml: Any): Unit = {
     if(yaml == null){
       return
     }
@@ -114,6 +118,10 @@ case class VAL() extends AbstractParameterVal {
   override def getAttr(attrName: String): AbstractParameterVal = {
     throw new Exception("VAL doesn't have any attributes")
   }
+
+  override def toYaml(): String = {
+    this.rawValue
+  }
 }
 
 
@@ -127,7 +135,7 @@ case class FILE() extends AbstractParameterVal {
   var rawValue : String = _
   override val _mytype = "FILE"
 
-  override def parseYaml(yaml: Any): Unit = {
+  override protected def parseYaml(yaml: Any): Unit = {
     val value = YamlElt.readAs[String](yaml)
     rawValue = value match {
       case Some(theval) => theval
@@ -146,27 +154,31 @@ case class FILE() extends AbstractParameterVal {
         val extensionIndex = file.getName.lastIndexOf(".")
         if(extensionIndex != -1){
           val x = new VAL()
-          x.parseYaml(file.getName.substring(0,extensionIndex))
+          x.fromYaml(file.getName.substring(0,extensionIndex))
           x
         }else{
           val x = new VAL()
-          x.parseYaml(file.getName)
+          x.fromYaml(file.getName)
           x
         }
       }
       case "filename" => {
         val x = new VAL()
         val file = new java.io.File(rawValue)
-        x.parseYaml(file.getName)
+        x.fromYaml(file.getName)
         x
       }
       case "basedir" => {
         val x = new DIR()
         val file = new java.io.File(rawValue)
-        x.parseYaml(file.getParent)
+        x.fromYaml(file.getParent)
         x
       }
     }
+  }
+
+  override def toYaml(): String = {
+    rawValue
   }
 }
 
@@ -176,7 +188,7 @@ case class DIR() extends AbstractParameterVal {
   var rawValue : String = _
   override val _mytype = "DIR"
 
-  override def parseYaml(yaml: Any): Unit = {
+  override protected def parseYaml(yaml: Any): Unit = {
     val value = YamlElt.readAs[String](yaml)
     rawValue = value match {
       case Some(theval) => theval
@@ -193,7 +205,7 @@ case class DIR() extends AbstractParameterVal {
       case "ls" => {
         val x = new LIST[FILE]()
         val file = new java.io.File(rawValue)
-        x.parseYaml(file.listFiles().foldLeft("")((str,thefile)=>{
+        x.fromYaml(file.listFiles().foldLeft("")((str,thefile)=>{
           if(thefile.isFile)
             str + " " + thefile.getCanonicalPath
           else
@@ -215,10 +227,14 @@ case class DIR() extends AbstractParameterVal {
             }
           })
         }
-        x.parseYaml(recListFiles(file))
+        x.fromYaml(recListFiles(file))
         x
       }
     }
+  }
+
+  override def toYaml(): String = {
+    rawValue
   }
 }
 
@@ -230,7 +246,7 @@ case class DIR() extends AbstractParameterVal {
  */
 case class CORPUS() extends AbstractParameterVal {
   override val _mytype = "CORPUS"
-  override def parseYaml(yaml: Any): Unit = {
+  override protected def parseYaml(yaml: Any): Unit = {
 
   }
 
@@ -241,6 +257,10 @@ case class CORPUS() extends AbstractParameterVal {
   override def getAttr(attrName: String): AbstractParameterVal = {
     throw new Exception("VAL doesn't have any attributes")
   }
+
+  override def toYaml(): String = {
+    ""
+  }
 }
 
 /**
@@ -250,7 +270,7 @@ case class MODVAL() extends AbstractParameterVal{
   override val _mytype = "MODVAL"
   var moduleval : AbstractModuleVal = _
 
-  override def parseYaml(yaml: Any): Unit = {
+  override protected def parseYaml(yaml: Any): Unit = {
     moduleval = AbstractModuleVal.fromConf(yaml,List[AbstractModuleVal](),Map[String,AbstractModuleParameter]())
   }
 
@@ -263,6 +283,12 @@ case class MODVAL() extends AbstractParameterVal{
 
   override def getAttr(attrName: String): AbstractParameterVal = {
     throw new Exception("VAL doesn't have any attributes")
+  }
+
+  override def toYaml(): String = {
+    "\n  "+moduleval.namespace+" :\n    input : "+moduleval.inputs.foldLeft("")((prev,elt) => {
+      prev + "\n      "+elt._1+" : "+Utils.addOffset("      ",elt._2.toYaml())
+    })
   }
 }
 
@@ -282,7 +308,7 @@ case class LIST[P <: AbstractParameterVal](implicit manifest: Manifest[P]) exten
 
   def make: P = manifest.runtimeClass.newInstance.asInstanceOf[P]
 
-  override def parseYaml(yaml: Any): Unit = {
+  override protected def parseYaml(yaml: Any): Unit = {
 
     list = YamlElt.fromJava(yaml) match {
       case YamlList(list) => {
@@ -291,7 +317,7 @@ case class LIST[P <: AbstractParameterVal](implicit manifest: Manifest[P]) exten
 
           override def accept(t: Any): Unit = {
             val el : P = make
-            el.parseYaml(t)
+            el.fromYaml(t)
             thelist = thelist :+ el
           }
         })
@@ -301,7 +327,7 @@ case class LIST[P <: AbstractParameterVal](implicit manifest: Manifest[P]) exten
         var thelist :List[P]= List[P]()
         implicitlist.split("\\s+").foreach(t => {
           val el: P = make
-          el.parseYaml(t)
+          el.fromYaml(t)
           thelist = thelist :+ el
         })
         thelist
@@ -314,12 +340,18 @@ case class LIST[P <: AbstractParameterVal](implicit manifest: Manifest[P]) exten
 
   override def asString()={
     list.foldLeft("")((str,el) => {
-      str +"\n  - "+ Utils.addOffset("    ",el.asString())
+      str +" "+ el.asString()
     })
   }
 
   override def getAttr(attrName: String): AbstractParameterVal = {
     throw new Exception("VAL doesn't have any attributes")
+  }
+
+  override def toYaml(): String = {
+    list.foldLeft("")((str,el) => {
+      str +"\n  - "+ Utils.addOffset("    ",el.toYaml())
+    })
   }
 }
 
@@ -327,7 +359,7 @@ case class MAP() extends AbstractParameterVal{
   override val _mytype = "MAP"
   var map : Map[String,AbstractParameterVal] = Map[String,AbstractParameterVal]()
 
-  override def parseYaml(yaml: Any): Unit = {
+  override protected def parseYaml(yaml: Any): Unit = {
 
   }
 
@@ -335,7 +367,19 @@ case class MAP() extends AbstractParameterVal{
     "???"
   }
 
-  override def getAttr(attrName: String): AbstractParameterVal = ???
+  override def getAttr(attrName: String): AbstractParameterVal = {
+    if(map.contains(attrName)){
+      map(attrName)
+    }else{
+      throw new Exception("no such attr value")
+    }
+  }
+
+  override def toYaml(): String = {
+    map.foldLeft("")((agg,el)=>{
+      agg + "\n" + el._1 + " : " + el._2.toYaml()
+    })
+  }
 }
 
 

@@ -25,6 +25,12 @@ refactor Moduledef (initinputs/outpus class methods overriden in builtin modules
 shared object / global/run/module mutable variable (db, var, file, dir, ...)
 
 
+------------
+
+
+cpm process results (get)
+
+
 
 
 

@@ -145,7 +145,7 @@ object AbstractModuleVal extends LazyLogging{
       if(conf.containsKey(in._1)){
         value.fromYaml(conf.get(in._1))
       }else if(!in._2.value.isEmpty){
-        value.fromYaml(in._2.value.get.asString())
+        value.fromYaml(in._2.value.get.toYaml())
       }else{
         throw new Exception("missing input value")
       }
@@ -172,7 +172,7 @@ object AbstractModuleVal extends LazyLogging{
     var x = Map[String,AbstractParameterVal]()
     definition.inputs.map(in => {
       val value = in._2.createVal()
-      value.parseYaml("$"+in._1)
+      value.fromYaml("$"+in._1)
       x += (in._1 -> value)
     })
     x

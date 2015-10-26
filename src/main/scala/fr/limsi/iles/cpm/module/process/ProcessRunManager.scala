@@ -4,6 +4,7 @@ import java.io.FileInputStream
 import java.util.UUID
 import java.util.function.BiConsumer
 
+import com.mongodb.BasicDBObject
 import com.mongodb.casbah.commons.MongoDBObject
 import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.ModuleManager
@@ -17,7 +18,7 @@ import org.yaml.snakeyaml.Yaml
 object ProcessRunManager extends LazyLogging{
 
   // the mongodb process collection
-  val processCollection = DB.get("runids")
+  val processCollection = DB.get("process")
 
   var list : Map[UUID,AbstractProcess] = Map[UUID,AbstractProcess]()
 
@@ -41,7 +42,18 @@ object ProcessRunManager extends LazyLogging{
   }
 
 
-
+  def getProcess(uuid:UUID):AbstractProcess={
+    if(list.contains(uuid)){
+      list(uuid)
+    }else{
+      val query = MongoDBObject("ruid"->uuid.toString)
+      val tmp = processCollection.findOne(query) match {
+        case Some(thing) => thing.asInstanceOf[BasicDBObject]// retrieve process, retrieve status
+        case None => throw new Exception("no such process exist")
+      }
+      AbstractProcess.fromMongoDBObject(tmp)
+    }
+  }
 
 
   def newRun(modulename:String,conffile:String,async:Boolean) :String = {
@@ -94,10 +106,10 @@ object ProcessRunManager extends LazyLogging{
     // setting run environment from conf and default variables
     val env = RunEnv.initFromConf(conffile)
     val resultdirval = DIR()
-    resultdirval.parseYaml(runresultdir)
+    resultdirval.fromYaml(runresultdir)
     env.args += ("_RUN_DIR" -> resultdirval)
     val defdirval = DIR()
-    defdirval.parseYaml(module.wd)
+    defdirval.fromYaml(module.defdir)
     env.args += ("_DEF_DIR" -> defdirval)
 
 

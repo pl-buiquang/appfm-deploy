@@ -54,6 +54,7 @@ object DockerManager extends LazyLogging{
 
 
   def build(name:String,path:String) : Boolean= {
+    logger.info("Building docker image "+name)
     try {
       val filepath = new java.io.File(path)
       val dir = if(filepath.isDirectory){

@@ -52,12 +52,14 @@ object ModuleManager extends LazyLogging{
     init()
   }
 
-  def ls() : String= {
-    var output = ""
-    modules.foreach(el => {
-      output += el._2.toString
+  def ls(onlyname:Boolean) : String= {
+    modules.foldRight("")((el,agg) => {
+      {if(onlyname){
+         el._2.name
+      }else{
+        el._2.toString
+      }} + "\n" + agg
     })
-    output
   }
 
   private def findModuleConf(curFile:java.io.File,f:java.io.File => Unit) :Unit={

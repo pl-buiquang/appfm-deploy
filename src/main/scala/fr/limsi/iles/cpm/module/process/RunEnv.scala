@@ -5,7 +5,7 @@ import java.util.function.{BiConsumer, Consumer}
 
 
 import fr.limsi.iles.cpm.module.value.{AbstractParameterVal, VAL, AbstractParameterVal$}
-import fr.limsi.iles.cpm.utils.{Log, YamlElt}
+import fr.limsi.iles.cpm.utils.{YamlMap, Log, YamlElt}
 import org.yaml.snakeyaml.Yaml
 
 /**
@@ -13,6 +13,14 @@ import org.yaml.snakeyaml.Yaml
  */
 class RunEnv(var args:Map[String,AbstractParameterVal]){
   var logs = Map[String,AbstractParameterVal]()
+
+  def serialize():String={
+    args.foldLeft("")((agg,el)=>{
+      agg+"\n"+el._1+" : \n\ttype : "+el._2._mytype+"\n\tvalue : "+el._2.toYaml()
+    })
+  }
+
+
 
   def copy():RunEnv={
     var newargs = Map[String,AbstractParameterVal]()
@@ -31,9 +39,27 @@ class RunEnv(var args:Map[String,AbstractParameterVal]){
     RunEnv.resolveValueToString(this.args,value)
   }
 
+  def resolveValueToYaml(value:String) : String= {
+    RunEnv.resolveValueToYaml(this.args,value)
+  }
 }
 
 object RunEnv {
+
+  def deserialize(serialized:String):RunEnv={
+    val env = new RunEnv(Map[String,AbstractParameterVal]())
+    /*YamlElt.fromJava(serialized) match {
+      case YamlMap(map) => {
+        map.forEach(new BiConsumer[String,Any] {
+          override def accept(t: String, u: Any): Unit = {
+            env.args += (t -> )
+          }
+        })
+      }
+      case _ => throw new Exception("can't parse serialized environnment ("+serialized+")")
+    }*/
+    env
+  }
 
   def forcePathToBeRelativeTo(basedir:String,path:String) : String = {
     if(!path.startsWith(basedir)){
@@ -44,8 +70,41 @@ object RunEnv {
 
   def resolveValue(env:Map[String,AbstractParameterVal],value:AbstractParameterVal) : AbstractParameterVal = {
     val resolved = value.newEmpty()
-    val resolvedstring = RunEnv.resolveValueToString(env,value.asString())
+    val resolvedstring = RunEnv.resolveValueToString(env,value.toYaml())
     resolved.fromYaml(resolvedstring)
+    resolved
+  }
+
+  def resolveValueToYaml(env:Map[String,AbstractParameterVal],value:String) : String ={
+    var resolved = """\$\{(.*?)\}""".r.replaceAllIn(value,m => {
+      val splitted = m.group(1).split(":")
+      val complexvariable = if(splitted.length>1){
+        (splitted.slice(0,splitted.length-1).mkString("."),splitted(splitted.length-1))
+      }else{
+        (m.group(1),"")
+      }
+      if(env.contains(complexvariable._1)){
+        env(complexvariable._1) match{
+          case o:AbstractParameterVal => complexvariable._2 match {
+            case "" => o.toYaml()
+            case _ => o.getAttr(complexvariable._2).toYaml()
+          }
+          case _ => throw new Exception("undefined value");
+        }
+      }else{
+        m.group(0).replace("$","\\$") // escape "$" to prevent group reference
+      }
+    })
+    resolved = """\$([a-zA-Z_\-]+)""".r.replaceAllIn(resolved,m => {
+      if(env.contains(m.group(1))){
+        env(m.group(1)) match{
+          case o:AbstractParameterVal => val s = o.toYaml(); Log(s);s
+          case _ => throw new Exception("undefined value");
+        }
+      }else{
+        m.group(0).replace("$","\\$") // escape "$" to prevent group reference
+      }
+    })
     resolved
   }
 
@@ -60,8 +119,8 @@ object RunEnv {
       if(env.contains(complexvariable._1)){
         env(complexvariable._1) match{
           case o:AbstractParameterVal => complexvariable._2 match {
-            case "" => o.asString()
-            case _ => o.getAttr(complexvariable._2).asString()
+            case "" => o.toString()
+            case _ => o.getAttr(complexvariable._2).toString()
           }
           case _ => throw new Exception("undefined value");
         }
@@ -72,7 +131,7 @@ object RunEnv {
     resolved = """\$([a-zA-Z_\-]+)""".r.replaceAllIn(resolved,m => {
       if(env.contains(m.group(1))){
         env(m.group(1)) match{
-          case o:AbstractParameterVal => val s = o.asString(); Log(s);s
+          case o:AbstractParameterVal => val s = o.toString(); Log(s);s
           case _ => throw new Exception("undefined value");
         }
       }else{
@@ -92,7 +151,7 @@ object RunEnv {
         map.forEach(new BiConsumer[String,String] {
           override def accept(t: String, u: String): Unit = {
             val x = VAL()
-            x.parseYaml(u)
+            x.fromYaml(u)
             args += (t -> x)
           }
         })

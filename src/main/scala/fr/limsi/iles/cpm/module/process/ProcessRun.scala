@@ -18,9 +18,17 @@ import scala.reflect.io.File
 import scala.sys.process._
 import scala.util.Random
 
-abstract class ProcessStatus
+abstract class ProcessStatus {
+  override def toString():String={
+    this.getClass.getSimpleName
+  }
+}
 case class Running() extends ProcessStatus
-case class Exited(exitcode:String) extends ProcessStatus
+case class Exited(exitcode:String) extends ProcessStatus {
+  override def toString():String={
+    this.getClass.getSimpleName+"("+exitcode+")"
+  }
+}
 case class Waiting() extends ProcessStatus
 
 
@@ -45,7 +53,7 @@ object AbstractProcess{
 
   }
 
-  def fromMongoDBObject(obj:MongoDBObject):AbstractProcess = {
+  def fromMongoDBObject(obj:BasicDBObject):AbstractProcess = {
     /*obj.get("type") match {
       case "CMD" =>
       case "MAP" =>
@@ -80,6 +88,9 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
   var resultnamespace : String = null
 //  var rawlog : List[String]
 
+  ProcessRunManager.list += (id -> this)
+
+
   protected[this] def postInit():Unit={}
   protected[this] def step():Unit
   protected[this] def update(message:ProcessMessage)
@@ -97,7 +108,6 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     logger.info("Executing "+moduleval.moduledef.name)
 
     // save process to db
-    ProcessRunManager.list += (id -> this)
     this.saveStateToDB()
 
     resultnamespace = ns
@@ -178,7 +188,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     var newargs = Map[String,AbstractParameterVal]()
 
     val runresultdir = DIR()
-    runresultdir.parseYaml(parentRunEnv.args("_RUN_DIR").asString()+"/"+moduleval.namespace)
+    runresultdir.fromYaml(parentRunEnv.args("_RUN_DIR").asString()+"/"+moduleval.namespace)
     val newdir = new java.io.File(runresultdir.asString())
     newdir.mkdirs()
     newargs += ("_RUN_DIR" -> runresultdir)
@@ -188,18 +198,18 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
       parentRunEnv.args("_DEF_DIR")
     }else{
       val x = DIR()
-      x.parseYaml(moduleval.moduledef.wd)
+      x.fromYaml(moduleval.moduledef.defdir)
       x
     }
     newargs += ("_DEF_DIR" -> defdir)
 
     val (mod_context,cur_mod) = if(ModuleDef.builtinmodules.contains(moduleval.moduledef.name)){
       val x = VAL()
-      x.parseYaml("_MAIN")
+      x.fromYaml("_MAIN")
       (parentRunEnv.args.getOrElse("_MOD_CONTEXT",x),parentRunEnv.args.getOrElse("_MOD_CONTEXT",x))
     }else{
       val x = VAL()
-      x.parseYaml(moduleval.moduledef.name)
+      x.fromYaml(moduleval.moduledef.name)
       (parentRunEnv.args.getOrElse("_CUR_MOD",x),x)
     }
     newargs += ("_MOD_CONTEXT" -> mod_context)
@@ -225,7 +235,11 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
         })
         if(ready){
           logger.info("Found")
-          input._2.parseYaml(parentEnv.resolveValueToString(input._2.asString()))
+          if(moduleval.moduledef.name == "_CMD"){
+            input._2.fromYaml(parentEnv.resolveValueToString(input._2.toYaml()))
+          }else{
+            input._2.fromYaml(parentEnv.resolveValueToYaml(input._2.toYaml()))
+          }
           newargs += (input._1 -> input._2)
           /*
           variables.foreach(variable => {
@@ -249,7 +263,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     }).foreach(input => {
       logger.info("Adding default value for "+input._1)
       val value = input._2.createVal() //val value = moduleval.inputs(input._1) //
-      value.parseYaml(parentRunEnv.resolveValueToString(input._2.value.get.asString()))
+      value.fromYaml(parentRunEnv.resolveValueToYaml(input._2.value.get.toYaml()))
       newargs += (input._1 -> value)
     })
 
@@ -286,7 +300,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
 
     status = Exited("0")
-    ProcessRunManager.list -= id
+    //ProcessRunManager.list -= id
     saveStateToDB()
 
 
@@ -307,15 +321,47 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
       "ruid" -> id.toString,
       "def" -> moduleval.moduledef.confFilePath,
       "name" -> moduleval.moduledef.name,
-      "status" -> status,
-      "children" -> childrenProcess.foldLeft("")((agg,child) => {agg+","+child.toString})
+      "status" -> status.toString(),
+      "master" -> {parentProcess match {
+        case Some(thing) => false
+        case None => true
+      }},
+      "children" -> childrenProcess.foldLeft("")((agg:String,el:UUID)=>{
+        if(agg!="")
+          agg+","+el.toString
+        else
+          el.toString
+      }),
+      "env" -> {
+        env match {
+          case x:RunEnv => x.serialize()
+          case _ => ""
+        }
+      }
     )
-    new MongoDBObject()
+    obj
+  }
+
+  def getStatus(recursive:Boolean):String={
+    if(recursive){
+      this.moduleval.namespace+" : "+this.status.toString() +
+      childrenProcess.reverse.foldLeft("")((agg,childid)=>{
+        agg+"\n"+Utils.addOffset("\t",ProcessRunManager.getProcess(childid).getStatus(recursive))
+      })
+    }else{
+      this.status.toString()
+    }
   }
 
 
   def saveStateToDB() : Boolean = {
-    val result = ProcessRunManager.processCollection.insert(this.serializeToMongoObject())
+    val query = MongoDBObject("ruid"->id.toString)
+    val result = if(ProcessRunManager.processCollection.find(query).count()>0){
+      ProcessRunManager.processCollection.update(query,this.serializeToMongoObject())
+    }else{
+      ProcessRunManager.processCollection.insert(this.serializeToMongoObject())
+    }
+
     // TODO check if everything went fine
     true
   }
@@ -381,6 +427,8 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
         process.asInstanceOf[MAPProcess].context = context
       }
       runningModules += (module.namespace -> process)
+      childrenProcess ::= process.id
+      this.saveStateToDB()
       process.run(env,moduleval.namespace,Some(processPort),true) // not top level modules (called by cpm cli) always run demonized
     })
   }
@@ -393,8 +441,8 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
     moduleval.moduledef.outputs.foreach(output=>{
       logger.debug("Looking to resolve : "+output._2.value.get.asString())
       val x = output._2.createVal()
-      logger.debug("Found :"+env.resolveValueToString(output._2.value.get.asString()))
-      x.parseYaml(env.resolveValueToString(output._2.value.get.asString()))
+      logger.debug("Found :"+env.resolveValueToYaml(output._2.value.get.asString()))
+      x.fromYaml(env.resolveValueToYaml(output._2.value.get.toYaml()))
       val namespace = moduleval.namespace match {
         case "" => ""
         case _ => moduleval.namespace+"."
@@ -448,7 +496,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
     val folder = new java.io.File(wd)
 
     val dockerimage = {
-      env.resolveValueToString(moduleval.inputs("DOCKERFILE").asString()) match {
+      env.resolveValueToString(moduleval.inputs("DOCKERFILE").toYaml()) match {
         case ConfManager.defaultDockerBaseImage => ConfManager.defaultDockerBaseImage
         case x :String => {
           val name = (env.args("_MOD_CONTEXT").asString()+"_"+moduleval.inputs("DOCKERFILE").getAttr("basename")).toLowerCase
@@ -528,6 +576,11 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
       val modnameendindex = el._1.substring(5+modnamestartindex+1).indexOf(".")
       "_MAP."+el._1.substring(5+modnamestartindex+1)//.substring(0,modnameendindex)
     }).transform((key,content) => {
+      // TODO know whichever the fuck is the type and create the proper list type
+      /**
+       * content.head._2._mytype+"*"
+       */
+
       val newel = LIST[AbstractParameterVal]()
       newel.list = List[AbstractParameterVal]()
       content.foldLeft(newel)((agg,elt) => {
@@ -603,16 +656,18 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     toProcessFiles.foreach(file => {
       val newenv = env
       val x = FILE()
-      x.parseYaml(file.getCanonicalPath)
+      x.fromYaml(file.getCanonicalPath)
       newenv.args += ("_" -> x)
 
       val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
 
       val moduleval = new ModuleVal("_MAP."+(offset+i).toString,module,Some(Utils.scalaMap2JavaMap(newenv.args.mapValues(paramval => {
-        paramval.asString()
+        paramval.toYaml()
       }))))
       i+=1
       val process = new AnonymousModuleProcess(moduleval,Some(this))
+      childrenProcess ::= process.id
+      this.saveStateToDB()
       var list = values("process").asInstanceOf[List[AbstractProcess]]
       list ::= process
       values += ("process" -> list)

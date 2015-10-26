@@ -4,7 +4,7 @@ FROM debian:latest
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-  python python-pip python-dev gcc g++ vim net-tools
+  python python-pip python-dev gcc g++ vim net-tools less
 
 RUN pip install pyzmq 
 

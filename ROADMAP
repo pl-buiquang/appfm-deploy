@@ -32,7 +32,7 @@ Implémentation integration docker générique
 Implémentation run status report & diagnose (via cli api)
 Implémentation result streamer, pathresolver (via cli api)
 
-CPM v0.2 (~ mi novembre)
+CPM v0.2 (~ mi novembre)  
 
 v0.3
 ======

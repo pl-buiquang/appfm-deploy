@@ -70,4 +70,9 @@ object DockerManager extends LazyLogging{
     }
   }
 
+  def cleanup():Boolean={
+    "docker rm -v $(docker ps -a -q -f status=exited)".!
+    true
+  }
+
 }

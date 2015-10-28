@@ -8,18 +8,23 @@ apprentissage scala language & tools, base framework,kernel development (septemb
 
 v0
 ======
-Program allowing module lanching and monitoring with configuration files and cli
+Program allowing module composing, lanching and monitoring with configuration files and cli
+Objective zero cost in installation and reach toward infinite perenity : Debian => Vagrant source/binaries => Dockerfile and images backup => static librairies for modules
+Zero cost in space : so possibility to have online installation 
+Multimodale interactivty with servermode
+
 
 v0.1
 ======
 ...
-Implémentation process + runid results management db : fin de semaine
-Implémentation process-shell : debut semaine prochaine
-Implémentation _CMD and result creation in properly referenced directory : fin de semaine prochaine
-Implémentation integration docker tests proto : fin de semaine prochaine 
-Implémentation _MAP, _FILTER, _SPLITTER, _LOOP : some fin de semaine prochaine
-CLI API + doc + manual : dans deux semaines
-Implémentation cli (run,ls)
+-Implémentation process + runid results management db : fin de semaine
+--Implémentation process-shell : debut semaine prochaine
+-Implémentation _CMD and result creation in properly referenced directory : fin de semaine prochaine
+--Implémentation integration docker tests proto : fin de semaine prochaine 
+-Implémentation _MAP, _FILTER, _SPLITTER, _LOOP : some fin de semaine prochaine
+-CLI API + doc + manual : dans deux semaines
+--Implémentation cli (run,ls)
+
 CPM v0.1 (~23-30 octobre)
 
 
@@ -27,10 +32,10 @@ CPM v0.1 (~23-30 octobre)
 
 v0.2
 ======
-Implémentation reliable communication pattern (reception signal)
-Implémentation integration docker générique
-Implémentation run status report & diagnose (via cli api)
-Implémentation result streamer, pathresolver (via cli api)
+-Implémentation reliable communication pattern (reception signal)
+-Implémentation integration docker générique
+-Implémentation run status report & diagnose (via cli api)
+-Implémentation result streamer, pathresolver (via cli api)
 
 CPM v0.2 (~ mi novembre)  
 

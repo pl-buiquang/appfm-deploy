@@ -6,6 +6,7 @@ import time
 import subprocess
 import shlex
 
+# docker have their network by default nat, so we need to get the gateway as host to send msg to cpm core server
 rawnetinfo = subprocess.check_output(["netstat", "-r"])
 netinfos = rawnetinfo.split("\n")
 for netinfo in netinfos :
@@ -21,10 +22,11 @@ for netinfo in netinfos :
 
 
 
-if len(sys.argv) > 3 :
-	name = sys.argv[1]
-	port = sys.argv[2]
-	cmd = " ".join(sys.argv[3:])
+if len(sys.argv) > 4 :
+	pid = sys.argv[1]
+	name = sys.argv[2]
+	port = sys.argv[3]
+	cmd = " ".join(sys.argv[4:])
 else :
   exit()
 
@@ -36,21 +38,21 @@ context = zmq.Context()
 sock = context.socket(zmq.PUSH)
 sock.connect(connectionInfo)
 
-processinfo = open("/tmp/pinfo","w")
-outfile = open("/tmp/out","w")
-errfile = open("/tmp/err","w")
+processinfo = open("/tmp/pinfo"+pid,"w")
+outfile = open("/tmp/out"+pid,"w")
+errfile = open("/tmp/err"+pid,"w")
 
 processinfo.write(cmd+"\n")
 
 
-print cmd
-
 exitval = subprocess.call(cmd,shell=True,stdout=outfile,stderr=errfile)
 
-print exitval
+
 processinfo.write(str(exitval))
 processinfo.close()
-message = name+"\nFINISHED"
-print "Sending "+message
+outfile.close()
+errfile.close()
+
+message = name+"\nFINISHED\n"+str(exitval)
 sock.send(message)
-print "Sent"
+

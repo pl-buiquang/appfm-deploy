@@ -10,3 +10,7 @@ apt-get install -y mongodb-server
 wget http://influxdb.s3.amazonaws.com/influxdb_0.9.4.2_amd64.deb
 dpkg -i influxdb_0.9.4.2_amd64.deb
 service influxdb start
+apt-get install -y nginx
+/etc/init.d/nginx start
+apt-get install -y php5-fpm
+/etc/init.d/php5-fpm restart

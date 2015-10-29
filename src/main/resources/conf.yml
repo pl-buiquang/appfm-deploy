@@ -1,6 +1,6 @@
 # CPM Server Configuration
 
-cpm_home_dir : /home/paul/projects/custom/cpm #/vagrant #
+cpm_home_dir : /vagrant #/home/paul/projects/custom/cpm #
 
 # main port to connect client with
 cmd_listen_port : 5555
@@ -18,13 +18,13 @@ modules_dir :
   - /vagrant/modules
   - /vagrant/examples/modules
 
-default_result_dir : /home/paul/projects/custom/cpm/examples/results
+#default_result_dir : /home/paul/projects/custom/cpm/examples/results
 #default_result_dir : /people/buiquang/projects/custom/cpm/examples/results
-#default_result_dir : /vagrant/examples/results
+default_result_dir : /vagrant/examples/results
 
-default_corpus_dir : /home/paul/projects/custom/cpm/examples/corpus
+#default_corpus_dir : /home/paul/projects/custom/cpm/examples/corpus
 #default_corpus_dir : /people/buiquang/projects/custom/cpm/examples/corpus
-#default_corpus_dir : /vagrant/examples/corpus
+default_corpus_dir : /vagrant/examples/corpus
 
 
 # db info

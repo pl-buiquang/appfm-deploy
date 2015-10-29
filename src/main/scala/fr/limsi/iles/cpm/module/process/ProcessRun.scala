@@ -163,7 +163,8 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
         step() // step run
 
-        val message: ProcessMessage = socket.recvStr()
+        val rawmessage = socket.recvStr()
+        val message: ProcessMessage = rawmessage
 
         update(message) // update after step
 
@@ -206,7 +207,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     val (mod_context,cur_mod) = if(ModuleDef.builtinmodules.contains(moduleval.moduledef.name)){
       val x = VAL()
       x.fromYaml("_MAIN")
-      (parentRunEnv.args.getOrElse("_MOD_CONTEXT",x),parentRunEnv.args.getOrElse("_MOD_CONTEXT",x))
+      (parentRunEnv.args.getOrElse("_CUR_MOD",x),parentRunEnv.args.getOrElse("_CUR_MOD",x))
     }else{
       val x = VAL()
       x.fromYaml(moduleval.moduledef.name)
@@ -307,7 +308,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     socket match {
       case Some(sock) => {
         logger.debug("Sending completion signal")
-        sock.send(new ValidProcessMessage(moduleval.namespace,"FINISHED"))
+        sock.send(new ValidProcessMessage(moduleval.namespace,"FINISHED","0"))
       }
       case None => {
         logger.info("Finished executing "+moduleval.moduledef.name)
@@ -385,7 +386,7 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
 
   override def update(message:ProcessMessage)={
     message match {
-      case ValidProcessMessage(sender,status) => status match {
+      case ValidProcessMessage(sender,status,exitval) => status match {
         case "FINISHED" => {
           logger.debug(sender + " just finished")
           // TODO message should contain new env data?
@@ -499,7 +500,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
       env.resolveValueToString(moduleval.inputs("DOCKERFILE").toYaml()) match {
         case ConfManager.defaultDockerBaseImage => ConfManager.defaultDockerBaseImage
         case x :String => {
-          val name = (env.args("_MOD_CONTEXT").asString()+"_"+moduleval.inputs("DOCKERFILE").getAttr("basename")).toLowerCase
+          val name = env.args("_MOD_CONTEXT").asString()
           if(!DockerManager.exist(name)){
             DockerManager.build(name,x)
           }
@@ -508,7 +509,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
         case _ =>  ConfManager.defaultDockerBaseImage
       }
     }
-    DockerManager.run(moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),folder,dockerimage)
+    DockerManager.run(this.id,moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),folder,dockerimage)
     //Process(env.resolveVars(moduleval.inputs("CMD").asString()),new java.io.File(wd)) ! ProcessLogger(line => stdout+="\n"+line,line=>stderr+="\n"+line)
     stdoutval.rawValue = stdout
     stdoutval.resolvedValue = stdout

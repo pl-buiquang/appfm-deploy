@@ -76,7 +76,7 @@ class RequestHandler extends Runnable with LazyLogging{
       //  so that this server also works with The Guide's C and C++ "Hello World" clients
       val reply = (answer+" ").getBytes
       reply(reply.length-1)=0 //Sets the last byte of the reply to 0
-      socket.send(reply, 0)
+      socket.send(answer, 0)
 
     }
 

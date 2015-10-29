@@ -8,8 +8,8 @@ object ProcessMessage{
 
   implicit def parse(message:String) : ProcessMessage = {
     val components = message.split("\n")
-    if(components.size==2){
-      new ValidProcessMessage(components(0),components(1))
+    if(components.size>=3){
+      new ValidProcessMessage(components(0),components(1),components(2))
     }else{
       new InvalidProcessMessage()
     }
@@ -22,10 +22,10 @@ object ProcessMessage{
 
 class ProcessMessage
 
-case class ValidProcessMessage(val sender:String,val status:String) extends ProcessMessage{
+case class ValidProcessMessage(val sender:String,val status:String,val exitval:String) extends ProcessMessage{
 
   override def toString(): String = {
-    sender+"\n"+status
+    sender+"\n"+status+"\n"+exitval
   }
 }
 

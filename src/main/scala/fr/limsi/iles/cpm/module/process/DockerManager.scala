@@ -1,6 +1,7 @@
 package fr.limsi.iles.cpm.module.process
 
 import java.io.PrintWriter
+import java.util.UUID
 
 import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.utils.ConfManager
@@ -21,15 +22,15 @@ object DockerManager extends LazyLogging{
   }
 
 
-  def baseRun(name:String,host:String,port:String,cmd:String,foldersync:java.io.File) = {
-    run(name,host,port,cmd,foldersync,ConfManager.defaultDockerBaseImage)
+  def baseRun(pid:UUID,name:String,host:String,port:String,cmd:String,foldersync:java.io.File) = {
+    run(pid,name,host,port,cmd,foldersync,ConfManager.defaultDockerBaseImage)
   }
 
-  def run(name:String,host:String,port:String,cmd:String,foldersync:java.io.File,dockerimage:String) = {
+  def run(pid:UUID,name:String,host:String,port:String,cmd:String,foldersync:java.io.File,dockerimage:String) = {
     val mount = "-v "+foldersync.getCanonicalPath+":"+foldersync.getCanonicalPath
     val mount2 = " -v /tmp:/tmp -v "+ConfManager.get("default_result_dir")+":"+ConfManager.get("default_result_dir")+" -v "+ConfManager.get("default_corpus_dir")+":"+ConfManager.get("default_corpus_dir")+" "
     val absolutecmd = cmd.replace("\n"," ").replace("\"","\\\"").replaceAll("^./",foldersync.getCanonicalPath+"/")
-    val dockercmd = "docker run "+mount+mount2+" -td "+dockerimage+" "+name+" "+port+" "+absolutecmd+""
+    val dockercmd = "docker run "+mount+mount2+" -td "+dockerimage+" "+pid.toString+" "+name+" "+port+" "+absolutecmd+""
     logger.debug(dockercmd)
     dockercmd.!!
   }
@@ -62,9 +63,8 @@ object DockerManager extends LazyLogging{
       }else{
         filepath.getParent
       }
-      val output = ("docker build -t " + name + " " + dir).!!
-      logger.info(output)
-      true
+      val output = ("docker build -t " + name + " " + dir).!
+      output==0
     } catch {
       case e:Throwable => logger.error(e.getMessage); fr.limsi.iles.cpm.utils.Log.error(e); false
     }

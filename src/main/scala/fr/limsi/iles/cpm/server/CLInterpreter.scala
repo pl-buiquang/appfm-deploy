@@ -1,12 +1,16 @@
 package fr.limsi.iles.cpm.server
 
+import java.net.URLEncoder
 import java.util.UUID
 
+import com.mongodb.DBObject
+import com.mongodb.casbah.commons.MongoDBObject
 import fr.limsi.iles.cpm.module.ModuleManager
 import fr.limsi.iles.cpm.module.process.ProcessRunManager
 import fr.limsi.iles.cpm.module.value.AbstractModuleVal
 import fr.limsi.iles.cpm.utils.ConfManager
 
+import scala.io.Source
 import scala.sys.process._
 
 /**
@@ -70,21 +74,57 @@ object CLInterpreter {
     }
   }
 
-  def interpretProcessCommands(args:Seq[String]) = {
+  def processChildrenRecPrint(process:DBObject,offset:String):String={
+    var out = ""
+    val children = process.get("children").toString.split(",")
+    if(children.length>0 && process.get("children").toString.trim!="") {
+      children.reverse.foreach(pid => {
+        val q = MongoDBObject("ruid"->pid)
+        val childproc = ProcessRunManager.processCollection.findOne(q)
+        childproc match {
+          case Some(stuff) => out += offset+(stuff.get("name") + "\t" + stuff.get("ruid").toString+"\n") + processChildrenRecPrint(stuff,"  |"+offset)
+          case None => ""
+        }
+      })
+    }else {
+      out = ""
+    }
+    out
+  }
+
+  def interpretProcessCommands(args:Seq[String]):String = {
     try{
       args(0) match{
         case "ls" => try {
-          val all = if(args.size > 1 && args(1)=="-a"){
-            true
-          }else{
-            false
+          val opt = if(args.size > 2){
+            if(args(1)=="-a" && args(2)=="-r") {
+              (true,true)
+            }else {
+              (false, false) // should not happen if properly called via cpm-cli
+            }
+          }else if(args.size > 1){
+            if(args(1)=="-a") {
+              (true,false)
+            }else if(args(1)=="-r") {
+              (false,true)
+            }else {
+              (false,false) // should not happen if properly called via cpm-cli
+            }
+          }else {
+            (false,false)
           }
-          val it = ProcessRunManager.processCollection.find()
+          val master = MongoDBObject("master"->true)
+          val it = ProcessRunManager.processCollection.find(master)
           var toprint = ""
           while(it.hasNext){
             val pobj = it.next()
-            if(all || Boolean.unbox(pobj.get("master"))){
-              toprint += pobj.get("name") + "\t" + pobj.get("ruid").toString+"\n"
+            if(opt._1 || pobj.get("status")=="Running"){
+              toprint += pobj.get("name") + "\t" + pobj.get("ruid").toString
+              if(opt._2){
+                toprint+="\n"+processChildrenRecPrint(pobj,"  |")+"\n"
+              }else{
+                toprint+="\n"
+              }
             }
           }
           toprint
@@ -96,10 +136,45 @@ object CLInterpreter {
             "Missing pid"
           }
         }catch {case e:Throwable => "Error :"+e.getMessage}
+        case "log" => {
+          if(args.size > 1){
+            val process = ProcessRunManager.getProcess(UUID.fromString(args(1)))
+            if(args.size > 2 && args(2)=="--gui"){
+              if(process.moduleval.moduledef.name=="_CMD")
+                "index.php?file="+URLEncoder.encode("/tmp/err"+args(1),"utf-8")
+              else
+                "mm"
+            }else{
+              if(process.moduleval.moduledef.name=="_CMD")
+                Source.fromFile("/tmp/err"+args(1)).getLines.mkString
+              else
+                "ll"
+            }
+          }else{
+            "Missing pid"
+          }
+        }
+        case "view" => {
+          if(args.size > 2){
+            val process = ProcessRunManager.getProcess(UUID.fromString(args(1)))
+            val result = if(process.env.args.contains(args(2))){
+              process.env.args(args(2)).asString()
+            }else{
+              "no result"
+            }
+            if(args.size > 3 && args(3)=="--gui"){
+              "index.php?content="+URLEncoder.encode(result,"utf-8")
+            }else{
+              result
+            }
+          }else{
+            "Missing pid"
+          }
+        }
         case _ => "Invalid argument"
       }
     }catch{
-      case e:Throwable => "Missing argument"
+      case e:Throwable => e.printStackTrace(); "Missing argument"
     }
   }
 
@@ -116,6 +191,13 @@ object CLInterpreter {
         }
         case "run" => {
           ProcessRunManager.newRun(args(1),args(2),true)
+        }
+        case "getdesc" => {
+          if(ModuleManager.modules.contains(args(1))){
+            ModuleManager.modules(args(1)).desc
+          }else{
+            "Unknown module!"
+          }
         }
 
         case _ => "Invalid argument"

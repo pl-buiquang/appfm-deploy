@@ -31,7 +31,16 @@ shared object / global/run/module mutable variable (db, var, file, dir, ...)
 cpm process results (get)
 
 
+----------------
 
+
+- add DB Type
+- finished normalization Types (map, list, etc.)
+- normalization file/dir creation output in resultdir
+- process/env serialization
+- result management
+- process lazy run (fetch previous run partial results)
+- normalize cpm packaging
 
 
 

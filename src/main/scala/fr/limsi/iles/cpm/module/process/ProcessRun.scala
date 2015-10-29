@@ -72,6 +72,10 @@ object AbstractProcess{
  */
 abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id :UUID) extends LazyLogging{
 
+  // TODO use these in initRunEnv to replace missing values (or force override values) and in step() method to skip proper modules
+  var skipped = List[String]() // moduleval namespace to prevent from running and fetch previous result
+  var replacements = Map[String,UUID]() // map (moduleval namespace -> run) result replacement
+
   var parentEnv : RunEnv = null
   var env : RunEnv = null
   val moduleval : AbstractModuleVal
@@ -90,6 +94,13 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
   ProcessRunManager.list += (id -> this)
 
+  def getOutput(outputName:String) = {
+    if(env.args.contains(outputName)){
+      env.args(outputName)
+    }else{
+      ""
+    }
+  }
 
   protected[this] def postInit():Unit={}
   protected[this] def step():Unit
@@ -116,7 +127,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
       initRunEnv(parentEnv)
       postInit()
     }catch{
-      case e:Throwable => logger.error(e.getMessage); exitRoutine(); return id
+      case e:Throwable => logger.error(e.getMessage); exitRoutine("error when initiation execution environment : "+e.getMessage); return id
 
     }
 
@@ -171,7 +182,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
       }
 
     }catch{
-      case e:Throwable => logger.error(e.getMessage) ; exitRoutine()
+      case e:Throwable => logger.error(e.getMessage) ; exitRoutine("error when running : "+e.getMessage)
     }
 
 
@@ -258,6 +269,8 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
     }
 
+    //TODO allow previous run result to fill missing inputs if run type allow it
+
     // done in moduleval initialization
     moduleval.moduledef.inputs.filter(input => {
       !input._2.value.isEmpty && !newargs.contains(input._1)
@@ -281,8 +294,9 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     })
   }
 
+  private[this] def exitRoutine(): Unit = exitRoutine("0")
 
-  private[this] def exitRoutine(): Unit = {
+  private[this] def exitRoutine(error:String): Unit = {
     logger.debug("Finished processing for module "+moduleval.moduledef.name+", connecting to parent socket")
     val socket = parentPort match {
       case Some(port) => {
@@ -300,7 +314,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     updateParentEnv()
 
 
-    status = Exited("0")
+    status = Exited(error)
     //ProcessRunManager.list -= id
     saveStateToDB()
 

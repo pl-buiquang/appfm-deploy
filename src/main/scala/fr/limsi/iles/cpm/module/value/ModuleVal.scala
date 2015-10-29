@@ -30,6 +30,12 @@ abstract class AbstractModuleVal(val moduledef:ModuleDef,conf:Option[java.util.M
     }
   }
 
+  /**
+   * Indicates if a module can be run provided and execution environment
+   * TODO allow infering of previous run result to fill missing inputs if run type allow it
+   * @param env
+   * @return
+   */
   def isExecutable(env:RunEnv):Boolean = {
     inputs.foldLeft(true)((result,input) => {
       val vars = input._2.extractVariables()

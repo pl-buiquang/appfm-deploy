@@ -1,9 +1,7 @@
 package fr.limsi.iles.cpm.module.value
 
 import java.util.function.Consumer
-
-import fr.limsi.iles.cpm.module.ModuleManager
-import fr.limsi.iles.cpm.module.definition.{MAPDef, CMDDef}
+import fr.limsi.iles.cpm.module.definition.{ModuleManager, MAPDef, CMDDef}
 import fr.limsi.iles.cpm.module.parameter.AbstractModuleParameter
 import fr.limsi.iles.cpm.utils.{Utils, YamlString, YamlList, YamlElt}
 
@@ -302,11 +300,19 @@ case class MODVAL() extends AbstractParameterVal{
  */
 case class LIST[P <: AbstractParameterVal](implicit manifest: Manifest[P]) extends AbstractParameterVal {
   override val _mytype = {
-    manifest.runtimeClass.getSimpleName+"*"
+    getBaseType(manifest)+"*"
   }
-  var list : List[P] = _
+  var list : List[P] = List[P]()
 
   def make: P = manifest.runtimeClass.newInstance.asInstanceOf[P]
+
+  def getBaseType(manifest: Manifest[_]):String={
+    if(manifest.typeArguments.length>0){
+      getBaseType(manifest.typeArguments(0))+"*"
+    }else{
+      manifest.runtimeClass.getSimpleName
+    }
+  }
 
   override protected def parseYaml(yaml: Any): Unit = {
 

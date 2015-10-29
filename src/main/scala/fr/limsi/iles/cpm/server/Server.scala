@@ -68,7 +68,7 @@ class RequestHandler extends Runnable with LazyLogging{
         + stringinput  //  Creates a String from request, minus the last byte
         + "]")
 
-      val answer :String= CLInterpreter.interpret(stringinput)
+      val answer :String= CPMCommand.execute(stringinput)
 
 
       //  Send reply back to client

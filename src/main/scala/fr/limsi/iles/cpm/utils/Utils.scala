@@ -2,11 +2,12 @@ package fr.limsi.iles.cpm.utils
 
 import java.text.SimpleDateFormat
 import java.util
-import java.util.function.Consumer
+import java.util.function.{BiConsumer, Consumer}
 
 import org.slf4j.LoggerFactory
 import org.yaml.snakeyaml.Yaml
 
+import org.json._
 
 /**
  * Created by buiquang on 9/22/15.
@@ -73,7 +74,51 @@ object Utils{
 }
 
 
-abstract class YamlElt
+abstract class YamlElt{
+  def toJSONObject() : AnyRef= {
+    this match {
+      case YamlList(list) => {
+        var x = new JSONArray()
+        var index = 0
+        list.forEach(new Consumer[Any] {
+          override def accept(t: Any): Unit = {
+            x.put(index,YamlElt.fromJava(t).toJSONObject());
+            index += 1
+          }
+        })
+        x
+      }
+      case YamlMap(map)=>{
+        var x = new JSONObject()
+        map.forEach(new BiConsumer[String,Any] {
+          override def accept(t: String, u: Any): Unit = {
+            x.put(t,YamlElt.fromJava(u).toJSONObject())
+          }
+        })
+        x
+      }
+      case YamlString(string)=>{
+        string
+      }
+      case YamlUnknown(thing) => {
+        null
+      }
+      case YamlNull() => {
+        null
+      }
+    }
+  }
+
+  def fromJSONObject(json:JSONObject):YamlElt={
+    val keys = json.keys()
+    var map = new java.util.HashMap[String,Any]()
+    while(keys.hasNext){
+      val key = keys.next()
+      map.put(key,json.get(key))
+    }
+    YamlElt.fromJava(map)
+  }
+}
 case class YamlList(list:java.util.ArrayList[Any]) extends YamlElt{
   def apply(index:Int)={
     val yel = list.get(index)
@@ -88,6 +133,7 @@ case class YamlList(list:java.util.ArrayList[Any]) extends YamlElt{
     }
     slist
   }
+
 }
 case class YamlMap(map:java.util.HashMap[String,Any]) extends YamlElt{
   def apply(key:String)={

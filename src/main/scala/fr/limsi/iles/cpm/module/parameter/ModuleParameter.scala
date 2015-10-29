@@ -48,62 +48,55 @@ class ModuleParameter[U <: AbstractParameterVal](theparamType:String,override va
       manifest.runtimeClass.newInstance().asInstanceOf[U]
   }*/
   override def createVal() : AbstractParameterVal ={
-    """(\w+)\s*(\+|\*)?""".r.findFirstMatchIn(paramType) match {
-      case Some(matched) => {
-        matched.group(2) match {
-          case arity:String => {
-            matched.group(1) match {
-              case "VAL" => LIST[VAL]()
-              case "FILE" => LIST[FILE]()
-              case "DIR" => LIST[DIR]()
-              case "CORPUS" => LIST[CORPUS]()
-              case "MODVAL" => LIST[MODVAL]()
-              case _ => throw new Exception("unknown type \""+paramType+"\"")
-            }
-          }
-          case _ => {
-            matched.group(1) match {
-              case "VAL" => VAL()
-              case "FILE" => FILE()
-              case "DIR" => DIR()
-              case "CORPUS" => CORPUS()
-              case "MODVAL" => MODVAL()
-              case _ => throw new Exception("unknown type \"" + paramType + "\"")
-            }
-          }
-        }
-      }
-      case None => throw new Exception("unknown type \""+paramType+"\"")
-    }
+    AbstractModuleParameter.createVal(paramType)
   }
 }
 
 object AbstractModuleParameter{
-  // TODO add (\+|\*)*) to take into account nested list type
   def createVal(typestr:String) : AbstractParameterVal ={
-    """(\w+)\s*(\+|\*)?""".r.findFirstMatchIn(typestr) match {
+    """(\w+)\s*((\+|\*)*)""".r.findFirstMatchIn(typestr) match {
       case Some(matched) => {
         matched.group(2) match {
           case arity:String => {
-            matched.group(1) match {
-              case "VAL" => LIST[VAL]()
-              case "FILE" => LIST[FILE]()
-              case "DIR" => LIST[DIR]()
-              case "CORPUS" => LIST[CORPUS]()
-              case "MODVAL" => LIST[MODVAL]()
-              case _ => throw new Exception("unknown type \""+typestr+"\"")
+            if(arity.length==1){
+              matched.group(1) match {
+                case "VAL" => LIST[VAL]()
+                case "FILE" => LIST[FILE]()
+                case "DIR" => LIST[DIR]()
+                case "CORPUS" => LIST[CORPUS]()
+                case "MODVAL" => LIST[MODVAL]()
+                case _ => throw new Exception("unknown type \"" + typestr + "\"")
+              }
+            }else if(arity.length==2){
+              matched.group(1) match {
+                case "VAL" => LIST[LIST[VAL]]()
+                case "FILE" => LIST[LIST[FILE]]()
+                case "DIR" => LIST[LIST[DIR]]()
+                case "CORPUS" => LIST[LIST[CORPUS]]()
+                case "MODVAL" => LIST[LIST[MODVAL]]()
+                case _ => throw new Exception("unknown type \""+typestr+"\"")
+              }
+            }else if(arity.length==3){
+              matched.group(1) match {
+                case "VAL" => LIST[LIST[LIST[VAL]]]()
+                case "FILE" => LIST[LIST[LIST[FILE]]]()
+                case "DIR" => LIST[LIST[LIST[DIR]]]()
+                case "CORPUS" => LIST[LIST[LIST[CORPUS]]]()
+                case "MODVAL" => LIST[LIST[LIST[MODVAL]]]()
+                case _ => throw new Exception("unknown type \""+typestr+"\"")
+              }
+            }else{
+              matched.group(1) match {
+                case "VAL" => VAL()
+                case "FILE" => FILE()
+                case "DIR" => DIR()
+                case "CORPUS" => CORPUS()
+                case "MODVAL" => MODVAL()
+                case _ => throw new Exception("unknown type \"" + typestr + "\"")
+              }
             }
           }
-          case _ => {
-            matched.group(1) match {
-              case "VAL" => VAL()
-              case "FILE" => FILE()
-              case "DIR" => DIR()
-              case "CORPUS" => CORPUS()
-              case "MODVAL" => MODVAL()
-              case _ => throw new Exception("unknown type \"" + typestr + "\"")
-            }
-          }
+          case _ => throw new Exception("problem with match") // should never happen
         }
       }
       case None => throw new Exception("unknown type \""+typestr+"\"")
@@ -122,7 +115,9 @@ object AbstractModuleParameter{
   {
     val x = new ModuleParameter[T](type_.get,desc,format,schema)
     if(paramdef.getOrDefault("value",null)!=null){
-      x.setVal(paramdef.get("value"),manifest.runtimeClass.newInstance().asInstanceOf[T]);
+      val thevalue = paramdef.get("value")
+      val theobject = AbstractModuleParameter.createVal(type_.get).asInstanceOf[T]//manifest.runtimeClass.newInstance().asInstanceOf[T]
+      x.setVal(thevalue,theobject);
     }
     else if(requireValue){
       throw new Exception("missing value for param "+name)

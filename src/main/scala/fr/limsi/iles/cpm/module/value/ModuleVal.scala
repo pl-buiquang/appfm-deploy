@@ -3,9 +3,8 @@ package fr.limsi.iles.cpm.module.value
 import java.util.function.Consumer
 
 import com.typesafe.scalalogging.LazyLogging
-import fr.limsi.iles.cpm.module.ModuleManager
 import fr.limsi.iles.cpm.module.definition.AnonymousDef._
-import fr.limsi.iles.cpm.module.definition.{AnonymousDef, CMDDef, MAPDef, ModuleDef}
+import fr.limsi.iles.cpm.module.definition._
 import fr.limsi.iles.cpm.module.parameter._
 import fr.limsi.iles.cpm.module.process._
 import fr.limsi.iles.cpm.utils.{YamlList, YamlMap, YamlElt}
@@ -15,7 +14,7 @@ import fr.limsi.iles.cpm.utils.{YamlList, YamlMap, YamlElt}
  */
 
 
-abstract class AbstractModuleVal(val moduledef:ModuleDef,conf:Option[java.util.Map[String,Any]]) extends LazyLogging{
+abstract class AbstractModuleVal(val moduledef:ModuleDef,val conf:Option[java.util.Map[String,Any]]) extends LazyLogging{
   val namespace:String
   val inputs:Map[String,AbstractParameterVal] = AbstractModuleVal.initInputs(moduledef,conf)
 
@@ -188,7 +187,7 @@ object AbstractModuleVal extends LazyLogging{
 
 
 
-case class ModuleVal(override val namespace:String,override val moduledef:ModuleDef,conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(moduledef,conf){
+case class ModuleVal(override val namespace:String,override val moduledef:ModuleDef,override val conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(moduledef,conf){
 
   override def toProcess(parentProcess:Option[AbstractProcess]): AbstractProcess = {
     new ModuleProcess(new ModuleVal(namespace,this.moduledef,conf),parentProcess)
@@ -198,7 +197,7 @@ case class ModuleVal(override val namespace:String,override val moduledef:Module
 }
 
 
-case class CMDVal(override val namespace:String,conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(CMDDef,conf){
+case class CMDVal(override val namespace:String,override val conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(CMDDef,conf){
 
 
   override def toProcess(parentProcess:Option[AbstractProcess]): AbstractProcess = {
@@ -208,7 +207,7 @@ case class CMDVal(override val namespace:String,conf:Option[java.util.Map[String
 
 }
 
-case class MAPVal(override val namespace:String,conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(MAPDef,conf){
+case class MAPVal(override val namespace:String,override val conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(MAPDef,conf){
 
 
   override def toProcess(parentProcess:Option[AbstractProcess]): AbstractProcess = {

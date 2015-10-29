@@ -28,6 +28,10 @@ libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0"
 
 libraryDependencies += "org.mongodb" %% "casbah" % "2.8.2"
 
+libraryDependencies += "org.json4s" %% "json4s-native" % "3.3.0"
+
+libraryDependencies += "org.json4s" %% "json4s-jackson" % "3.3.0"
+
 /*libraryDependencies += "org.spark-project.zeromq" % "zeromq-scala-binding_2.11" % "0.0.7-spark"*/
 /*
  libraryDependencies ++= Seq(

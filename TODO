@@ -43,6 +43,52 @@ cpm process results (get)
 - normalize cpm packaging
 
 
+----------------
+
+
+solve client/server issues (conf, corpus data, etc.) => (cli can send local conf file to server)
+fix _CMD/results path consistance/cohÃ©rence => (every file/folder output should have its parentFolder created if needed in server space, every missing input path file missing reference should trigger and error. => every module MUST have static linked/packaged libraries (in docker, or specified shared environnement => docker also (specification system))
+every docker files modifications (outputs) MUST be registered/reference on server space, every module input MUST be available to docker environment
+custom dockerfile can be created but they must have their entrypoint be set to the properly installed script cpm-process-shell.py
+
+creation custom type CORPUS,DB
+base types BOOLEAN, VAL(string/yaml)
+base default types FILE, DIR
+
+implement _FILTER, _SPLITTER(filter on file content), _MATCH(sorte de if)(Boolean system => Boolean type, Boolean arithmÃ©tic (=, >=, <=, !=,&&,||), Boolean result between types(VAl,FILE,...) AbstractModuleVal => Boolean, (AbstractModuleVal, AbstractModuleVal,op) => Boolean (op appartient aux functions de l'arithmÃ©tique boolean)
+
+stanford parser -> xml
+xml_merger -> module
+
+run result save, run module process db save,
+run result = module process + env = moduleval = function + argument (argument and env can be void)
+system to run some part of a module choosing and by default run result use as a moduleval with or without newenv input available
+run types :
+- (scratch/default) next same invocation + param : erase previous (can use previous output still during runing), different invocation or parameter create new run dir
+- (saved) next same invocation + param : create a new run dir
+
+can :
+- can add a tag to any type
+- save result for any type with added a tag (new if new, replace if not new)
+- delete saved/unsaved results
+
+
+pid = cpm run "module-name" conf(yaml) (= env yaml values)
+pid = cpm new run "module-name" conf(yaml)
+pid = cpm run "module-name" conf(yaml) --tag "tagname"
+pid = cpm new run "module-name" conf(yaml) --tag "tagname"
+cpm view PID OUTPUT
+cpm view MODULE_NAME CONF OUTPUT --version "tagname(:pid)"
+cpm view PID OUTPUT --gui // url to server rendering html default conversion (add format html for target implicit "view module" definitions) echoing file content/dir ls/..
+cpm view PID OUTPUT --gui-debug // get the raw html produced by the server
+cpm view PID OUTPUT --cpm-gui // get the raw html produced by the server with cpm-web-js use as library (for encapsulating views into cpm future neo4j style web ajax gui, use localstorage to store views command (pid/results) and be able to restore views after page refresh or views closed(does not destroy object))
+(Tree(pid,status),status) = cpm process PID status
+
+cpm run "module-name" conf --except "moduleval namespace" (comma separated list par exemple) // default replace moduleval by latest result, warning if no moduleval with same env initiation, error if no moduleval results available at all
+cpm run "module-name" conf --replace "moduleval namespace = (tag(:pid))" (comma separated list par exemple) // force specific replace of a previous result
+
+
+
 
 
 

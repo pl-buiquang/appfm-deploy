@@ -1,14 +1,17 @@
 package fr.limsi.iles.cpm.module.definition
 
 
+import java.io.FileInputStream
 import java.util.function.Consumer
 
+import com.mongodb.DBObject
 import com.typesafe.scalalogging.LazyLogging
-import fr.limsi.iles.cpm.module.ModuleManager
+import fr.limsi.iles.cpm.module.definition.ModuleManager._
 import fr.limsi.iles.cpm.module.parameter._
 import fr.limsi.iles.cpm.module.process._
 import fr.limsi.iles.cpm.module.value._
 import fr.limsi.iles.cpm.utils._
+import org.yaml.snakeyaml.Yaml
 
 /**
  * Created by buiquang on 9/16/15.
@@ -88,6 +91,9 @@ class ModuleDef(
     }) + "\n\n"
   }
 
+  def serialize() : String= {
+    "todo"
+  }
 
 }
 
@@ -95,6 +101,24 @@ class ModuleDef(
 
 object ModuleDef extends LazyLogging{
   val nameRegex = """^[a-zA-Z][a-zA-Z0-9\-_]+(@[a-zA-Z0-9\-_]+)?$"""
+
+  def fromYaml(modulename:String,conf:String,conffile:String):ModuleDef={
+
+    val yaml = new Yaml()
+    val confMap = yaml.load(conf).asInstanceOf[java.util.Map[String,Any]]
+
+    val module = new ModuleDef(conffile,
+      modulename,
+      ModuleDef.initDesc(confMap),
+      ModuleDef.initInputs(confMap),
+      ModuleDef.initOutputs(confMap),
+      ModuleDef.initLogs(confMap),
+      Nil
+    );
+
+    module.exec = ModuleDef.initRun(confMap,module.defdir,module.inputs)
+    module
+  }
 
   def initName(providedName:String,confMap:java.util.Map[String,Any]) = YamlElt.fromJava(confMap.get("name")) match {
     case YamlString(s) => {

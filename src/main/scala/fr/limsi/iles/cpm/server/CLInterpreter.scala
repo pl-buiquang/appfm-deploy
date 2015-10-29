@@ -5,7 +5,7 @@ import java.util.UUID
 
 import com.mongodb.DBObject
 import com.mongodb.casbah.commons.MongoDBObject
-import fr.limsi.iles.cpm.module.ModuleManager
+import fr.limsi.iles.cpm.module.definition.ModuleManager
 import fr.limsi.iles.cpm.module.process.ProcessRunManager
 import fr.limsi.iles.cpm.module.value.AbstractModuleVal
 import fr.limsi.iles.cpm.utils.ConfManager
@@ -159,6 +159,12 @@ object CLInterpreter {
             val process = ProcessRunManager.getProcess(UUID.fromString(args(1)))
             val result = if(process.env.args.contains(args(2))){
               process.env.args(args(2)).asString()
+            }else if(args(2)=="__ALL__"){
+              val r = process.env.args.keys.foldLeft("")(_ +","+ _)
+              if(r.length>0)
+                r.substring(1)
+              else
+                r
             }else{
               "no result"
             }

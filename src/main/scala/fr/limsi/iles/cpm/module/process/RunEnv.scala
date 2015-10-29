@@ -4,6 +4,7 @@ import java.io.FileInputStream
 import java.util.function.{BiConsumer, Consumer}
 
 
+import fr.limsi.iles.cpm.module.parameter.AbstractModuleParameter
 import fr.limsi.iles.cpm.module.value.{AbstractParameterVal, VAL, AbstractParameterVal$}
 import fr.limsi.iles.cpm.utils.{YamlMap, Log, YamlElt}
 import org.yaml.snakeyaml.Yaml
@@ -48,16 +49,29 @@ object RunEnv {
 
   def deserialize(serialized:String):RunEnv={
     val env = new RunEnv(Map[String,AbstractParameterVal]())
-    /*YamlElt.fromJava(serialized) match {
+    YamlElt.fromJava(serialized) match {
       case YamlMap(map) => {
         map.forEach(new BiConsumer[String,Any] {
           override def accept(t: String, u: Any): Unit = {
-            env.args += (t -> )
+            val valuebundle = u.asInstanceOf[java.util.Map[String,Any]]
+            val vartype = if(valuebundle.containsKey("type")){
+              valuebundle.get("type").toString
+            }else{
+              "VAL"
+            }
+            val variable = AbstractModuleParameter.createVal(vartype)
+            val value = if(valuebundle.containsKey("value")){
+              valuebundle.get("value")
+            }else{
+              ""
+            }
+            variable.fromYaml(value)
+            env.args += (t -> variable)
           }
         })
       }
       case _ => throw new Exception("can't parse serialized environnment ("+serialized+")")
-    }*/
+    }
     env
   }
 

@@ -6,12 +6,14 @@ import java.util.concurrent.Executors
 import com.mongodb.casbah.commons.MongoDBObject
 import com.mongodb.casbah.Imports._
 import com.typesafe.scalalogging.LazyLogging
-import fr.limsi.iles.cpm.module.definition.{AnonymousDef, ModuleDef}
+import fr.limsi.iles.cpm.module.definition.{ModuleManager, AnonymousDef, ModuleDef}
 import fr.limsi.iles.cpm.module.parameter.AbstractModuleParameter
 import fr.limsi.iles.cpm.module.value.{DIR, VAL, AbstractParameterVal}
 import fr.limsi.iles.cpm.module.value._
 import fr.limsi.iles.cpm.server.Server
 import fr.limsi.iles.cpm.utils.{Utils, ConfManager}
+import org.json.JSONObject
+import org.yaml.snakeyaml.Yaml
 import org.zeromq.ZMQ
 
 import scala.reflect.io.File
@@ -32,7 +34,7 @@ case class Exited(exitcode:String) extends ProcessStatus {
 case class Waiting() extends ProcessStatus
 
 
-object AbstractProcess{
+object AbstractProcess extends LazyLogging{
   var runningProcesses = Map[Int,AbstractProcess]()
   var portUsed = Array[String]()
 
@@ -54,14 +56,34 @@ object AbstractProcess{
   }
 
   def fromMongoDBObject(obj:BasicDBObject):AbstractProcess = {
-    /*obj.get("type") match {
-      case "CMD" =>
-      case "MAP" =>
-      case "CUSTOM" => new CMDProcess(new CMDVal("",None),None,UUID.fromString(obj.get("ruid").toString))
-      case "ANONYMOUS" =>
-      case _ =>
-    }*/
-    new CMDProcess(new CMDVal("",None),None,UUID.fromString(obj.get("ruid").toString))
+    val uuid = UUID.fromString(obj.get("ruid").toString)
+    val parentProcess : Option[AbstractProcess] = obj.get("parentProcess") match {
+      case "None" => None
+      case pid:String => Some(ProcessRunManager.getProcess(UUID.fromString(pid)))
+      case _ => None
+    }
+    val env = RunEnv.deserialize(obj.getOrDefault("env","").toString)
+    val namespace = obj.getOrDefault("modvalnamespace","").toString
+    val modulename = obj.get("name").toString
+    val modulevalconf = obj.get("modvalconf") match{
+      case "" => None
+      case x:String => Some((new Yaml).load(x).asInstanceOf[java.util.Map[String,Any]])
+      case _ => logger.warn("missing modval conf in serialized obj"); None
+    }
+    val parentPort = obj.getOrDefault("parentport","NONE") match {
+      case "" => None
+      case "NONE" => None
+      case x:String => Some(x)
+    }
+    val x =  modulename match {
+      case "_CMD" => new CMDProcess(new CMDVal(namespace,modulevalconf),parentProcess,uuid)
+      case "_MAP" => new MAPProcess(new MAPVal(namespace,modulevalconf),parentProcess,uuid)
+      //case "_ANONYMOUS" => new AnonymousModuleProcess(new ModuleVal(namespace,new AnonymousDef(),modulevalconf),parentProcess,uuid)
+      case _ => new ModuleProcess(new ModuleVal(namespace,ModuleManager.modules(modulename),modulevalconf),parentProcess,uuid)
+    }
+
+    x.env = env
+    x
   }
 
 
@@ -107,6 +129,81 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
   protected[this] def update(message:ProcessMessage)
   protected[this] def endCondition() : Boolean
   protected[this] def updateParentEnv():Unit
+  protected[this] def attrserialize():(Map[String,String],Map[String,String])
+  protected[this] def attrdeserialize(mixedattrs:Map[String,String]):Unit
+
+
+  private def serializeToMongoObject(update:Boolean) : MongoDBObject = {
+    var staticfields = List(
+      "ruid" -> id.toString,
+      "def" -> moduleval.moduledef.confFilePath,
+      "name" -> moduleval.moduledef.name,
+      "master" -> {parentProcess match {
+        case Some(thing) => false
+        case None => true
+      }},
+      "parentProcess" -> {
+        if(parentProcess.isEmpty){
+          "None"
+        }else{
+          parentProcess.get.id.toString
+        }
+      },
+      "modvalconf" -> (new Yaml).dump(moduleval.conf.getOrElse("")),
+      "modvalnamespace" -> moduleval.namespace,
+      "resultnamespace" -> resultnamespace
+    )
+    var changingfields = List(
+      "parentport" -> parentPort.getOrElse("NONE"),
+      "processport" -> processPort,
+      "status" -> status.toString(),
+      "children" -> childrenProcess.foldLeft("")((agg:String,el:UUID)=>{
+        if(agg!="")
+          agg+","+el.toString
+        else
+          el.toString
+      }),
+      "env" -> {
+        env match {
+          case x:RunEnv => x.serialize()
+          case _ => ""
+        }
+      })
+    var customattrs = this.attrserialize()
+    staticfields :::= customattrs._1.toList
+    changingfields :::= customattrs._2.toList
+
+    val obj = if(update) {
+      $set(changingfields(0),changingfields(1),changingfields(2),changingfields(3),changingfields(4))
+    }else{
+      MongoDBObject(staticfields++changingfields)
+    }
+    obj
+  }
+
+  def getStatus(recursive:Boolean):String={
+    if(recursive){
+      this.moduleval.namespace+" : "+this.status.toString() +
+        childrenProcess.reverse.foldLeft("")((agg,childid)=>{
+          agg+"\n"+Utils.addOffset("\t",ProcessRunManager.getProcess(childid).getStatus(recursive))
+        })
+    }else{
+      this.status.toString()
+    }
+  }
+
+
+  def saveStateToDB() : Boolean = {
+    val query = MongoDBObject("ruid"->id.toString)
+    val result = if(ProcessRunManager.processCollection.find(query).count()>0){
+      ProcessRunManager.processCollection.update(query,this.serializeToMongoObject(true))
+    }else{
+      ProcessRunManager.processCollection.insert(this.serializeToMongoObject(false))
+    }
+
+    // TODO check if everything went fine
+    true
+  }
 
 
   def run(parentEnv:RunEnv,ns:String,parentPort:Option[String],detached:Boolean):UUID = {
@@ -169,6 +266,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     }
       logger.info("New supervisor at port " + processPort + " for module " + moduleval.moduledef.name)
 
+    var error = "0"
     try{
       while (!endCondition()) {
 
@@ -182,11 +280,10 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
       }
 
     }catch{
-      case e:Throwable => logger.error(e.getMessage) ; exitRoutine("error when running : "+e.getMessage)
+      case e:Throwable => error = "error when running : "+e.getMessage; logger.error(e.getMessage)
+    }finally {
+      exitRoutine(error)
     }
-
-
-    exitRoutine()
   }
 
   protected def initRunEnv(parentRunEnv:RunEnv) = {
@@ -322,7 +419,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     socket match {
       case Some(sock) => {
         logger.debug("Sending completion signal")
-        sock.send(new ValidProcessMessage(moduleval.namespace,"FINISHED","0"))
+        sock.send(new ValidProcessMessage(moduleval.namespace,"FINISHED",error))
       }
       case None => {
         logger.info("Finished executing "+moduleval.moduledef.name)
@@ -331,55 +428,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
   }
 
-  private def serializeToMongoObject() : MongoDBObject = {
-    val obj = MongoDBObject(
-      "ruid" -> id.toString,
-      "def" -> moduleval.moduledef.confFilePath,
-      "name" -> moduleval.moduledef.name,
-      "status" -> status.toString(),
-      "master" -> {parentProcess match {
-        case Some(thing) => false
-        case None => true
-      }},
-      "children" -> childrenProcess.foldLeft("")((agg:String,el:UUID)=>{
-        if(agg!="")
-          agg+","+el.toString
-        else
-          el.toString
-      }),
-      "env" -> {
-        env match {
-          case x:RunEnv => x.serialize()
-          case _ => ""
-        }
-      }
-    )
-    obj
-  }
 
-  def getStatus(recursive:Boolean):String={
-    if(recursive){
-      this.moduleval.namespace+" : "+this.status.toString() +
-      childrenProcess.reverse.foldLeft("")((agg,childid)=>{
-        agg+"\n"+Utils.addOffset("\t",ProcessRunManager.getProcess(childid).getStatus(recursive))
-      })
-    }else{
-      this.status.toString()
-    }
-  }
-
-
-  def saveStateToDB() : Boolean = {
-    val query = MongoDBObject("ruid"->id.toString)
-    val result = if(ProcessRunManager.processCollection.find(query).count()>0){
-      ProcessRunManager.processCollection.update(query,this.serializeToMongoObject())
-    }else{
-      ProcessRunManager.processCollection.insert(this.serializeToMongoObject())
-    }
-
-    // TODO check if everything went fine
-    true
-  }
 }
 
 
@@ -405,7 +454,9 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
           logger.debug(sender + " just finished")
           // TODO message should contain new env data?
           // anyway update env here could be good since there is no need to lock...
-
+          if(exitval!="0"){
+            throw new Exception(sender+" failed with exit value "+exitval)
+          }
           completedModules += (sender -> runningModules(sender))
         }
         case s : String => logger.warn("WTF? : "+s)
@@ -470,7 +521,12 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
     })
   }
 
+  override protected[this] def attrserialize(): (Map[String, String], Map[String, String]) = {
+    (Map[String, String](),Map[String, String]())
+  }
 
+  override protected[this] def attrdeserialize(mixedattrs: Map[String, String]): Unit = {
+  }
 }
 
 class AnonymousModuleProcess(override val moduleval:ModuleVal,override val parentProcess:Option[AbstractProcess],override val id:UUID)  extends ModuleProcess(moduleval,parentProcess,id){
@@ -500,10 +556,9 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
   def this(moduleval:CMDVal,parentProcess:Option[AbstractProcess]) = this(moduleval,parentProcess,UUID.randomUUID())
   var stdoutval : VAL = VAL()
   var stderrval : VAL = VAL()
-  var run = false
+  var run = ""
 
   override def step(): Unit = {
-    run = true
     logger.debug("Launching CMD "+env.resolveValueToString(moduleval.inputs("CMD").asString()))
     var stderr = ""
     var stdout = ""
@@ -523,7 +578,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
         case _ =>  ConfManager.defaultDockerBaseImage
       }
     }
-    DockerManager.run(this.id,moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),folder,dockerimage)
+    run = DockerManager.run(this.id,moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),folder,dockerimage)
     //Process(env.resolveVars(moduleval.inputs("CMD").asString()),new java.io.File(wd)) ! ProcessLogger(line => stdout+="\n"+line,line=>stderr+="\n"+line)
     stdoutval.rawValue = stdout
     stdoutval.resolvedValue = stdout
@@ -544,11 +599,33 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
   }
 
   override protected[this] def update(message: ProcessMessage): Unit = {
+    message match {
+      case ValidProcessMessage(sender,status,exitval) => status match {
+        case "FINISHED" => {
+          logger.debug(sender + " just finished")
+          // TODO message should contain new env data?
+          // anyway update env here could be good since there is no need to lock...
 
+          if(exitval!="0"){
+            throw new Exception(sender+" failed with exit value "+exitval)
+          }
+        }
+        case s : String => logger.warn("WTF? : "+s)
+      }
+      case _ => "ow shit"
+    }
   }
 
   override protected[this] def endCondition(): Boolean = {
-    run
+    run != ""
+  }
+
+  override protected[this] def attrserialize(): (Map[String, String], Map[String, String]) = {
+    (Map[String,String](),Map[String,String]("cmdprocrun"->run))
+  }
+
+  override protected[this] def attrdeserialize(mixedattrs: Map[String, String]): Unit = {
+    run = mixedattrs("cmdprocrun")
   }
 }
 
@@ -593,11 +670,9 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     }).transform((key,content) => {
       // TODO know whichever the fuck is the type and create the proper list type
       /**
-       * content.head._2._mytype+"*"
+       * +"*"
        */
-
-      val newel = LIST[AbstractParameterVal]()
-      newel.list = List[AbstractParameterVal]()
+      val newel = AbstractModuleParameter.createVal(content.head._2._mytype+"*").asInstanceOf[LIST[AbstractParameterVal]]
       content.foldLeft(newel)((agg,elt) => {
         agg.list ::= elt._2
         agg
@@ -692,6 +767,13 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     offset = to
   }
 
+  override protected[this] def attrserialize(): (Map[String, String], Map[String, String]) = {
+    (Map[String,String](),Map[String,String]())
+  }
+
+  override protected[this] def attrdeserialize(mixedattrs: Map[String, String]): Unit = {
+
+  }
 }
 
 class FILTERProcess(){

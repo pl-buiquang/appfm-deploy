@@ -7,7 +7,7 @@ import java.util.function.BiConsumer
 import com.mongodb.BasicDBObject
 import com.mongodb.casbah.commons.MongoDBObject
 import com.typesafe.scalalogging.LazyLogging
-import fr.limsi.iles.cpm.module.ModuleManager
+import fr.limsi.iles.cpm.module.definition.ModuleManager
 import fr.limsi.iles.cpm.module.value._
 import fr.limsi.iles.cpm.utils.{YamlElt, ConfManager, DB}
 import org.yaml.snakeyaml.Yaml

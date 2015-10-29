@@ -1,10 +1,8 @@
-package fr.limsi.iles.cpm.module
+package fr.limsi.iles.cpm.module.definition
 
 import java.io.{File, FileInputStream}
 
 import com.typesafe.scalalogging.LazyLogging
-import fr.limsi.iles.cpm.module.definition.ModuleDef
-import fr.limsi.iles.cpm.module.value.AbstractModuleVal
 import fr.limsi.iles.cpm.utils._
 import org.yaml.snakeyaml.Yaml
 
@@ -32,19 +30,38 @@ object ModuleManager extends LazyLogging{
       findModuleConf(file,ModuleManager.initModule)
     }
 
-    modules.values.foreach(m => {
-      val yaml = new Yaml()
-      val wd = (new File(m.confFilePath)).getParent
-      val ios = new FileInputStream(m.confFilePath)
-      val confMap = yaml.load(ios).asInstanceOf[java.util.Map[String,Any]]
-      m.exec = ModuleDef.initRun(confMap,wd,m.inputs)
-    })
+    // TODO proper module discarding when error is caught
+    var firstRun = true
+    var discarded = ""
+    while(discarded != "" || firstRun){
+      if(discarded!=""){
+        modules -= discarded
+      }
+      discarded = ""
+      firstRun = false
+      var curmod = ""
+      try{
+        modules.values.foreach(m => {
+          curmod = m.name
+          val yaml = new Yaml()
+          val wd = (new File(m.confFilePath)).getParent
+          val ios = new FileInputStream(m.confFilePath)
+          val confMap = yaml.load(ios).asInstanceOf[java.util.Map[String,Any]]
+            m.exec = ModuleDef.initRun(confMap,wd,m.inputs)
+        })
+      }catch{
+        case e:Throwable => discarded = curmod; logger.error("error when initiation exec configuration for module "+curmod+". This module will therefore be discarded");
+      }
 
+    }
+
+    logger.info("Finished initializing modules")
+  /*
     modules.values.foreach(m => {
       println(m.name)
       m.exec.foreach(println _)
 
-    })
+    })*/
   }
 
   def reload()={
@@ -100,7 +117,7 @@ object ModuleManager extends LazyLogging{
         case None => modules += (modulename -> module)
       }
     }catch{
-      case e: Throwable => logger.error("Wrong module defintion in "+moduleConfFile.getCanonicalPath+"\n"+e.getMessage+"\n This module will not be registered.")
+      case e: Throwable => e.printStackTrace(); logger.error("Wrong module defintion in "+moduleConfFile.getCanonicalPath+"\n"+e.getMessage+"\n This module will not be registered.")
     }
   }
 

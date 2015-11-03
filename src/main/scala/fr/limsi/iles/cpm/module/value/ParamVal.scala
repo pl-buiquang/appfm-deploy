@@ -18,7 +18,7 @@ import scala.collection
  * MAP
  * LIST
  */
-sealed abstract class AbstractParameterVal{
+sealed abstract class AbstractParameterVal(val format:Option[String],val schema:Option[String]){
 
   var yamlVal : Any = _
   val _mytype : String
@@ -260,6 +260,29 @@ case class CORPUS() extends AbstractParameterVal {
     ""
   }
 }
+
+case class DB(override val format:Option[String],override val schema:Option[String]) extends AbstractParameterVal(format,schema) {
+  override val _mytype = "DB"
+
+
+
+  override protected def parseYaml(yaml: Any): Unit = {
+    // retrieve connection parameters
+  }
+
+  override def asString()={
+    "username:password@host/dbname/collectionname"
+  }
+
+  override def getAttr(attrName: String): AbstractParameterVal = {
+    throw new Exception("no such parameter exist for "+_mytype)
+  }
+
+  override def toYaml(): String = {
+    ""
+  }
+}
+
 
 /**
  * MODULE is a ModuleVal represented by its yaml instanciation

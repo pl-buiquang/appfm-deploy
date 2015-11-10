@@ -8,21 +8,28 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # All Vagrant configuration is done here. The most common configuration
   # options are documented and commented below. For a complete reference,
   # please see the online documentation at vagrantup.com.
+  file_to_disk = '/localHD/cpm_vagrant_disk.vdi'
 
   config.vm.provider "virtualbox" do |v|
     v.customize ["modifyvm", :id, "--memory","4096"]
     v.customize ["modifyvm", :id, "--cpus","2"]
+    unless File.exist?(file_to_disk)
+      v.customize ['createhd', '--filename', file_to_disk, '--size', 100000 * 1024]
+    end
+    v.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', 1, '--device', 0, '--type', 'hdd', '--medium', file_to_disk]
   end
 
   config.vm.synced_folder "/people/buiquang/projects/custom/cpm_workspace_test/", "/srv/modules"
   config.vm.synced_folder "/people/buiquang/projects/custom/cpm/data", "/data"
-
+#  config.vm.synced_folder "/people/buiquang/projects/data/docker","/vagrant/docker", type: "nfs"
   
   # Every Vagrant virtual environment requires a box to build off of.
   config.vm.box = "debian/jessie64"
   config.vm.provision "shell", path: "bootstrap.sh"
 #	config.vm.provision "shell", path: "server-start.sh", run: "always"
+  config.vm.network "private_network", ip: "192.168.50.4"
   config.vm.network "forwarded_port", guest:5555, host:5555
+  config.vm.network "forwarded_port", guest:8001, host:8001
   config.vm.network "forwarded_port", guest:8080, host:8080
   config.vm.network "forwarded_port", guest:8081, host:8081
   config.vm.network "forwarded_port", guest:8082, host:8082

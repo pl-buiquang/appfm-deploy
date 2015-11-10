@@ -1,0 +1,5 @@
+/base
+/*.out
+/*.deepdive.conf
+/log
+/run

@@ -50,18 +50,18 @@ object ModuleManager extends LazyLogging{
             m.exec = ModuleDef.initRun(confMap,wd,m.inputs)
         })
       }catch{
-        case e:Throwable => discarded = curmod; logger.error("error when initiation exec configuration for module "+curmod+". This module will therefore be discarded");
+        case e:Throwable => discarded = curmod; e.printStackTrace(); logger.error("error when initiation exec configuration for module "+curmod+". This module will therefore be discarded");
       }
 
     }
 
     logger.info("Finished initializing modules")
-  /*
-    modules.values.foreach(m => {
-      println(m.name)
-      m.exec.foreach(println _)
 
-    })*/
+    modules.values.foreach(m => {
+      println(m.serialize())
+
+
+    })
   }
 
   def reload()={

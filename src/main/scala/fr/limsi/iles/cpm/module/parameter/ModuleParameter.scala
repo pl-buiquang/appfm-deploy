@@ -48,50 +48,50 @@ class ModuleParameter[U <: AbstractParameterVal](theparamType:String,override va
       manifest.runtimeClass.newInstance().asInstanceOf[U]
   }*/
   override def createVal() : AbstractParameterVal ={
-    AbstractModuleParameter.createVal(paramType)
+    AbstractModuleParameter.createVal(paramType,format,schema)
   }
 }
 
 object AbstractModuleParameter{
-  def createVal(typestr:String) : AbstractParameterVal ={
+  def createVal(typestr:String,format:Option[String]=None,schema:Option[String]=None) : AbstractParameterVal ={
     """(\w+)\s*((\+|\*)*)""".r.findFirstMatchIn(typestr) match {
       case Some(matched) => {
         matched.group(2) match {
           case arity:String => {
             if(arity.length==1){
               matched.group(1) match {
-                case "VAL" => LIST[VAL]()
-                case "FILE" => LIST[FILE]()
-                case "DIR" => LIST[DIR]()
-                case "CORPUS" => LIST[CORPUS]()
-                case "MODVAL" => LIST[MODVAL]()
+                case "VAL" => LIST[VAL](format,schema)
+                case "FILE" => LIST[FILE](format,schema)
+                case "DIR" => LIST[DIR](format,schema)
+                case "CORPUS" => LIST[CORPUS](format,schema)
+                case "MODVAL" => LIST[MODVAL](format,schema)
                 case _ => throw new Exception("unknown type \"" + typestr + "\"")
               }
             }else if(arity.length==2){
               matched.group(1) match {
-                case "VAL" => LIST[LIST[VAL]]()
-                case "FILE" => LIST[LIST[FILE]]()
-                case "DIR" => LIST[LIST[DIR]]()
-                case "CORPUS" => LIST[LIST[CORPUS]]()
-                case "MODVAL" => LIST[LIST[MODVAL]]()
+                case "VAL" => LIST[LIST[VAL]](format,schema)
+                case "FILE" => LIST[LIST[FILE]](format,schema)
+                case "DIR" => LIST[LIST[DIR]](format,schema)
+                case "CORPUS" => LIST[LIST[CORPUS]](format,schema)
+                case "MODVAL" => LIST[LIST[MODVAL]](format,schema)
                 case _ => throw new Exception("unknown type \""+typestr+"\"")
               }
             }else if(arity.length==3){
               matched.group(1) match {
-                case "VAL" => LIST[LIST[LIST[VAL]]]()
-                case "FILE" => LIST[LIST[LIST[FILE]]]()
-                case "DIR" => LIST[LIST[LIST[DIR]]]()
-                case "CORPUS" => LIST[LIST[LIST[CORPUS]]]()
-                case "MODVAL" => LIST[LIST[LIST[MODVAL]]]()
+                case "VAL" => LIST[LIST[LIST[VAL]]](format,schema)
+                case "FILE" => LIST[LIST[LIST[FILE]]](format,schema)
+                case "DIR" => LIST[LIST[LIST[DIR]]](format,schema)
+                case "CORPUS" => LIST[LIST[LIST[CORPUS]]](format,schema)
+                case "MODVAL" => LIST[LIST[LIST[MODVAL]]](format,schema)
                 case _ => throw new Exception("unknown type \""+typestr+"\"")
               }
             }else{
               matched.group(1) match {
-                case "VAL" => VAL()
-                case "FILE" => FILE()
-                case "DIR" => DIR()
-                case "CORPUS" => CORPUS()
-                case "MODVAL" => MODVAL()
+                case "VAL" => VAL(format,schema)
+                case "FILE" => FILE(format,schema)
+                case "DIR" => DIR(format,schema)
+                case "CORPUS" => CORPUS(format,schema)
+                case "MODVAL" => MODVAL(format,schema)
                 case _ => throw new Exception("unknown type \"" + typestr + "\"")
               }
             }
@@ -116,7 +116,7 @@ object AbstractModuleParameter{
     val x = new ModuleParameter[T](type_.get,desc,format,schema)
     if(paramdef.getOrDefault("value",null)!=null){
       val thevalue = paramdef.get("value")
-      val theobject = AbstractModuleParameter.createVal(type_.get).asInstanceOf[T]//manifest.runtimeClass.newInstance().asInstanceOf[T]
+      val theobject = AbstractModuleParameter.createVal(type_.get,format,schema).asInstanceOf[T]//manifest.runtimeClass.newInstance().asInstanceOf[T]
       x.setVal(thevalue,theobject);
     }
     else if(requireValue){

@@ -6,6 +6,7 @@ import fr.limsi.iles.cpm.module.parameter.AbstractModuleParameter
 import fr.limsi.iles.cpm.utils.{Utils, YamlString, YamlList, YamlElt}
 
 import scala.collection
+import scala.io.Source
 
 /**
  * Abstract base class for param typed values
@@ -70,7 +71,7 @@ sealed abstract class AbstractParameterVal(val format:Option[String],val schema:
   def getAttr(attrName:String):AbstractParameterVal
 
   def newEmpty():AbstractParameterVal={
-    AbstractModuleParameter.createVal(_mytype)
+    AbstractModuleParameter.createVal(_mytype,format,schema)
   }
 }
 
@@ -92,7 +93,7 @@ object AbstractParameterVal{
 /**
  * VAL are string value, they may be internally stored to save the result of a run but are passed as a full string value
  */
-case class VAL() extends AbstractParameterVal {
+case class VAL(override val format:Option[String],override val schema:Option[String]) extends AbstractParameterVal(format,schema) {
   var rawValue : String = _
   var resolvedValue : String = _
   override val _mytype = "VAL"
@@ -104,7 +105,7 @@ case class VAL() extends AbstractParameterVal {
     }
     val value = YamlElt.readAs[String](yaml)
     rawValue = value match {
-      case Some(theval) => theval
+      case Some(theval:String) => theval
       case None => "Error reading val value (should be a string)"
     }
   }
@@ -129,7 +130,7 @@ case class VAL() extends AbstractParameterVal {
  * - basename : the name of the file without last extension
  * - dirname : the name of its directory
  */
-case class FILE() extends AbstractParameterVal {
+case class FILE(override val format:Option[String],override val schema:Option[String]) extends AbstractParameterVal(format,schema) {
   var rawValue : String = _
   override val _mytype = "FILE"
 
@@ -147,27 +148,34 @@ case class FILE() extends AbstractParameterVal {
 
   override def getAttr(attrName: String): AbstractParameterVal = {
     attrName match {
+      case "content" => {
+        val file = new java.io.File(rawValue)
+        val content = Source.fromFile(file.getCanonicalPath).getLines.mkString
+        val x = new VAL(format,schema)
+        x.rawValue = content
+        x
+      }
       case "basename" => {
         val file = new java.io.File(rawValue)
         val extensionIndex = file.getName.lastIndexOf(".")
         if(extensionIndex != -1){
-          val x = new VAL()
+          val x = new VAL(Some("text"),None)
           x.fromYaml(file.getName.substring(0,extensionIndex))
           x
         }else{
-          val x = new VAL()
+          val x = new VAL(Some("text"),None)
           x.fromYaml(file.getName)
           x
         }
       }
       case "filename" => {
-        val x = new VAL()
+        val x = new VAL(Some("text"),Some("filepath"))
         val file = new java.io.File(rawValue)
         x.fromYaml(file.getName)
         x
       }
       case "basedir" => {
-        val x = new DIR()
+        val x = new DIR(Some("text"),Some("filepath"))
         val file = new java.io.File(rawValue)
         x.fromYaml(file.getParent)
         x
@@ -182,7 +190,7 @@ case class FILE() extends AbstractParameterVal {
 
 
 
-case class DIR() extends AbstractParameterVal {
+case class DIR(override val format:Option[String],override val schema:Option[String]) extends AbstractParameterVal(format,schema) {
   var rawValue : String = _
   override val _mytype = "DIR"
 
@@ -201,7 +209,7 @@ case class DIR() extends AbstractParameterVal {
   override def getAttr(attrName: String): AbstractParameterVal = {
     attrName match {
       case "ls" => {
-        val x = new LIST[FILE]()
+        val x = new LIST[FILE](format,schema)
         val file = new java.io.File(rawValue)
         x.fromYaml(file.listFiles().foldLeft("")((str,thefile)=>{
           if(thefile.isFile)
@@ -212,7 +220,7 @@ case class DIR() extends AbstractParameterVal {
         x
       }
       case "rls" => {
-        val x = new LIST[FILE]()
+        val x = new LIST[FILE](format,schema)
         val file = new java.io.File(rawValue)
         def recListFiles(folder:java.io.File) :String = {
           folder.listFiles().foldLeft("")((str,thefile)=>{
@@ -242,7 +250,7 @@ case class DIR() extends AbstractParameterVal {
  * it displays the following properties :
  * - list : the list of file contained in the corpus/directory
  */
-case class CORPUS() extends AbstractParameterVal {
+case class CORPUS(override val format:Option[String],override val schema:Option[String]) extends AbstractParameterVal(format,schema) {
   override val _mytype = "CORPUS"
   override protected def parseYaml(yaml: Any): Unit = {
 
@@ -287,7 +295,7 @@ case class DB(override val format:Option[String],override val schema:Option[Stri
 /**
  * MODULE is a ModuleVal represented by its yaml instanciation
  */
-case class MODVAL() extends AbstractParameterVal{
+case class MODVAL(override val format:Option[String],override val schema:Option[String]) extends AbstractParameterVal(format,schema){
   override val _mytype = "MODVAL"
   var moduleval : AbstractModuleVal = _
 
@@ -307,8 +315,8 @@ case class MODVAL() extends AbstractParameterVal{
   }
 
   override def toYaml(): String = {
-    "\n  "+moduleval.namespace+" :\n    input : "+moduleval.inputs.foldLeft("")((prev,elt) => {
-      prev + "\n      "+elt._1+" : "+Utils.addOffset("      ",elt._2.toYaml())
+    moduleval.namespace+" :\n  input : "+moduleval.inputs.foldLeft("")((prev,elt) => {
+      prev + "\n    "+elt._1+" : "+Utils.addOffset("    ",elt._2.toYaml())
     })
   }
 }
@@ -321,13 +329,13 @@ case class MODVAL() extends AbstractParameterVal{
  * - CORPUS/FILE : path separated by spaces
  * - MODULE : the yaml list of yaml moduleval instanciation
  */
-case class LIST[P <: AbstractParameterVal](implicit manifest: Manifest[P]) extends AbstractParameterVal {
+case class LIST[P <: AbstractParameterVal](override val format:Option[String],override val schema:Option[String])(implicit manifest: Manifest[P]) extends AbstractParameterVal(format,schema) {
   override val _mytype = {
     getBaseType(manifest)+"*"
   }
   var list : List[P] = List[P]()
 
-  def make: P = manifest.runtimeClass.newInstance.asInstanceOf[P]
+  def make: P = manifest.runtimeClass.getConstructor(classOf[Option[String]],classOf[Option[String]]).newInstance(format,schema).asInstanceOf[P]
 
   def getBaseType(manifest: Manifest[_]):String={
     if(manifest.typeArguments.length>0){
@@ -384,7 +392,7 @@ case class LIST[P <: AbstractParameterVal](implicit manifest: Manifest[P]) exten
   }
 }
 
-case class MAP() extends AbstractParameterVal{
+case class MAP(override val format:Option[String],override val schema:Option[String]) extends AbstractParameterVal(format,schema){
   override val _mytype = "MAP"
   var map : Map[String,AbstractParameterVal] = Map[String,AbstractParameterVal]()
 

@@ -62,7 +62,7 @@ object AbstractModuleVal extends LazyLogging{
           throw new Exception("Module run item error")
         }
         val runitemname = moduleval.keySet().iterator().next()
-        val cmdmatch = """((?:\w|-)+:)?((?:\w|-)+)""".r.findFirstMatchIn(runitemname)
+        val cmdmatch = """((?:\w|-)+=)?((?:\w|-)+)""".r.findFirstMatchIn(runitemname)
         val modulename = cmdmatch match {
           case Some(result) => {
             result.group(2)

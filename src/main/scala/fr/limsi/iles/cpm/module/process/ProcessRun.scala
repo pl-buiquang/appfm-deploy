@@ -16,6 +16,7 @@ import org.json.JSONObject
 import org.yaml.snakeyaml.Yaml
 import org.zeromq.ZMQ
 
+import scala.io.Source
 import scala.reflect.io.File
 import scala.sys.process._
 import scala.util.Random
@@ -168,7 +169,15 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
           case x:RunEnv => x.serialize()
           case _ => ""
         }
-      })
+      },
+      "parentEnv" -> {parentProcess match {
+        case Some(thing) => ""
+        case None => parentEnv match {
+          case x:RunEnv => x.serialize()
+          case _ => ""
+        }
+      }}
+    )
     var customattrs = this.attrserialize()
     staticfields :::= customattrs._1.toList
     changingfields :::= customattrs._2.toList
@@ -296,7 +305,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
     var newargs = Map[String,AbstractParameterVal]()
 
-    val runresultdir = DIR()
+    val runresultdir = DIR(None,None)
     runresultdir.fromYaml(parentRunEnv.args("_RUN_DIR").asString()+"/"+moduleval.namespace)
     val newdir = new java.io.File(runresultdir.asString())
     newdir.mkdirs()
@@ -306,18 +315,18 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     val defdir = if(ModuleDef.builtinmodules.contains(moduleval.moduledef.name)){
       parentRunEnv.args("_DEF_DIR")
     }else{
-      val x = DIR()
+      val x = DIR(None,None)
       x.fromYaml(moduleval.moduledef.defdir)
       x
     }
     newargs += ("_DEF_DIR" -> defdir)
 
     val (mod_context,cur_mod) = if(ModuleDef.builtinmodules.contains(moduleval.moduledef.name)){
-      val x = VAL()
+      val x = VAL(None,None)
       x.fromYaml("_MAIN")
       (parentRunEnv.args.getOrElse("_CUR_MOD",x),parentRunEnv.args.getOrElse("_CUR_MOD",x))
     }else{
-      val x = VAL()
+      val x = VAL(None,None)
       x.fromYaml(moduleval.moduledef.name)
       (parentRunEnv.args.getOrElse("_CUR_MOD",x),x)
     }
@@ -554,8 +563,8 @@ class AnonymousModuleProcess(override val moduleval:ModuleVal,override val paren
 
 class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option[AbstractProcess],override val id:UUID) extends AbstractProcess(parentProcess,id){
   def this(moduleval:CMDVal,parentProcess:Option[AbstractProcess]) = this(moduleval,parentProcess,UUID.randomUUID())
-  var stdoutval : VAL = VAL()
-  var stderrval : VAL = VAL()
+  var stdoutval : VAL = VAL(None,None)
+  var stderrval : VAL = VAL(None,None)
   var run = ""
 
   override def step(): Unit = {
@@ -578,18 +587,29 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
         case _ =>  ConfManager.defaultDockerBaseImage
       }
     }
-    run = DockerManager.run(this.id,moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),folder,dockerimage)
-    //Process(env.resolveVars(moduleval.inputs("CMD").asString()),new java.io.File(wd)) ! ProcessLogger(line => stdout+="\n"+line,line=>stderr+="\n"+line)
-    stdoutval.rawValue = stdout
-    stdoutval.resolvedValue = stdout
 
-    stderrval.rawValue = stderr
-    stderrval.resolvedValue = stderr
+    env.resolveValueToString(moduleval.inputs("SERVICE").toYaml()) match {
+      case "true" => {
+        DockerManager.serviceRun(env.args("_MOD_CONTEXT").asString(),dockerimage,folder)
+        run = DockerManager.serviceExec(this.id,moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),folder,dockerimage)
+      }
+      case _ =>  run = DockerManager.run(this.id,moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),folder,dockerimage)
+    }
+
+
+    //Process(env.resolveVars(moduleval.inputs("CMD").asString()),new java.io.File(wd)) ! ProcessLogger(line => stdout+="\n"+line,line=>stderr+="\n"+line)
 
 
   }
 
   override protected[this] def updateParentEnv(): Unit = {
+    stdoutval.rawValue = Source.fromFile("/tmp/out"+this.id.toString).getLines.mkString
+    stdoutval.resolvedValue = stdoutval.rawValue
+
+    stderrval.rawValue = Source.fromFile("/tmp/err"+this.id.toString).getLines.mkString
+    stderrval.resolvedValue = stderrval.rawValue
+
+
     parentEnv.logs += (moduleval.namespace -> stderrval)
     parentEnv.args += (moduleval.namespace+".STDOUT" -> stdoutval)
 /*
@@ -672,7 +692,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
       /**
        * +"*"
        */
-      val newel = AbstractModuleParameter.createVal(content.head._2._mytype+"*").asInstanceOf[LIST[AbstractParameterVal]]
+      val newel = AbstractModuleParameter.createVal(content.head._2._mytype+"*",content.head._2.format,content.head._2.schema).asInstanceOf[LIST[AbstractParameterVal]]
       content.foldLeft(newel)((agg,elt) => {
         agg.list ::= elt._2
         agg
@@ -745,7 +765,8 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     var i = 0;
     toProcessFiles.foreach(file => {
       val newenv = env
-      val x = FILE()
+      val dirinfo = this.moduleval.getInput("IN",env)
+      val x = FILE(dirinfo.format,dirinfo.schema)
       x.fromYaml(file.getCanonicalPath)
       newenv.args += ("_" -> x)
 
@@ -775,6 +796,8 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
   }
 }
+
+
 
 class FILTERProcess(){
 

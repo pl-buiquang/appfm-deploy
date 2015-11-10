@@ -8,7 +8,7 @@ import com.mongodb.casbah.commons.MongoDBObject
 import fr.limsi.iles.cpm.module.definition.ModuleManager
 import fr.limsi.iles.cpm.module.process.ProcessRunManager
 import fr.limsi.iles.cpm.module.value.AbstractModuleVal
-import fr.limsi.iles.cpm.utils.ConfManager
+import fr.limsi.iles.cpm.utils.{Log, Utils, ConfManager}
 
 import scala.io.Source
 import scala.sys.process._
@@ -77,6 +77,7 @@ object CLInterpreter {
   def processChildrenRecPrint(process:DBObject,offset:String):String={
     var out = ""
     val children = process.get("children").toString.split(",")
+
     if(children.length>0 && process.get("children").toString.trim!="") {
       children.reverse.foreach(pid => {
         val q = MongoDBObject("ruid"->pid)
@@ -157,10 +158,10 @@ object CLInterpreter {
         case "view" => {
           if(args.size > 2){
             val process = ProcessRunManager.getProcess(UUID.fromString(args(1)))
-            val result = if(process.env.args.contains(args(2))){
-              process.env.args(args(2)).asString()
+            val result = if(process.parentEnv.args.contains(args(2))){
+              process.parentEnv.args(args(2)).asString()
             }else if(args(2)=="__ALL__"){
-              val r = process.env.args.keys.foldLeft("")(_ +","+ _)
+              val r = process.parentEnv.args.keys.foldLeft("")(_ +","+ _)
               if(r.length>0)
                 r.substring(1)
               else

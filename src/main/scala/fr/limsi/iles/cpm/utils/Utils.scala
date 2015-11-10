@@ -171,9 +171,14 @@ object YamlElt{
     }
   }
 
-  def readAs[T](thing:Any) = {
-    if(thing!=null && thing.isInstanceOf[T]){
-      Some(thing.asInstanceOf[T])
+  def readAs[T](thing:Any) :Option[T]= {
+    val bugfix = if(thing!=null && thing.isInstanceOf[Boolean]){
+      thing.asInstanceOf[Boolean].toString
+    }else{
+      thing
+    }
+    if(bugfix!=null && bugfix.isInstanceOf[T]){
+      Some(bugfix.asInstanceOf[T])
     }else{
       None
     }

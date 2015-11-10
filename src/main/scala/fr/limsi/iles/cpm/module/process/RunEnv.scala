@@ -54,12 +54,22 @@ object RunEnv {
         map.forEach(new BiConsumer[String,Any] {
           override def accept(t: String, u: Any): Unit = {
             val valuebundle = u.asInstanceOf[java.util.Map[String,Any]]
+            val format = if(valuebundle.containsKey("format")){
+              Some(valuebundle.get("format").toString)
+            }else{
+              None
+            }
+            val schema = if(valuebundle.containsKey("schema")){
+              Some(valuebundle.get("schema").toString)
+            }else{
+              None
+            }
             val vartype = if(valuebundle.containsKey("type")){
               valuebundle.get("type").toString
             }else{
               "VAL"
             }
-            val variable = AbstractModuleParameter.createVal(vartype)
+            val variable = AbstractModuleParameter.createVal(vartype,format,schema)
             val value = if(valuebundle.containsKey("value")){
               valuebundle.get("value")
             }else{
@@ -164,7 +174,7 @@ object RunEnv {
       case Some(map) => {
         map.forEach(new BiConsumer[String,String] {
           override def accept(t: String, u: String): Unit = {
-            val x = VAL()
+            val x = VAL(None,None)
             x.fromYaml(u)
             args += (t -> x)
           }

@@ -105,10 +105,10 @@ object ProcessRunManager extends LazyLogging{
 
     // setting run environment from conf and default variables
     val env = RunEnv.initFromConf(conffile)
-    val resultdirval = DIR()
+    val resultdirval = DIR(None,None)
     resultdirval.fromYaml(runresultdir)
     env.args += ("_RUN_DIR" -> resultdirval)
-    val defdirval = DIR()
+    val defdirval = DIR(None,None)
     defdirval.fromYaml(module.defdir)
     env.args += ("_DEF_DIR" -> defdirval)
 

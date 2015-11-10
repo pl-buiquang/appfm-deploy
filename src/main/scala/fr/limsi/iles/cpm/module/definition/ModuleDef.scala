@@ -92,7 +92,31 @@ class ModuleDef(
   }
 
   def serialize() : String= {
-    "todo"
+    val yamloffset = "  "
+    "name : "+name + "\n" +
+      (if(desc!="")"desc : >\n"+yamloffset+desc + "\n" else "")+
+    inputs.foldLeft("input : ")((agg,input)=>{
+      agg + "\n"+yamloffset+input._1+" : "+"\n"+
+        (input._2.desc match {case Some(thing)=>yamloffset+yamloffset+"desc : "+thing+"\n"; case None => ""})+
+        yamloffset+yamloffset+"type : "+input._2.paramType+"\n"+
+        (input._2.format match {case Some(thing)=>yamloffset+yamloffset+"format : "+thing+"\n";case None=>""})+
+        (input._2.schema match {case Some(thing)=>yamloffset+yamloffset+"schema : "+thing+"\n";case None=>""})+
+        (input._2.value match {case Some(thing)=>yamloffset+yamloffset+"value : "+Utils.addOffset(yamloffset+yamloffset,thing.toYaml())+"\n";case None=>""})
+    }) + "\n" +
+    outputs.foldLeft("output : ")((agg,output)=>{
+      agg + "\n"+yamloffset+output._1+" : "+"\n"+
+        (output._2.desc match {case Some(thing)=>yamloffset+yamloffset+"desc : "+thing+"\n"; case None => ""})+
+        yamloffset+yamloffset+"type : "+output._2.paramType+"\n"+
+        (output._2.format match {case Some(thing)=>yamloffset+yamloffset+"format : "+thing+"\n";case None=>""})+
+        (output._2.schema match {case Some(thing)=>yamloffset+yamloffset+"schema : "+thing+"\n";case None=>""})+
+        (output._2.value match {case Some(thing)=>yamloffset+yamloffset+"value : "+Utils.addOffset(yamloffset+yamloffset,thing.toYaml())+"\n";case None=>""})
+    }) + "\n" +
+    exec.foldLeft("exec : ")((agg,modval)=>{
+      agg + "\n"+yamloffset+"- "+modval.namespace+" : \n"+yamloffset+yamloffset+yamloffset+"input : "+
+        modval.inputs.foldLeft("")((agg2,inputval)=>{
+          agg2 + "\n" + yamloffset+yamloffset+yamloffset+yamloffset+inputval._1+" : "+Utils.addOffset(yamloffset+yamloffset+yamloffset+yamloffset,inputval._2.toYaml())
+        })
+    })
   }
 
 }
@@ -202,7 +226,10 @@ object ModuleDef extends LazyLogging{
   def initCMDInputs()={
     var x = Map[String,AbstractModuleParameter]()
     x += ("CMD"->new ModuleParameter[VAL]("VAL",None,None,None))
-    val dockerfiledefault = FILE()
+    val servicemodedefault = VAL(None,None)
+    servicemodedefault.fromYaml("false")
+    x += ("SERVICE"->new ModuleParameter[VAL]("VAL",None,None,None,Some(servicemodedefault)))
+    val dockerfiledefault = FILE(None,Some("dockerfile"))
     dockerfiledefault.fromYaml(ConfManager.defaultDockerBaseImage)
     x += ("DOCKERFILE"->new ModuleParameter[FILE]("FILE",None,None,None,Some(dockerfiledefault)))
     x
@@ -219,7 +246,7 @@ object ModuleDef extends LazyLogging{
     x += ("IN"->new ModuleParameter[DIR]("DIR",None,None,None))
     x += ("RUN"->new ModuleParameter[LIST[MODVAL]]("MODVAL+",None,None,None))
 
-    val chunk_size = VAL()
+    val chunk_size = VAL(None,None)
     chunk_size.fromYaml("1")
     x += ("CHUNK_SIZE"->new ModuleParameter[VAL]("VAL",Some("Number of files to be processed in parallel"),None,None,Some(chunk_size)))
     x

@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-{
-    tr '\n' +
-    echo 0
-} | bc

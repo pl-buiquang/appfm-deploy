@@ -19,3 +19,11 @@ Build tool
 
 MongoDB
 https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-debian71-3.0.6.tgz
+
+== Configuration
+
+Vagrantfile configuration : mounted dir, ports, additional vdi disk (for containing docker images)
+
+Docker /var/lib/docker use additional disk (script automount disk and create symlink to this disk)
+
+config.yml (cpm config) : set port, modules/data/resultdir directories

@@ -22,7 +22,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.synced_folder "/people/buiquang/projects/custom/cpm_workspace_test/", "/srv/modules"
   config.vm.synced_folder "/people/buiquang/projects/custom/cpm/data", "/data"
 #  config.vm.synced_folder "/people/buiquang/projects/data/docker","/vagrant/docker", type: "nfs"
-  
+
   # Every Vagrant virtual environment requires a box to build off of.
   config.vm.box = "debian/jessie64"
   config.vm.provision "shell", path: "bootstrap.sh"

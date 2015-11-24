@@ -22,19 +22,6 @@ object ProcessRunManager extends LazyLogging{
 
   var list : Map[UUID,AbstractProcess] = Map[UUID,AbstractProcess]()
 
-  /**
-   * Get the status of a process id
-   * @param uuid
-   * @return
-   */
-  def getStatus(uuid:String)={
-    val query = MongoDBObject("ruid"->uuid)
-    val tmp = processCollection.findOne(query) match {
-      case Some(thing) => thing.toString// retrieve process, retrieve status
-      case None => "no process found with that uuid"
-    }
-    tmp
-  }
 
 
   def streamStatus(uuid:String) = {

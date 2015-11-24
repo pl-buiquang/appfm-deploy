@@ -246,8 +246,12 @@ object ModuleDef extends LazyLogging{
     x += ("IN"->new ModuleParameter[DIR]("DIR",None,None,None))
     x += ("RUN"->new ModuleParameter[LIST[MODVAL]]("MODVAL+",None,None,None))
 
+    val regex = VAL(None,None)
+    regex.fromYaml(".*")
+    x += ("REGEX"->new ModuleParameter[VAL]("VAL",None,None,None,Some(regex)))
+
     val chunk_size = VAL(None,None)
-    chunk_size.fromYaml("1")
+    chunk_size.fromYaml("10")
     x += ("CHUNK_SIZE"->new ModuleParameter[VAL]("VAL",Some("Number of files to be processed in parallel"),None,None,Some(chunk_size)))
     x
   }
@@ -258,18 +262,6 @@ object ModuleDef extends LazyLogging{
     x
   }
 
-  def initFILTERMAPInputs()={
-    var x = Map[String,AbstractModuleParameter]()
-    x += ("IN"->new ModuleParameter[FILE]("LIST",None,None,None))
-    x += ("RUN"->new ModuleParameter[LIST[VAL]]("LIST",None,None,None))
-    x
-  }
-
-  def initFILTERMAPOutputs()={
-    var x = Map[String,AbstractModuleParameter]()
-    x += ("OUT"->new ModuleParameter[LIST[VAL]]("LIST",None,None,None))
-    x
-  }
 
   val builtinmodules :List[String] = List("_CMD","_MAP","_FILTER","_ANONYMOUS")
 
@@ -338,7 +330,5 @@ object CMDDef extends ModuleDef("/no/path","_CMD","Built-in module that run a UN
 object MAPDef extends ModuleDef("/no/path","_MAP","Built-in module that map a LIST of FILE in Modules that process a single file",ModuleDef.initMAPInputs(),ModuleDef.initMAPOutputs(),Map[String,String](),List[AbstractModuleVal]()) {
 }
 
-object FILTERMAPDef extends ModuleDef("/no/path","_FILTERMAP","Built-in module that filter the content of a FILE using a regex and create a new LIST of FILE containing filtered original content which are mapped to Modules that process a single file",ModuleDef.initFILTERMAPInputs(),ModuleDef.initFILTERMAPOutputs(),Map[String,String](),List[AbstractModuleVal]()) {
-}
 
 

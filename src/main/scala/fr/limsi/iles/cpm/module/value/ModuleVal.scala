@@ -207,6 +207,7 @@ case class CMDVal(override val namespace:String,override val conf:Option[java.ut
 
 }
 
+
 case class MAPVal(override val namespace:String,override val conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(MAPDef,conf){
 
 

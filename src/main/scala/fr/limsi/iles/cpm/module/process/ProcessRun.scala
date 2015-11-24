@@ -1,5 +1,7 @@
 package fr.limsi.iles.cpm.module.process
 
+import java.io
+import java.io.FilenameFilter
 import java.util.UUID
 import java.util.concurrent.Executors
 
@@ -288,8 +290,10 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
       }
 
+      socket.close();
+
     }catch{
-      case e:Throwable => error = "error when running : "+e.getMessage; logger.error(e.getMessage)
+      case e:Throwable => socket.close(); error = "error when running : "+e.getMessage; logger.error(e.getMessage)
     }finally {
       exitRoutine(error)
     }
@@ -429,6 +433,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
       case Some(sock) => {
         logger.debug("Sending completion signal")
         sock.send(new ValidProcessMessage(moduleval.namespace,"FINISHED",error))
+        sock.close()
       }
       case None => {
         logger.info("Finished executing "+moduleval.moduledef.name)
@@ -666,6 +671,15 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     values += ("modules" -> AbstractParameterVal.paramToScalaListModval(modvals))
     values += ("process" -> List[AbstractProcess]())
     values += ("completed" -> 0)
+    val filterregex = moduleval.getInput("REGEX",env).asString();
+    values += ("filter"->new FilenameFilter {
+      override def accept(dir: io.File, name: JSFunction): Boolean = {
+        filterregex.r.findFirstIn(name) match {
+          case None => false
+          case Some(x:String) => true
+        }
+      }
+    })
   }
 
 
@@ -749,18 +763,18 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
   }
 
   override protected[this] def endCondition():Boolean = {
-    offset>=values("dir").asInstanceOf[java.io.File].listFiles().length &&
+    offset>=values("dir").asInstanceOf[java.io.File].listFiles(values("filter").asInstanceOf[FilenameFilter]).length &&
       values("completed").asInstanceOf[Int] == (values("process").asInstanceOf[List[AbstractProcess]]).length
   }
 
   override protected[this] def step()={
-    val to = if(offset+values("chunksize").asInstanceOf[Int]>=values("dir").asInstanceOf[java.io.File].listFiles().length){
-      values("dir").asInstanceOf[java.io.File].listFiles().length
+    val to = if(offset+values("chunksize").asInstanceOf[Int]>=values("dir").asInstanceOf[java.io.File].listFiles(values("filter").asInstanceOf[FilenameFilter]).length){
+      values("dir").asInstanceOf[java.io.File].listFiles(values("filter").asInstanceOf[FilenameFilter]).length
     }else{
       offset + values("chunksize").asInstanceOf[Int]
     }
 
-    val toProcessFiles = values("dir").asInstanceOf[java.io.File].listFiles().slice(offset,to)
+    val toProcessFiles = values("dir").asInstanceOf[java.io.File].listFiles(values("filter").asInstanceOf[FilenameFilter]).slice(offset,to)
 
     var i = 0;
     toProcessFiles.foreach(file => {
@@ -803,6 +817,4 @@ class FILTERProcess(){
 
 }
 
-class FILTERMAPProcess(){
 
-}

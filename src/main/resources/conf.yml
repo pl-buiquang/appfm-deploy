@@ -20,11 +20,11 @@ modules_dir :
 
 #default_result_dir : /home/paul/projects/custom/cpm/examples/results
 #default_result_dir : /people/buiquang/projects/custom/cpm/examples/results
-default_result_dir : /vagrant/examples/results
+default_result_dir : /vagrant/data/results
 
 #default_corpus_dir : /home/paul/projects/custom/cpm/examples/corpus
 #default_corpus_dir : /people/buiquang/projects/custom/cpm/examples/corpus
-default_corpus_dir : /vagrant/examples/corpus
+default_corpus_dir : /vagrant/data/corpus
 
 
 # db info

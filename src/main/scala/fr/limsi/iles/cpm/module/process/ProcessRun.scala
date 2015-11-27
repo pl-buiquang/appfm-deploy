@@ -227,7 +227,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     logger.info("Executing "+moduleval.moduledef.name)
 
     // save process to db
-    this.saveStateToDB()
+    //this.saveStateToDB()
 
     resultnamespace = ns
     // init runenv from parent env
@@ -425,8 +425,8 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
 
     status = Exited(error)
-    //ProcessRunManager.list -= id
-    saveStateToDB()
+    ProcessRunManager.list -= id
+    //saveStateToDB()
 
 
     socket match {
@@ -508,7 +508,7 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
       }
       runningModules += (module.namespace -> process)
       childrenProcess ::= process.id
-      this.saveStateToDB()
+      //this.saveStateToDB()
       process.run(env,moduleval.namespace,Some(processPort),true) // not top level modules (called by cpm cli) always run demonized
     })
   }
@@ -579,6 +579,8 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
     val wd = env.args("_DEF_DIR").asString()
     val folder = new java.io.File(wd)
 
+
+    /*
     val dockerimage = {
       env.resolveValueToString(moduleval.inputs("DOCKERFILE").toYaml()) match {
         case ConfManager.defaultDockerBaseImage => ConfManager.defaultDockerBaseImage
@@ -599,28 +601,33 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
         run = DockerManager.serviceExec(this.id,moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),folder,dockerimage)
       }
       case _ =>  run = DockerManager.run(this.id,moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),folder,dockerimage)
-    }
+    }*/
+
+    val cmd = env.resolveValueToString(moduleval.inputs("CMD").asString())
+    val absolutecmd = cmd.replace("\n"," ").replace("\"","\\\"").replaceAll("^./",folder.getCanonicalPath+"/")
 
 
-    //Process(env.resolveVars(moduleval.inputs("CMD").asString()),new java.io.File(wd)) ! ProcessLogger(line => stdout+="\n"+line,line=>stderr+="\n"+line)
+    logger.info("python "+ConfManager.get("cpm_home_dir")+"/"+ConfManager.processshell+" "+this.id.toString+" "+moduleval.namespace+" "+processPort+" "+absolutecmd+"")
+    Process("python /vagrant/cpm-process-shell/bin/cpm-process-shell.py "+this.id.toString+" "+moduleval.namespace+" "+processPort+" "+absolutecmd+"",new java.io.File(wd)) ! ProcessLogger(line => stdout+="\n"+line,line=>stderr+="\n"+line)
 
+    stdoutval.rawValue = stdout
+    stderrval.rawValue = stderr
+    run = "true"
 
   }
 
   override protected[this] def updateParentEnv(): Unit = {
-    stdoutval.rawValue = Source.fromFile("/tmp/out"+this.id.toString).getLines.mkString
+    //stdoutval.rawValue = Source.fromFile("/tmp/out"+this.id.toString).getLines.mkString
     stdoutval.resolvedValue = stdoutval.rawValue
 
-    stderrval.rawValue = Source.fromFile("/tmp/err"+this.id.toString).getLines.mkString
+    //stderrval.rawValue = Source.fromFile("/tmp/err"+this.id.toString).getLines.mkString
     stderrval.resolvedValue = stderrval.rawValue
 
 
     parentEnv.logs += (moduleval.namespace -> stderrval)
     parentEnv.args += (moduleval.namespace+".STDOUT" -> stdoutval)
-/*
-    val socket = Server.context.socket(ZMQ.PUSH)
-    socket.connect("tcp://localhost:"+parentPort.get)
-    socket.send(new ValidProcessMessage(moduleval.namespace,"FINISHED"))*/
+
+
   }
 
   override protected[this] def update(message: ProcessMessage): Unit = {
@@ -792,7 +799,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
       i+=1
       val process = new AnonymousModuleProcess(moduleval,Some(this))
       childrenProcess ::= process.id
-      this.saveStateToDB()
+      //this.saveStateToDB()
       var list = values("process").asInstanceOf[List[AbstractProcess]]
       list ::= process
       values += ("process" -> list)

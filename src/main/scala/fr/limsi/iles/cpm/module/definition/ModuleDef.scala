@@ -226,12 +226,7 @@ object ModuleDef extends LazyLogging{
   def initCMDInputs()={
     var x = Map[String,AbstractModuleParameter]()
     x += ("CMD"->new ModuleParameter[VAL]("VAL",None,None,None))
-    val servicemodedefault = VAL(None,None)
-    servicemodedefault.fromYaml("false")
-    x += ("SERVICE"->new ModuleParameter[VAL]("VAL",None,None,None,Some(servicemodedefault)))
-    val dockerfiledefault = FILE(None,Some("dockerfile"))
-    dockerfiledefault.fromYaml(ConfManager.defaultDockerBaseImage)
-    x += ("DOCKERFILE"->new ModuleParameter[FILE]("FILE",None,None,None,Some(dockerfiledefault)))
+    x += ("DOCKERFILE"->new ModuleParameter[FILE]("FILE",None,None,None,None))
     x
   }
 

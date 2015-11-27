@@ -165,11 +165,8 @@ object RunEnv {
     resolved
   }
 
-  def initFromConf(content:String) = {
+  def initFromConf(confMap:java.util.Map[String,Any]) = {
     var args = Map[String,AbstractParameterVal]()
-    val yaml = new Yaml()
-    val ios = new FileInputStream(content)
-    val confMap = yaml.load(ios).asInstanceOf[java.util.Map[String,Any]]
     YamlElt.readAs[java.util.HashMap[String,String]](confMap) match {
       case Some(map) => {
         map.forEach(new BiConsumer[String,String] {

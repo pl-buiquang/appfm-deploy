@@ -30,7 +30,6 @@ object ModuleManager extends LazyLogging{
       findModuleConf(file,ModuleManager.initModule)
     }
 
-    // TODO proper module discarding when error is caught
     var firstRun = true
     var discarded = ""
     while(discarded != "" || firstRun){
@@ -56,14 +55,11 @@ object ModuleManager extends LazyLogging{
     }
 
     logger.info("Finished initializing modules")
-
-    modules.values.foreach(m => {
-      println(m.serialize())
-
-
-    })
   }
 
+  /**
+   * Reload module definition
+   */
   def reload()={
     modules = Map[String,ModuleDef]()
     init()

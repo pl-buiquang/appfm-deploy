@@ -11,7 +11,7 @@ import fr.limsi.iles.cpm.module.definition.ModuleManager
 import fr.limsi.iles.cpm.module.process.DockerManager
 import fr.limsi.iles.cpm.module.value.MODVAL
 import fr.limsi.iles.cpm.server.Server
-import fr.limsi.iles.cpm.utils.{ConfManager}
+import fr.limsi.iles.cpm.utils.{Log, ConfManager}
 import org.slf4j.LoggerFactory
 
 import scala.sys.process._
@@ -22,14 +22,15 @@ import scala.sys.process._
 object CPM extends App{
 
   override def main(args:Array[String]): Unit ={
-    args.map(s => println(s))
+
+    // the first argument provided override default configuration file
     var confile : Option[String] = None
     if(args.length>0){
       if (new File(args(0)).exists()){
         confile = Some(args(0))
       }
     }
-    fr.limsi.iles.cpm.utils.Log("CPM Server Started!")
+    Log("CPM Server Started!")
 
     // shutdown hook for clean exit
     sys.addShutdownHook({
@@ -38,46 +39,24 @@ object CPM extends App{
       //Server.context.term()
     })
 
-    /* // save config
-    val fos = new OutputStreamWriter(new FileOutputStream(f), "UTF-8")
-    props.store(fos, "")
-    fos.close()
-     */
-
-    /*val module = new Module("Stanford Parser")
-    module.exec()
-*/
+    // init configuration manager
     confile match {
       case Some(f) => ConfManager.init(f)
       case _ => ConfManager.init()
     }
-    /*
-    load config
-    init modules : list modules
-    init pipelines : list pipelines
-    init corpus : list corpus
-
-    start master server
-    start webserver
-    start cli server
-
-
-     */
 
     // init module manager
     // check for modules definition consistency
     ModuleManager.init()
 
 
-    // check for docker proper initializatin
+    // check for docker proper initialization
     DockerManager.initCheckDefault()
 
     // start the main loop server
     val port = ConfManager.get("cmd_listen_port").toString
-    println("Listening on port : "+port)
+    Log("Listening on port : "+port)
     Server.run(port)
   }
-
-
 
 }

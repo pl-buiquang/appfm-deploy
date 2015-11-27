@@ -1,6 +1,6 @@
 package fr.limsi.iles.cpm.module.process
 
-import java.io.PrintWriter
+import java.io.{File, PrintWriter}
 import java.util.UUID
 
 import com.typesafe.scalalogging.LazyLogging
@@ -11,6 +11,8 @@ import scala.sys.process._
  * Created by buiquang on 10/6/15.
  */
 object DockerManager extends LazyLogging{
+
+  var servicesAvailable = List[String]()
 
   def initCheckDefault():Boolean = {
     exist(ConfManager.defaultDockerBaseImage) match {
@@ -27,14 +29,27 @@ object DockerManager extends LazyLogging{
   }
 
   def serviceRun(name:String,dockerimage:String,foldersync:java.io.File) = {
-    try{
-      val mount = "-v "+foldersync.getCanonicalPath+":"+foldersync.getCanonicalPath
-      val mount2 = " -v /tmp:/tmp -v "+ConfManager.get("default_result_dir")+":"+ConfManager.get("default_result_dir")+" -v "+ConfManager.get("default_corpus_dir")+":"+ConfManager.get("default_corpus_dir")+" "
-      val dockercmd = "docker run "+mount+mount2+" -td --name "+name+" "+dockerimage
-      logger.debug(dockercmd)
-      dockercmd.!!
-    }catch {
-      case e:Throwable => e.printStackTrace()
+    if(!servicesAvailable.exists(_==dockerimage)) {
+      try {
+        val mount = "-v " + foldersync.getCanonicalPath + ":" + foldersync.getCanonicalPath
+        val mount2 = " -v /tmp:/tmp -v " + ConfManager.get("default_result_dir") + ":" + ConfManager.get("default_result_dir") + " -v " + ConfManager.get("default_corpus_dir") + ":" + ConfManager.get("default_corpus_dir") + " "
+        val list : java.util.ArrayList[String] = ConfManager.get("modules_dir").asInstanceOf[java.util.ArrayList[String]]
+        var mount3 = ""
+        val iterator = list.iterator()
+        while(iterator.hasNext) {
+          val path = iterator.next()
+          val file = new File(path)
+          if(file.exists()){
+            mount3 += " -v "+file.getCanonicalPath+":"+file.getCanonicalPath
+          }
+        }
+        val dockercmd = "docker run " + mount + mount2 + mount3 + " -td --name " + dockerimage + " " + dockerimage
+        logger.debug(dockerimage)
+        dockercmd.!!
+        servicesAvailable = dockerimage :: servicesAvailable
+      } catch {
+        case e: Throwable => e.printStackTrace()
+      }
     }
   }
 

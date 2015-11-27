@@ -10,6 +10,7 @@ object ConfManager {
   val defaultDockerBaseImage = "base_cpm_shell"
   val moduleDefinitionDirectory = "_DEF_DIR"
   val runWorkingDirectory = "_RUN_DIR"
+  val processshell = "cpm-process-shell/bin/cpm-process-shell.py"
 
   var confMap : java.util.Map[String,Any] = null
   val defaultConfFile = "/conf.yml"
@@ -21,18 +22,30 @@ object ConfManager {
     confMap.get(key)
   }
 
+  /**
+   * Initialize ConfManager from a yaml file, default to conf.yml
+   * @param confPath
+   */
   def init(confPath:String) :Unit={
     val conffile = getClass.getResource(confPath)
-  // val input :InputStream =  getClass.getResourceAsStream(confPath); // when in jar
-    var file : String = null
-    if(conffile == null){
-      file = confPath
-    }else{
-      file = conffile.getFile;
+    if(conffile==null){
+
     }
-    val ios = new FileInputStream(new File(file))
+    var filename : String = null
+    if(conffile == null){
+      filename = confPath
+    }else{
+      filename = conffile.getFile;
+    }
+    val file = new File(filename)
+    val input :java.io.InputStream = if(file.exists()){
+      new FileInputStream(filename)
+    }else{
+      getClass.getResourceAsStream(confPath); // when in jar
+    }
+
     val yaml = new Yaml()
-    confMap = yaml.load(ios).asInstanceOf[java.util.Map[String, Any]]
+    confMap = yaml.load(input).asInstanceOf[java.util.Map[String, Any]]
   }
 
   def init() :Unit= {

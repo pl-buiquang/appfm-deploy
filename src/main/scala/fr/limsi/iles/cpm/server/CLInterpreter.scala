@@ -1,5 +1,6 @@
 package fr.limsi.iles.cpm.server
 
+import java.io.FileInputStream
 import java.net.URLEncoder
 import java.util.UUID
 
@@ -20,11 +21,12 @@ object CLInterpreter {
 
   /**
    * Interpret command line arguments
-   * @param arg
+   * @param cmdarg
+   * @param data
    * @return
    */
-  def interpret(arg:String) :String = {
-    val args = arg.split("\\s")
+  def interpret(cmdarg:String,data:Option[String]) :String = {
+    val args = cmdarg.split("\\s")
     try{
       args(0) match {
         case "corpus" =>
@@ -32,7 +34,7 @@ object CLInterpreter {
         case "process" =>
           interpretProcessCommands(args.slice(1,args.length))
         case "module" =>
-          interpretModuleCommands(args.slice(1,args.length))
+          interpretModuleCommands(args.slice(1,args.length),data)
         case "exec" =>
           interpretExecCommands(args.slice(1,args.length))
         case "reload" => {
@@ -185,7 +187,7 @@ object CLInterpreter {
     }
   }
 
-  def interpretModuleCommands(args:Seq[String]) = {
+  def interpretModuleCommands(args:Seq[String],data:Option[String]) = {
     try{
       args(0) match{
         case "ls" => {
@@ -197,7 +199,12 @@ object CLInterpreter {
           ModuleManager.ls(onlyname)
         }
         case "run" => {
-          ProcessRunManager.newRun(args(1),args(2),true)
+          if(data.isDefined){
+            ProcessRunManager.newRun(args(1),data.get,true)
+          }else{
+            val confdata = Source.fromFile(args(2)).getLines.mkString
+            ProcessRunManager.newRun(args(1),confdata,true)
+          }
         }
         case "getdesc" => {
           if(ModuleManager.modules.contains(args(1))){

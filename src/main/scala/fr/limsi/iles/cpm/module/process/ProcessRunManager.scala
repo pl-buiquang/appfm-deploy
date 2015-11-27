@@ -43,7 +43,7 @@ object ProcessRunManager extends LazyLogging{
   }
 
 
-  def newRun(modulename:String,conffile:String,async:Boolean) :String = {
+  def newRun(modulename:String,confdata:String,async:Boolean) :String = {
     /*
     val it = processCollection.find()
     while(it.hasNext){
@@ -60,8 +60,8 @@ object ProcessRunManager extends LazyLogging{
     // fetching configuration file for current run
     var args = Map[String,AbstractParameterVal]()
     val yaml = new Yaml()
-    val ios = new FileInputStream(conffile)
-    val confMap = yaml.load(ios).asInstanceOf[java.util.Map[String,Any]]
+
+    val confMap = yaml.load(confdata).asInstanceOf[java.util.Map[String,Any]]
     val resultdirpath = YamlElt.readAs[java.util.HashMap[String,String]](confMap) match {
       case Some(map) => {
         map.get("RESULT_DIR") match {
@@ -91,7 +91,7 @@ object ProcessRunManager extends LazyLogging{
     val runresultdir = createRunResultDir(resultdirpath,uuid)
 
     // setting run environment from conf and default variables
-    val env = RunEnv.initFromConf(conffile)
+    val env = RunEnv.initFromConf(confMap)
     val resultdirval = DIR(None,None)
     resultdirval.fromYaml(runresultdir)
     env.args += ("_RUN_DIR" -> resultdirval)

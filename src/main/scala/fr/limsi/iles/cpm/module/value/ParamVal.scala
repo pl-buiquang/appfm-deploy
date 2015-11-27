@@ -103,7 +103,7 @@ case class VAL(override val format:Option[String],override val schema:Option[Str
     if(yaml == null){
       return
     }
-    val value = YamlElt.readAs[String](yaml)
+    val value :Option[String]= Some(yaml.toString)//YamlElt.readAs[String](yaml)
     rawValue = value match {
       case Some(theval:String) => theval
       case None => "Error reading val value (should be a string)"

@@ -163,8 +163,10 @@ object YamlElt{
         }
       }else if(thing.isInstanceOf[Boolean]){
         YamlString(thing.asInstanceOf[Boolean].toString)
+      }else if(thing.isInstanceOf[Integer]){
+        YamlString(thing.asInstanceOf[Integer].toString)
       }else{
-        YamlUnknown(thing)
+        YamlUnknown(thing.toString)
       }
     }else{
       YamlNull()
@@ -177,6 +179,7 @@ object YamlElt{
     }else{
       thing
     }
+
     if(bugfix!=null && bugfix.isInstanceOf[T]){
       Some(bugfix.asInstanceOf[T])
     }else{

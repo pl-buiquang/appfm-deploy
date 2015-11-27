@@ -7,7 +7,7 @@ lazy val root = (project in file(".")).
 
 val buildSettings = Defaults.coreDefaultSettings ++ Seq(
   //…
-  javaOptions += "-Xmx2G"
+  javaOptions += "-Xmx3G"
   //…
 )
 

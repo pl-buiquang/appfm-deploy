@@ -35,7 +35,7 @@ object CPM extends App{
     // shutdown hook for clean exit
     sys.addShutdownHook({
       println("ShutdownHook called")
-      //println(Seq("docker","ps","-a") !!)
+      DockerManager.cleanup() // clean up docker exited containers
       //Server.context.term()
     })
 

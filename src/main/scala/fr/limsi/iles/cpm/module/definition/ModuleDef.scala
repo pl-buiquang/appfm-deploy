@@ -234,7 +234,12 @@ object ModuleDef extends LazyLogging{
   def initCMDInputs()={
     var x = Map[String,AbstractModuleParameter]()
     x += ("CMD"->new ModuleParameter[VAL]("VAL",None,None,None))
-    x += ("DOCKERFILE"->new ModuleParameter[FILE]("FILE",None,None,None,None))
+    val forcecontainerized = VAL(None,None)
+    forcecontainerized.fromYaml("false")
+    x += ("CONTAINED"->new ModuleParameter[VAL]("VAL",None,None,None,Some(forcecontainerized)))
+    val defaultdockerfile = VAL(None,None)
+    defaultdockerfile.fromYaml("false")
+    x += ("DOCKERFILE"->new ModuleParameter[VAL]("VAL",None,None,None,Some(defaultdockerfile)))
     x
   }
 

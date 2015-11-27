@@ -116,7 +116,7 @@ object CLInterpreter {
           }else {
             (false,false)
           }
-          val master = MongoDBObject("master"->true)
+/*          val master = MongoDBObject("master"->true)
           val it = ProcessRunManager.processCollection.find(master)
           var toprint = ""
           while(it.hasNext){
@@ -129,7 +129,12 @@ object CLInterpreter {
                 toprint+="\n"
               }
             }
-          }
+          }*/
+          var toprint = ""
+          ProcessRunManager.list.foreach(el=>{
+            toprint += el._1 + ":"+el._2.moduleval.namespace+"\n"
+          })
+
           toprint
         } catch {case e:Throwable => "Error :"+e.getMessage}
         case "status" => try{

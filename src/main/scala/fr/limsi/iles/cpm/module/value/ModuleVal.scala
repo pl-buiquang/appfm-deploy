@@ -62,10 +62,10 @@ object AbstractModuleVal extends LazyLogging{
           throw new Exception("Module run item error")
         }
         val runitemname = moduleval.keySet().iterator().next()
-        val cmdmatch = """((?:\w|-)+=)?((?:\w|-)+)""".r.findFirstMatchIn(runitemname)
+        val cmdmatch = """((?:\w|-)+)(#(?:\w|-)+)?""".r.findFirstMatchIn(runitemname)
         val modulename = cmdmatch match {
           case Some(result) => {
-            result.group(2)
+            result.group(1)
           }
           case None => {
             throw new Exception("Error parsing module value name")
@@ -152,7 +152,7 @@ object AbstractModuleVal extends LazyLogging{
       }else if(!in._2.value.isEmpty){
         value.fromYaml(in._2.value.get.toYaml())
       }else{
-        throw new Exception("missing input value")
+        throw new Exception("missing input value "+in._1)
       }
       inputs += (in._1 -> value)
     })

@@ -5,6 +5,7 @@ import java.io.FilenameFilter
 import java.util.UUID
 import java.util.concurrent.Executors
 
+import com.mongodb.BasicDBObject
 import com.mongodb.casbah.commons.MongoDBObject
 import com.mongodb.casbah.Imports._
 import com.typesafe.scalalogging.LazyLogging
@@ -13,7 +14,7 @@ import fr.limsi.iles.cpm.module.parameter.AbstractModuleParameter
 import fr.limsi.iles.cpm.module.value.{DIR, VAL, AbstractParameterVal}
 import fr.limsi.iles.cpm.module.value._
 import fr.limsi.iles.cpm.server.Server
-import fr.limsi.iles.cpm.utils.{Utils, ConfManager}
+import fr.limsi.iles.cpm.utils.{YamlElt, DB, Utils, ConfManager}
 import org.json.JSONObject
 import org.yaml.snakeyaml.Yaml
 import org.zeromq.ZMQ
@@ -250,7 +251,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
         }
       })
       // TODO new thread stuff etc.
-      //executorService.shutdown();
+      executorService.shutdown();
     }else{
       runSupervisor()
     }
@@ -290,11 +291,12 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
       }
 
-      socket.close();
+
 
     }catch{
-      case e:Throwable => socket.close(); error = "error when running : "+e.getMessage; logger.error(e.getMessage)
+      case e:Throwable => error = "error when running : "+e.getMessage; logger.error(e.getMessage)
     }finally {
+      socket.close();
       exitRoutine(error)
     }
   }
@@ -394,7 +396,13 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
     // moduledef.inputs must be satisfied by inputs
 
-
+    newargs.foreach(el => {
+      if(el._2._mytype=="FILE" || el._2._mytype=="DIR"){
+        if(!(new java.io.File(el._2.asString())).exists()){
+          throw new Exception(el._2.asString() + " does not exist! Aborting run")
+        }
+      }
+    })
 
     val newenv = new RunEnv(newargs)
     env = newenv
@@ -407,7 +415,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
   private[this] def exitRoutine(): Unit = exitRoutine("0")
 
   private[this] def exitRoutine(error:String): Unit = {
-    logger.debug("Finished processing for module "+moduleval.moduledef.name+", connecting to parent socket")
+    logger.info("Finished processing for module "+moduleval.moduledef.name+", connecting to parent socket")
     val socket = parentPort match {
       case Some(port) => {
         val socket = Server.context.socket(ZMQ.PUSH)
@@ -475,7 +483,7 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
         }
         case s : String => logger.warn("WTF? : "+s)
       }
-      case _ => "ow shit"
+      case _ => logger.warn("unrecognized message")
     }
   }
 
@@ -580,38 +588,49 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
     val folder = new java.io.File(wd)
 
 
-    /*
-    val dockerimage = {
+
+    val dockerimagename = {
       env.resolveValueToString(moduleval.inputs("DOCKERFILE").toYaml()) match {
-        case ConfManager.defaultDockerBaseImage => ConfManager.defaultDockerBaseImage
         case x :String => {
-          val name = env.args("_MOD_CONTEXT").asString()
-          if(!DockerManager.exist(name)){
-            DockerManager.build(name,x)
+          if(x=="true"){
+            val name = env.args("_MOD_CONTEXT").asString()+"-"+moduleval.namespace // _MOD_CONTEXT should always be the module defintion that holds this command
+            if(!DockerManager.exist(name)){
+              DockerManager.build(name,wd+"/Dockerfile")
+            }
+            name
+          }else{
+            ""
           }
-          name
         }
-        case _ =>  ConfManager.defaultDockerBaseImage
+        case _ =>  ""
       }
     }
 
-    env.resolveValueToString(moduleval.inputs("SERVICE").toYaml()) match {
-      case "true" => {
-        DockerManager.serviceRun(env.args("_MOD_CONTEXT").asString(),dockerimage,folder)
-        run = DockerManager.serviceExec(this.id,moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),folder,dockerimage)
+    val containername = if(env.resolveValueToString(moduleval.inputs("CONTAINED").toYaml()) == "true") {
+      UUID.randomUUID().toString // to ensure a unique docker container is created for this process that should be containerized from other instances of the same process
+    } else {
+      dockerimagename
+    }
+
+
+
+    if(dockerimagename!=""){
+      DockerManager.serviceRun(containername,dockerimagename,folder)
+      run = DockerManager.serviceExec(this.id,moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),folder,containername)
+    }else{
+      val cmd = env.resolveValueToString(moduleval.inputs("CMD").asString())
+      val absolutecmd = cmd.replace("\n"," ").replace("\"","\\\"").replaceAll("^./",folder.getCanonicalPath+"/")
+      val cmdtolaunch = "python "+ConfManager.get("cpm_home_dir")+"/"+ConfManager.processshell+" "+this.id.toString+" "+moduleval.namespace+" "+processPort+" "+absolutecmd+""
+      logger.info("Launchin cmd : "+cmdtolaunch)
+      val exitval = Process(cmdtolaunch,new java.io.File(wd)) ! ProcessLogger(line => stdout+="\n"+line,line=>stderr+="\n"+line)
+      stdoutval.rawValue = stdout
+      stderrval.rawValue = stderr
+      if(exitval!=0){
+        throw new Exception(stderr)
       }
-      case _ =>  run = DockerManager.run(this.id,moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),folder,dockerimage)
-    }*/
+    }
 
-    val cmd = env.resolveValueToString(moduleval.inputs("CMD").asString())
-    val absolutecmd = cmd.replace("\n"," ").replace("\"","\\\"").replaceAll("^./",folder.getCanonicalPath+"/")
-
-
-    logger.info("python "+ConfManager.get("cpm_home_dir")+"/"+ConfManager.processshell+" "+this.id.toString+" "+moduleval.namespace+" "+processPort+" "+absolutecmd+"")
-    Process("python /vagrant/cpm-process-shell/bin/cpm-process-shell.py "+this.id.toString+" "+moduleval.namespace+" "+processPort+" "+absolutecmd+"",new java.io.File(wd)) ! ProcessLogger(line => stdout+="\n"+line,line=>stderr+="\n"+line)
-
-    stdoutval.rawValue = stdout
-    stderrval.rawValue = stderr
+    // tag to prevent running more than once the process
     run = "true"
 
   }
@@ -644,7 +663,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
         }
         case s : String => logger.warn("WTF? : "+s)
       }
-      case _ => "ow shit"
+      case _ => logger.warn("unknown message type")
     }
   }
 
@@ -678,6 +697,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     values += ("modules" -> AbstractParameterVal.paramToScalaListModval(modvals))
     values += ("process" -> List[AbstractProcess]())
     values += ("completed" -> 0)
+    //values += ("tmpenv"->env.copy())
     val filterregex = moduleval.getInput("REGEX",env).asString();
     values += ("filter"->new FilenameFilter {
       override def accept(dir: io.File, name: JSFunction): Boolean = {
@@ -702,12 +722,14 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
       case _ => resultnamespace+"."
     }
 
+    val prefix = namespace+"_MAP."
+    val prefixlength = prefix.length
     parentEnv.args ++= env.args.filter(elt => {
-      elt._1.startsWith("_MAP.")
+      elt._1.startsWith(prefix)
     }).groupBy[String](el=>{
-      val modnamestartindex = el._1.substring(5).indexOf(".")
-      val modnameendindex = el._1.substring(5+modnamestartindex+1).indexOf(".")
-      "_MAP."+el._1.substring(5+modnamestartindex+1)//.substring(0,modnameendindex)
+      val modnamestartindex = el._1.substring(prefixlength).indexOf(".")
+      val modnameendindex = el._1.substring(prefixlength+modnamestartindex+1).indexOf(".")
+      prefix+el._1.substring(5+modnamestartindex+1)//.substring(0,modnameendindex)
     }).transform((key,content) => {
       // TODO know whichever the fuck is the type and create the proper list type
       /**
@@ -784,6 +806,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     val toProcessFiles = values("dir").asInstanceOf[java.io.File].listFiles(values("filter").asInstanceOf[FilenameFilter]).slice(offset,to)
 
     var i = 0;
+    //val newenv = values("tmpenv").asInstanceOf[RunEnv]
     toProcessFiles.foreach(file => {
       val newenv = env
       val dirinfo = this.moduleval.getInput("IN",env)
@@ -793,7 +816,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
       val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
 
-      val moduleval = new ModuleVal("_MAP."+(offset+i).toString,module,Some(Utils.scalaMap2JavaMap(newenv.args.mapValues(paramval => {
+      val moduleval = new ModuleVal(resultnamespace+"_MAP."+(offset+i).toString,module,Some(Utils.scalaMap2JavaMap(newenv.args.mapValues(paramval => {
         paramval.toYaml()
       }))))
       i+=1
@@ -816,6 +839,15 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
   override protected[this] def attrdeserialize(mixedattrs: Map[String, String]): Unit = {
 
   }
+
+  def swapEnv(): Unit ={
+    val swapcol = DB.get("envswap")
+    val query = MongoDBObject("ruid"->this.id.toString)
+
+
+
+  }
+
 }
 
 

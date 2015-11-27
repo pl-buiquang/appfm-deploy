@@ -65,6 +65,11 @@ object ModuleManager extends LazyLogging{
     init()
   }
 
+  /**
+   * Export module defs to json
+   * @param onlyname
+   * @return
+   */
   def jsonExport(onlyname:Boolean):String ={
     var json ="["
     modules.foreach(el=>{
@@ -77,6 +82,11 @@ object ModuleManager extends LazyLogging{
     json.substring(0,json.length-1)+"]"
   }
 
+  /**
+   * Returns printable string of module defs
+   * @param onlyname
+   * @return
+   */
   def ls(onlyname:Boolean) : String= {
     modules.foldRight("")((el,agg) => {
       {if(onlyname){
@@ -87,6 +97,11 @@ object ModuleManager extends LazyLogging{
     })
   }
 
+  /**
+   * Apply a function on file that match module extension : .module
+   * @param curFile
+   * @param f
+   */
   private def findModuleConf(curFile:java.io.File,f:java.io.File => Unit) :Unit={
     if(curFile.isFile){
       if(curFile.getName().endsWith(".module")){
@@ -103,6 +118,10 @@ object ModuleManager extends LazyLogging{
     }
   }
 
+  /**
+   * Init module definition conf from definition file
+   * @param moduleConfFile
+   */
   private def initModule(moduleConfFile:File):Unit={
     try{
       val modulename = moduleConfFile.getName.substring(0,moduleConfFile.getName.lastIndexOf('.'))

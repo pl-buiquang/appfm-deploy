@@ -14,6 +14,10 @@ object DockerManager extends LazyLogging{
 
   var servicesAvailable = List[String]()
 
+  /**
+   * Construct base default image (useless now since using docker is not the default behavior for command run)
+   * @return
+   */
   def initCheckDefault():Boolean = {
     exist(ConfManager.defaultDockerBaseImage) match {
       case true => true
@@ -23,10 +27,20 @@ object DockerManager extends LazyLogging{
     }
   }
 
-
+  /**
+   * Run a command in the default base image (useless now since using docker is not the default behavior for command run)
+   * @param pid
+   * @param name
+   * @param host
+   * @param port
+   * @param cmd
+   * @param foldersync
+   * @return
+   */
   def baseRun(pid:UUID,name:String,host:String,port:String,cmd:String,foldersync:java.io.File) = {
     run(pid,name,host,port,cmd,foldersync,ConfManager.defaultDockerBaseImage)
   }
+
 
   def serviceRun(name:String,dockerimage:String,foldersync:java.io.File) = {
     if(!servicesAvailable.exists(_==dockerimage)) {
@@ -43,19 +57,19 @@ object DockerManager extends LazyLogging{
             mount3 += " -v "+file.getCanonicalPath+":"+file.getCanonicalPath
           }
         }
-        val dockercmd = "docker run " + mount + mount2 + mount3 + " -td --name " + dockerimage + " " + dockerimage
+        val dockercmd = "docker run " + mount + mount2 + mount3 + " -td --name " + name + " " + dockerimage
         logger.debug(dockerimage)
         dockercmd.!!
-        servicesAvailable = dockerimage :: servicesAvailable
+        servicesAvailable = name :: servicesAvailable
       } catch {
         case e: Throwable => e.printStackTrace()
       }
     }
   }
 
-  def serviceExec(pid:UUID,name:String,host:String,port:String,cmd:String,foldersync:java.io.File,dockerimage:String) = {
+  def serviceExec(pid:UUID,name:String,host:String,port:String,cmd:String,foldersync:java.io.File,dockercontainername:String) = {
     val absolutecmd = cmd.replace("\n"," ").replaceAll("^./",foldersync.getCanonicalPath+"/")
-    val dockercmd = "docker exec -td "+dockerimage+" /home/app/bin/cpm-process-shell.py "+pid.toString+" "+name+" "+port+" "+absolutecmd+""
+    val dockercmd = "docker exec -td "+dockercontainername+" /home/app/bin/cpm-process-shell.py "+pid.toString+" "+name+" "+port+" "+absolutecmd+""
     logger.debug(dockercmd)
     dockercmd.!!
     "true"
@@ -70,6 +84,11 @@ object DockerManager extends LazyLogging{
     dockercmd.!!
   }
 
+  /**
+   * Check if a docker image name already exists
+   * @param name
+   * @return
+   */
   def exist(name:String):Boolean={
     try {
       val images = "docker images".!!
@@ -88,25 +107,39 @@ object DockerManager extends LazyLogging{
     }
   }
 
-
+  /**
+   * Build a docker image provided a name and a Dockerfile path only if the name is not already taken (image already built)
+   * @param name
+   * @param path
+   * @return
+   */
   def build(name:String,path:String) : Boolean= {
-    logger.info("Building docker image "+name)
-    try {
-      val filepath = new java.io.File(path)
-      val dir = if(filepath.isDirectory){
-        filepath.getCanonicalPath
-      }else{
-        filepath.getParent
+    if(!DockerManager.exist(name)) {
+      logger.info("Building docker image " + name)
+      try {
+        val filepath = new java.io.File(path)
+        val dir = if (filepath.isDirectory) {
+          filepath.getCanonicalPath
+        } else {
+          filepath.getParent
+        }
+        val output = ("docker build -t " + name + " " + dir).!
+        output == 0
+      } catch {
+        case e: Throwable => logger.error(e.getMessage); fr.limsi.iles.cpm.utils.Log.error(e); false
       }
-      val output = ("docker build -t " + name + " " + dir).!
-      output==0
-    } catch {
-      case e:Throwable => logger.error(e.getMessage); fr.limsi.iles.cpm.utils.Log.error(e); false
+    }else{
+      true // if the image exists we suppose everything is fine :)
     }
   }
 
+  /**
+   * cleanup routing
+   * //TODO run this some times
+   * @return
+   */
   def cleanup():Boolean={
-    "docker rm -v $(docker ps -a -q -f status=exited)".!
+    "docker ps -a -q -f status=exited | xargs docker rm -v".!
     true
   }
 

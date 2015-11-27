@@ -12,4 +12,4 @@ RUN mkdir -p /home/app
 WORKDIR /home/app
 ADD bin/ bin/
 
-ENTRYPOINT ["bin/cpm-process-shell.py"]
+ENTRYPOINT ["bin/dummy.py"]

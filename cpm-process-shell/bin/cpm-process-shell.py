@@ -20,7 +20,7 @@ for netinfo in netinfos :
 		host = elts[i]
 		print host
 
-
+host = "localhost"
 
 if len(sys.argv) > 4 :
 	pid = sys.argv[1]

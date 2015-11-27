@@ -191,12 +191,13 @@ object CLInterpreter {
     try{
       args(0) match{
         case "ls" => {
-          val onlyname = if(args.size > 1 && args(1)=="--name"){
-            true
+          val onlyname = args.exists(_=="--name")
+          val jsonoutput = args.exists(_=="--json")
+          if(jsonoutput){
+            ModuleManager.jsonExport(onlyname)
           }else{
-            false
+            ModuleManager.ls(onlyname)
           }
-          ModuleManager.ls(onlyname)
         }
         case "run" => {
           if(data.isDefined){

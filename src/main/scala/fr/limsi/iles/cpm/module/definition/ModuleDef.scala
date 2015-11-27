@@ -12,6 +12,7 @@ import fr.limsi.iles.cpm.module.process._
 import fr.limsi.iles.cpm.module.value._
 import fr.limsi.iles.cpm.utils._
 import org.yaml.snakeyaml.Yaml
+import org.json._
 
 /**
  * Created by buiquang on 9/16/15.
@@ -91,9 +92,9 @@ class ModuleDef(
     }) + "\n\n"
   }
 
-  def serialize() : String= {
+  def serialize()(implicit tojson:Boolean=false) : String= {
     val yamloffset = "  "
-    "name : "+name + "\n" +
+    val yamlstring = "name : "+name + "\n" +
       (if(desc!="")"desc : >\n"+yamloffset+desc + "\n" else "")+
     inputs.foldLeft("input : ")((agg,input)=>{
       agg + "\n"+yamloffset+input._1+" : "+"\n"+
@@ -117,6 +118,13 @@ class ModuleDef(
           agg2 + "\n" + yamloffset+yamloffset+yamloffset+yamloffset+inputval._1+" : "+Utils.addOffset(yamloffset+yamloffset+yamloffset+yamloffset,inputval._2.toYaml())
         })
     })
+    if(tojson){
+      val yaml= new Yaml();
+      val obj = yaml.load(yamlstring);
+      return YamlElt.fromJava(obj).toJSONObject().toString
+    }else{
+      return yamlstring
+    }
   }
 
 }

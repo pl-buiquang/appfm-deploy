@@ -69,6 +69,18 @@ object ModuleManager extends LazyLogging{
     init()
   }
 
+  def jsonExport(onlyname:Boolean):String ={
+    var json ="["
+    modules.foreach(el=>{
+      if(onlyname){
+        json += el._1 +","
+      }else{
+        json += el._2.serialize()(true)+","
+      }
+    })
+    json.substring(0,json.length-1)+"]"
+  }
+
   def ls(onlyname:Boolean) : String= {
     modules.foldRight("")((el,agg) => {
       {if(onlyname){

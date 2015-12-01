@@ -4,6 +4,7 @@ import java.io.FileInputStream
 import java.util.function.{BiConsumer, Consumer}
 
 
+import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.parameter.AbstractModuleParameter
 import fr.limsi.iles.cpm.module.value.{AbstractParameterVal, VAL, AbstractParameterVal$}
 import fr.limsi.iles.cpm.utils.{YamlMap, Log, YamlElt}
@@ -12,7 +13,7 @@ import org.yaml.snakeyaml.Yaml
 /**
  * Created by buiquang on 9/24/15.
  */
-class RunEnv(var args:Map[String,AbstractParameterVal]){
+class RunEnv(private var args:Map[String,AbstractParameterVal]) extends LazyLogging{
   var logs = Map[String,AbstractParameterVal]()
 
   def serialize():String={
@@ -43,6 +44,35 @@ class RunEnv(var args:Map[String,AbstractParameterVal]){
   def resolveValueToYaml(value:String) : String= {
     RunEnv.resolveValueToYaml(this.args,value)
   }
+
+
+  def getRawVar(key:String) : Option[AbstractParameterVal]= {
+    if(this.args.contains(key)){
+      Some(this.args(key))
+    }else{
+      None
+    }
+  }
+
+  def getVars() : Map[String,AbstractParameterVal] = {
+    val envargs = args
+    envargs
+  }
+
+  def setVar(key:String,value:AbstractParameterVal) = {
+    args += (key -> value)
+  }
+
+  def setVars(vars:Map[String,AbstractParameterVal]) = {
+    args ++= vars
+  }
+
+  def debugPrint() : Unit = {
+    args.foreach(elt => {
+      logger.debug(elt._1+" of type "+elt._2.getClass.toGenericString+" with value "+elt._2.asString())
+    })
+  }
+
 }
 
 object RunEnv {

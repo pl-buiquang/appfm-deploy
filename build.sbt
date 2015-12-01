@@ -32,6 +32,8 @@ libraryDependencies += "org.json4s" %% "json4s-native" % "3.3.0"
 
 libraryDependencies += "org.json4s" %% "json4s-jackson" % "3.3.0"
 
+//libraryDependencies += "net.debasishg" %% "redisclient" % "3.0" // redis
+
 /*libraryDependencies += "org.spark-project.zeromq" % "zeromq-scala-binding_2.11" % "0.0.7-spark"*/
 /*
  libraryDependencies ++= Seq(

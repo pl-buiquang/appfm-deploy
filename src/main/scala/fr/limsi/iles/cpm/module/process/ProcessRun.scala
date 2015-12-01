@@ -121,10 +121,9 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
   ProcessRunManager.list += (id -> this)
 
   def getOutput(outputName:String) = {
-    if(env.args.contains(outputName)){
-      env.args(outputName)
-    }else{
-      ""
+    env.getRawVar(outputName) match {
+      case Some(thing) => thing
+      case None => ""
     }
   }
 
@@ -304,22 +303,20 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
   protected def initRunEnv(parentRunEnv:RunEnv) = {
     logger.debug("Initializing environement for "+moduleval.moduledef.name)
     logger.debug("Parent env contains : ")
-    parentRunEnv.args.foreach(elt => {
-      logger.debug(elt._1+" of type "+elt._2.getClass.toGenericString+" with value "+elt._2.asString())
-    })
+    parentRunEnv.debugPrint()
     parentEnv = parentRunEnv
 
     var newargs = Map[String,AbstractParameterVal]()
 
     val runresultdir = DIR(None,None)
-    runresultdir.fromYaml(parentRunEnv.args("_RUN_DIR").asString()+"/"+moduleval.namespace)
+    runresultdir.fromYaml(parentRunEnv.getRawVar("_RUN_DIR").get.asString()+"/"+moduleval.namespace)
     val newdir = new java.io.File(runresultdir.asString())
     newdir.mkdirs()
     newargs += ("_RUN_DIR" -> runresultdir)
 
     // builtin modules haven't any real definition directory, use parent's
     val defdir = if(ModuleDef.builtinmodules.contains(moduleval.moduledef.name)){
-      parentRunEnv.args("_DEF_DIR")
+      parentRunEnv.getRawVar("_DEF_DIR").get
     }else{
       val x = DIR(None,None)
       x.fromYaml(moduleval.moduledef.defdir)
@@ -330,18 +327,18 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     val (mod_context,cur_mod) = if(ModuleDef.builtinmodules.contains(moduleval.moduledef.name)){
       val x = VAL(None,None)
       x.fromYaml("_MAIN")
-      (parentRunEnv.args.getOrElse("_CUR_MOD",x),parentRunEnv.args.getOrElse("_CUR_MOD",x))
+      (parentRunEnv.getRawVar("_CUR_MOD").getOrElse(x),parentRunEnv.getRawVar("_CUR_MOD").getOrElse(x))
     }else{
       val x = VAL(None,None)
       x.fromYaml(moduleval.moduledef.name)
-      (parentRunEnv.args.getOrElse("_CUR_MOD",x),x)
+      (parentRunEnv.getRawVar("_CUR_MOD").getOrElse(x),x)
     }
     newargs += ("_MOD_CONTEXT" -> mod_context)
     newargs += ("_CUR_MOD" -> cur_mod)
 
     val donotoverride = List("_MOD_CONTEXT","_CUR_MOD","_DEF_DIR","_RUN_DIR")
     if(moduleval.moduledef.name == "_ANONYMOUS"){
-      parentEnv.args.filter(arg => {
+      parentEnv.getVars().filter(arg => {
         !donotoverride.contains(arg._1)
       }).foreach(arg => {
         newargs += (arg._1 -> arg._2)
@@ -353,7 +350,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
         val variables = input._2.extractVariables()
         var ready = true
         variables.foreach(variable => {
-          if(!parentRunEnv.args.contains(variable)){
+          if(parentRunEnv.getRawVar(variable).isEmpty){
             ready = false
           }
         })
@@ -407,9 +404,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     val newenv = new RunEnv(newargs)
     env = newenv
     logger.debug("Child env contains : ")
-    env.args.foreach(elt => {
-      logger.debug(elt._1+" with value "+elt._2.asString())
-    })
+    env.debugPrint()
   }
 
   private[this] def exitRoutine(): Unit = exitRoutine("0")
@@ -523,9 +518,7 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
 
   override def updateParentEnv() = {
     logger.debug("Process env contains : ")
-    env.args.foreach(elt => {
-      logger.debug(elt._1+" with value "+elt._2.asString())
-    })
+    env.debugPrint()
     moduleval.moduledef.outputs.foreach(output=>{
       logger.debug("Looking to resolve : "+output._2.value.get.asString())
       val x = output._2.createVal()
@@ -535,12 +528,10 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
         case "" => ""
         case _ => moduleval.namespace+"."
       }
-      parentEnv.args += (namespace+output._1 -> x)
+      parentEnv.setVar(namespace+output._1,x)
     });
     logger.debug("New parent env contains : ")
-    parentEnv.args.foreach(elt => {
-      logger.debug(elt._1+" with value "+elt._2.asString())
-    })
+    parentEnv.debugPrint()
   }
 
   override protected[this] def attrserialize(): (Map[String, String], Map[String, String]) = {
@@ -556,20 +547,19 @@ class AnonymousModuleProcess(override val moduleval:ModuleVal,override val paren
 
   override def updateParentEnv() = {
     logger.debug("Process env contains : ")
-    (env.args ++ moduleval.inputs).foreach(elt => {
+    env.debugPrint()
+    moduleval.inputs.foreach(elt => {
       logger.debug(elt._1+" with value "+elt._2.asString())
     })
-    parentEnv.args ++= env.args.filter(elt => {
+    parentEnv.setVars(env.getVars().filter(elt => {
 
       moduleval.moduledef.exec.foldLeft(false)((agg,modval) => {
         agg || elt._1.startsWith(modval.namespace)
       })
 
-    }).foldLeft(Map[String,AbstractParameterVal]())((map,elt)=>{map + (moduleval.namespace+"."+elt._1->elt._2)})
+    }).foldLeft(Map[String,AbstractParameterVal]())((map,elt)=>{map + (moduleval.namespace+"."+elt._1->elt._2)}))
     logger.debug("New parent env contains : ")
-    parentEnv.args.foreach(elt => {
-      logger.debug(elt._1+" with value "+elt._2.asString())
-    })
+    parentEnv.debugPrint()
   }
 }
 
@@ -584,7 +574,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
     logger.debug("Launching CMD "+env.resolveValueToString(moduleval.inputs("CMD").asString()))
     var stderr = ""
     var stdout = ""
-    val wd = env.args("_DEF_DIR").asString()
+    val wd = env.getRawVar("_DEF_DIR").get.asString()
     val folder = new java.io.File(wd)
 
 
@@ -593,7 +583,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
       env.resolveValueToString(moduleval.inputs("DOCKERFILE").toYaml()) match {
         case x :String => {
           if(x=="true"){
-            val name = env.args("_MOD_CONTEXT").asString()+"-"+moduleval.namespace // _MOD_CONTEXT should always be the module defintion that holds this command
+            val name = env.getRawVar("_MOD_CONTEXT").get.asString()+"-"+moduleval.namespace // _MOD_CONTEXT should always be the module defintion that holds this command
             if(!DockerManager.exist(name)){
               DockerManager.build(name,wd+"/Dockerfile")
             }
@@ -644,7 +634,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
 
 
     parentEnv.logs += (moduleval.namespace -> stderrval)
-    parentEnv.args += (moduleval.namespace+".STDOUT" -> stdoutval)
+    parentEnv.setVar(moduleval.namespace+".STDOUT", stdoutval)
 
 
   }
@@ -713,9 +703,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
   override protected[this] def updateParentEnv(): Unit = {
     logger.debug("Process env contains : ")
-    env.args.foreach(elt => {
-      logger.debug(elt._1+" with value "+elt._2.asString())
-    })
+    env.debugPrint()
 
     val namespace = resultnamespace match {
       case "" => ""
@@ -724,7 +712,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
     val prefix = namespace+"_MAP."
     val prefixlength = prefix.length
-    parentEnv.args ++= env.args.filter(elt => {
+    parentEnv.setVars(env.getVars().filter(elt => {
       elt._1.startsWith(prefix)
     }).groupBy[String](el=>{
       val modnamestartindex = el._1.substring(prefixlength).indexOf(".")
@@ -740,49 +728,10 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
         agg.list ::= elt._2
         agg
       })
-    })
+    }))
 
-      /*.aggregate(Map[String,AbstractParameterVal]())((agg,el)=>{
-      val modnamestartindex = el._1.substring(5).indexOf(".")
-      val modnameendindex = el._1.substring(5+modnamestartindex+1).indexOf(".")
-      val modname = el._1.substring(5+modnamestartindex+1).substring(0,modnameendindex)
-      var ellist = AbstractModuleParameter.createVal(el._2._mytype+"*")
-      ellist.parseYaml(el._2.asString())
-      agg + (modname -> ellist)
-    },(el1,el2) => {
-      var el0 = Map[String,AbstractParameterVal]()
-      el1.foreach(el => {
-        el0 += ("_MAP."+el._1 -> el._2)
-      })
-      el2.foreach(el => {
-        if(!el0.contains(el._1)){
-          el0 += (el._1 -> el._2)
-        }else{
-          (el0(el._1).asInstanceOf[LIST[AbstractParameterVal]]).list :::= el._2.asInstanceOf[LIST[AbstractParameterVal]].list
-        }
-      })
-      el0
-    })*/
-      /**/
-
-    /*parentEnv.args ++= env.args.filter(elt => {
-      elt._1.startsWith("_MAP.")
-    }).foldLeft(Map[String,AbstractParameterVal]())((map,elt)=>{map + (namespace+"_MAP."+elt._1->elt._2)})*/
-    /*values("process").asInstanceOf[List[AbstractProcess]].foreach(process=>{
-      process.moduleval.moduledef.outputs.foreach(el=>{
-        if(!el._2.value.isEmpty){
-          parentEnv.args += (
-            resultnamespace+"._MAP."+process.moduleval.namespace+"."+el._1
-            ->
-              RunEnv.resolveValue(env.args++process.moduleval.inputs.mapValues(input => {env.resolveValue(input)}),el._2.value.get)
-            )
-        }
-      })
-    })*/
     logger.debug("New parent env contains : ")
-    parentEnv.args.foreach(elt => {
-      logger.debug(elt._1+" with value "+elt._2.asString())
-    })
+    parentEnv.debugPrint()
   }
 
   override protected [this] def update(message:ProcessMessage)={
@@ -795,6 +744,19 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     offset>=values("dir").asInstanceOf[java.io.File].listFiles(values("filter").asInstanceOf[FilenameFilter]).length &&
       values("completed").asInstanceOf[Int] == (values("process").asInstanceOf[List[AbstractProcess]]).length
   }
+
+  def getResult(varname:String) = {
+    val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
+
+    val moduleval = new ModuleVal(resultnamespace+"_MAP."+(offset).toString,module,Some(Utils.scalaMap2JavaMap(env.getVars().mapValues(paramval => {
+      paramval.toYaml()
+    }))))
+
+    module.exec.find(m=>{
+      m.namespace == varname
+    }).get.moduledef.outputs.find(_ == varname).get._2.value
+  }
+
 
   override protected[this] def step()={
     val to = if(offset+values("chunksize").asInstanceOf[Int]>=values("dir").asInstanceOf[java.io.File].listFiles(values("filter").asInstanceOf[FilenameFilter]).length){
@@ -812,11 +774,11 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
       val dirinfo = this.moduleval.getInput("IN",env)
       val x = FILE(dirinfo.format,dirinfo.schema)
       x.fromYaml(file.getCanonicalPath)
-      newenv.args += ("_" -> x)
+      newenv.setVar("_", x)
 
       val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
 
-      val moduleval = new ModuleVal(resultnamespace+"_MAP."+(offset+i).toString,module,Some(Utils.scalaMap2JavaMap(newenv.args.mapValues(paramval => {
+      val moduleval = new ModuleVal(resultnamespace+"_MAP."+(offset+i).toString,module,Some(Utils.scalaMap2JavaMap(newenv.getVars().mapValues(paramval => {
         paramval.toYaml()
       }))))
       i+=1

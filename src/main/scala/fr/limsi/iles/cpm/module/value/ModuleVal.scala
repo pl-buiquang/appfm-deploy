@@ -22,7 +22,7 @@ abstract class AbstractModuleVal(val moduledef:ModuleDef,val conf:Option[java.ut
   def getInput(paramName:String,env:RunEnv)={
     inputs(paramName) match {
       case x:AbstractParameterVal => env.resolveValue(x)
-      case _ => env.args(paramName) match {
+      case _ => env.getRawVar(paramName).getOrElse("") match {
         case x:AbstractParameterVal => x
         case _ => throw new Exception("couldn't resolve any value for this input ("+paramName+")")
       }
@@ -41,7 +41,7 @@ abstract class AbstractModuleVal(val moduledef:ModuleDef,val conf:Option[java.ut
       var exist = true
       vars.foreach(varname => {
         logger.info("Looking for "+varname)
-        val varexist = env.args.exists(varname == _._1)
+        val varexist = env.getVars().exists(varname == _._1)
         exist = exist && varexist
         if(varexist) logger.info("found") else logger.info("not found")
       })
@@ -243,7 +243,7 @@ case class MAPVal(override val namespace:String,override val conf:Option[java.ut
       var exist = true
       vars.foreach(varname => {
         logger.info("Looking for "+varname)
-        val varexist = env.args.exists(varname == _._1)
+        val varexist = env.getVars().exists(varname == _._1)
         exist = exist && varexist
         if(varexist) logger.info("found") else logger.info("not found")
       })

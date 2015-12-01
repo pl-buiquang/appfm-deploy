@@ -165,10 +165,12 @@ object CLInterpreter {
         case "view" => {
           if(args.size > 2){
             val process = ProcessRunManager.getProcess(UUID.fromString(args(1)))
-            val result = if(process.parentEnv.args.contains(args(2))){
-              process.parentEnv.args(args(2)).asString()
+            val result = if(process.parentEnv.getVars().contains(args(2))){
+              process.parentEnv.getRawVar(args(2)).get.asString()
+            }else if(process.env.getRawVar(args(2)).isDefined){
+              process.env.getRawVar(args(2)).get.asString()
             }else if(args(2)=="__ALL__"){
-              val r = process.parentEnv.args.keys.foldLeft("")(_ +","+ _)
+              val r = process.parentEnv.getVars().keys.foldLeft("")(_ +","+ _)+process.env.getVars().keys.foldLeft("")(_ +","+ _)
               if(r.length>0)
                 r.substring(1)
               else

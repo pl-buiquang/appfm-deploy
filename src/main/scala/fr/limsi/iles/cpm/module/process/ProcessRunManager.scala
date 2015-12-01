@@ -94,10 +94,10 @@ object ProcessRunManager extends LazyLogging{
     val env = RunEnv.initFromConf(confMap)
     val resultdirval = DIR(None,None)
     resultdirval.fromYaml(runresultdir)
-    env.args += ("_RUN_DIR" -> resultdirval)
+    env.setVar("_RUN_DIR" , resultdirval)
     val defdirval = DIR(None,None)
     defdirval.fromYaml(module.defdir)
-    env.args += ("_DEF_DIR" -> defdirval)
+    env.setVar("_DEF_DIR" , defdirval)
 
 
 

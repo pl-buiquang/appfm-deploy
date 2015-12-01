@@ -696,7 +696,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
   override def postInit():Unit={
     values += ("dir" -> new java.io.File(moduleval.getInput("IN",env).asString()))
     values += ("chunksize" -> Integer.valueOf(moduleval.getInput("CHUNK_SIZE",env).asString()))
-    val modvals = moduleval.getInput("RUN",env).asInstanceOf[LIST[MODVAL]]
+    val modvals = moduleval.inputs("RUN").asInstanceOf[LIST[MODVAL]]
     values += ("modules" -> AbstractParameterVal.paramToScalaListModval(modvals))
     values += ("process" -> List[AbstractProcess]())
     values += ("completed" -> 0)

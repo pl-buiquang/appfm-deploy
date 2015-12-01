@@ -358,7 +358,9 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
         logger.info("Looking in parent env for "+input._1+" of type "+input._2.getClass.toGenericString+" with value to resolve : "+input._2.asString())
         val variables = input._2.extractVariables()
         var ready = true
-        variables.foreach(variable => {
+        variables.filter(arg => {
+          !donotoverride.contains(arg)
+        }).foreach(variable => {
           if(parentRunEnv.getRawVar(variable).isEmpty){
             ready = false
           }else{

@@ -361,7 +361,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
         variables.foreach(variable => {
           if(parentRunEnv.getRawVar(variable).isEmpty){
             ready = false
-          }else{
+          }/*else{
             val value = if(moduleval.moduledef.inputs.contains(variable)){
               moduleval.moduledef.inputs(variable).createVal()
             }else{
@@ -370,9 +370,9 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
             value.fromYaml(parentRunEnv.getRawVar(variable).get.asString())
             newargs += (variable -> value)
             //newargs += (variable -> parentRunEnv.getRawVar(variable).get)
-          }
+          }*/
         })
-        /*if(ready){
+        if(ready){
           logger.info("Found")
           val newval = input._2.newEmpty()
           if(moduleval.moduledef.name == "_CMD"){
@@ -383,7 +383,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
           newargs += (input._1 -> newval)
 
 
-        }*/
+        }
       });
 
 

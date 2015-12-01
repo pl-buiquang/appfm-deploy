@@ -37,12 +37,12 @@ class RunEnv(private var args:Map[String,AbstractParameterVal]) extends LazyLogg
     RunEnv.resolveValue(this.args,value)
   }
 
-  def resolveValueToString(value:String) : String= {
-    RunEnv.resolveValueToString(this.args,value)
+  def resolveValueToString(value:String)(implicit skip:Boolean=false) : String= {
+    RunEnv.resolveValueToString(this.args,value)(skip)
   }
 
-  def resolveValueToYaml(value:String) : String= {
-    RunEnv.resolveValueToYaml(this.args,value)
+  def resolveValueToYaml(value:String)(implicit skip:Boolean=false) : String= {
+    RunEnv.resolveValueToYaml(this.args,value)(skip)
   }
 
 
@@ -122,14 +122,14 @@ object RunEnv {
     path
   }
 
-  def resolveValue(env:Map[String,AbstractParameterVal],value:AbstractParameterVal) : AbstractParameterVal = {
+  def resolveValue(env:Map[String,AbstractParameterVal],value:AbstractParameterVal)(implicit skip:Boolean=false) : AbstractParameterVal = {
     val resolved = value.newEmpty()
     val resolvedstring = RunEnv.resolveValueToString(env,value.toYaml())
     resolved.fromYaml(resolvedstring)
     resolved
   }
 
-  def resolveValueToYaml(env:Map[String,AbstractParameterVal],value:String) : String ={
+  def resolveValueToYaml(env:Map[String,AbstractParameterVal],value:String)(implicit skip:Boolean=false) : String ={
     var resolved = """\$\{(.*?)\}""".r.replaceAllIn(value,m => {
       val splitted = m.group(1).split(":")
       val complexvariable = if(splitted.length>1){
@@ -162,7 +162,7 @@ object RunEnv {
     resolved
   }
 
-  def resolveValueToString(env:Map[String,AbstractParameterVal],value:String) :String={
+  def resolveValueToString(env:Map[String,AbstractParameterVal],value:String)(implicit skip:Boolean=false) :String={
     var resolved = """\$\{(.*?)\}""".r.replaceAllIn(value,m => {
       val splitted = m.group(1).split(":")
       val complexvariable = if(splitted.length>1){

@@ -304,7 +304,7 @@ case class MODVAL(override val format:Option[String],override val schema:Option[
   }
 
   override def asString()={
-    moduleval.namespace+" :\n  input : "+moduleval.inputs.foldLeft("")((prev,elt) => {
+    "\n"+moduleval.namespace+" :\n  input : "+moduleval.inputs.foldLeft("")((prev,elt) => {
       prev + "\n    "+elt._1+" : "+Utils.addOffset("    ",elt._2.asString())
     })
   }

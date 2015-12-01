@@ -399,7 +399,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     }).foreach(input => {
       logger.info("Adding default value for "+input._1)
       val value = input._2.createVal() //val value = moduleval.inputs(input._1) //
-      value.fromYaml(parentRunEnv.resolveValueToYaml(input._2.value.get.toYaml()))
+      value.fromYaml(RunEnv.resolveValueToYaml(newargs,input._2.value.get.toYaml()))
       newargs += (input._1 -> value)
     })
 

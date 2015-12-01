@@ -304,16 +304,21 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     logger.debug("Initializing environement for "+moduleval.moduledef.name)
     logger.debug("Parent env contains : ")
     parentRunEnv.debugPrint()
+
+    // set parent env reference
     parentEnv = parentRunEnv
 
+    // new env vars container
     var newargs = Map[String,AbstractParameterVal]()
 
+    // create new subdirectory run dir and set path to env vars
     val runresultdir = DIR(None,None)
     runresultdir.fromYaml(parentRunEnv.getRawVar("_RUN_DIR").get.asString()+"/"+moduleval.namespace)
     val newdir = new java.io.File(runresultdir.asString())
     newdir.mkdirs()
     newargs += ("_RUN_DIR" -> runresultdir)
 
+    // set module defintion directory info
     // builtin modules haven't any real definition directory, use parent's
     val defdir = if(ModuleDef.builtinmodules.contains(moduleval.moduledef.name)){
       parentRunEnv.getRawVar("_DEF_DIR").get
@@ -324,6 +329,8 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     }
     newargs += ("_DEF_DIR" -> defdir)
 
+    // set information about current running module name and caller context module name
+    // for built in module, use name of first parent custom module name
     val (mod_context,cur_mod) = if(ModuleDef.builtinmodules.contains(moduleval.moduledef.name)){
       val x = VAL(None,None)
       x.fromYaml("_MAIN")
@@ -336,7 +343,9 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     newargs += ("_MOD_CONTEXT" -> mod_context)
     newargs += ("_CUR_MOD" -> cur_mod)
 
+    // get usefull (look into module input needs) vars from parent env and copy them into the new env
     val donotoverride = List("_MOD_CONTEXT","_CUR_MOD","_DEF_DIR","_RUN_DIR")
+    // for anonymous module, copy every parent env vars except previously set
     if(moduleval.moduledef.name == "_ANONYMOUS"){
       parentEnv.getVars().filter(arg => {
         !donotoverride.contains(arg._1)
@@ -352,27 +361,29 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
         variables.foreach(variable => {
           if(parentRunEnv.getRawVar(variable).isEmpty){
             ready = false
-          }
-        })
-        if(ready){
-          logger.info("Found")
-          if(moduleval.moduledef.name == "_CMD"){
-            input._2.fromYaml(parentEnv.resolveValueToString(input._2.toYaml()))
           }else{
-            input._2.fromYaml(parentEnv.resolveValueToYaml(input._2.toYaml()))
-          }
-          newargs += (input._1 -> input._2)
-          /*
-          variables.foreach(variable => {
             val value = if(moduleval.moduledef.inputs.contains(variable)){
               moduleval.moduledef.inputs(variable).createVal()
             }else{
-              parentEnv.args(variable).newEmpty()
+              parentEnv.getRawVar(variable).get.newEmpty()
             }
-            value.fromYaml(parentRunEnv.args(variable).asString())
+            value.fromYaml(parentRunEnv.getRawVar(variable).get.asString())
             newargs += (variable -> value)
-          })*/
-        }
+            //newargs += (variable -> parentRunEnv.getRawVar(variable).get)
+          }
+        })
+        /*if(ready){
+          logger.info("Found")
+          val newval = input._2.newEmpty()
+          if(moduleval.moduledef.name == "_CMD"){
+            newval.fromYaml(parentEnv.resolveValueToString(input._2.toYaml()))
+          }else{
+            newval.fromYaml(parentEnv.resolveValueToYaml(input._2.toYaml()))
+          }
+          newargs += (input._1 -> newval)
+
+
+        }*/
       });
 
 

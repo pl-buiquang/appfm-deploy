@@ -3,13 +3,16 @@ package fr.limsi.iles.cpm.server
 import java.io.FileInputStream
 import java.net.URLEncoder
 import java.util.UUID
+import java.util.function.Consumer
 
 import com.mongodb.DBObject
 import com.mongodb.casbah.commons.MongoDBObject
+import fr.limsi.iles.cpm.corpus.CorpusManager
 import fr.limsi.iles.cpm.module.definition.ModuleManager
 import fr.limsi.iles.cpm.module.process.ProcessRunManager
 import fr.limsi.iles.cpm.module.value.AbstractModuleVal
 import fr.limsi.iles.cpm.utils.{Log, Utils, ConfManager}
+import org.json.{JSONObject, JSONArray}
 
 import scala.io.Source
 import scala.sys.process._
@@ -41,6 +44,13 @@ object CLInterpreter {
           ModuleManager.reload()
           "ok"
         }
+        case "settings"=>{
+          var moreargs = Array[String]()
+          if(args.length>=1){
+            moreargs = args.slice(1,args.length)
+          }
+          interpretSettingsCommands(moreargs,data)
+        }
         case "restart" =>
           "Restart cpm"
         case "test" => Thread.sleep(10000); "ok"
@@ -62,7 +72,12 @@ object CLInterpreter {
         case "copy" => "Copy corpus"
         case "resolve" => "Assign new path to corpus for user moved directories"
         case "locate" => "Returns the location of the corpus"
-        case "ls" => "List recursively all added files of the corpus"
+        case "ls" => val jsonoutput = args.exists(_=="--json")
+          if(jsonoutput){
+            CorpusManager.jsonExport().toString
+          }else{
+            CorpusManager.ls().toString
+          }
         case "add" => "Add a file to corpus"
         case "commit" => "Version of a corpus"
         case "log" => "Log of operations over corpus"
@@ -191,6 +206,34 @@ object CLInterpreter {
       }
     }catch{
       case e:Throwable => e.printStackTrace(); "Missing argument"
+    }
+  }
+
+  def interpretSettingsCommands(args:Seq[String],data:Option[String]) = {
+    try {
+      var settings = new JSONObject()
+      settings.put("modules",          {var json = new JSONArray()
+      ConfManager.get("modules_dir").asInstanceOf[java.util.ArrayList[String]].forEach(new Consumer[String] {
+        override def accept(t: String): Unit = {
+          val file = new java.io.File(t)
+          var jsonfile = new JSONObject()
+          jsonfile.put("name",file.getCanonicalPath)
+          if(file.exists()){
+            jsonfile.put("exist",true)
+          }else{
+            jsonfile.put("exist",false)
+          }
+          json.put(jsonfile)
+        }
+      })
+        json
+      }
+      )
+      settings.put("result_dir",ConfManager.get("default_result_dir").toString)
+      settings.put("corpus_dir",ConfManager.get("default_corpus_dir").toString)
+      settings.toString()
+    }catch{
+      case e:Throwable => e.getMessage+ " (Error processing command)"
     }
   }
 

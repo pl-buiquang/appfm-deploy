@@ -139,7 +139,7 @@ object DockerManager extends LazyLogging{
    * @return
    */
   def cleanup():Boolean={
-    "docker ps -a -q -f status=exited | xargs docker rm -v".!
+    "docker ps -a -q -f status=exited" #| "xargs docker rm -v" ! ;
     true
   }
 

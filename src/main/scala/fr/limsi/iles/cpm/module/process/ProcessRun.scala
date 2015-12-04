@@ -90,6 +90,116 @@ object AbstractProcess extends LazyLogging{
     x
   }
 
+  def initEnvFrom(parentRunEnv:RunEnv,moduleval:AbstractModuleVal):RunEnv={
+
+    // new env vars container
+    var newargs = Map[String,AbstractParameterVal]()
+
+    // create new subdirectory run dir and set path to env vars
+    val runresultdir = DIR(None,None)
+    runresultdir.fromYaml(parentRunEnv.getRawVar("_RUN_DIR").get.asString()+"/"+moduleval.namespace)
+    val newdir = new java.io.File(runresultdir.asString())
+    newdir.mkdirs()
+    newargs += ("_RUN_DIR" -> runresultdir)
+
+    // set module defintion directory info
+    // builtin modules haven't any real definition directory, use parent's
+    val defdir = if(ModuleDef.builtinmodules.contains(moduleval.moduledef.name)){
+      parentRunEnv.getRawVar("_DEF_DIR").get
+    }else{
+      val x = DIR(None,None)
+      x.fromYaml(moduleval.moduledef.defdir)
+      x
+    }
+    newargs += ("_DEF_DIR" -> defdir)
+
+    // set information about current running module name and caller context module name
+    // for built in module, use name of first parent custom module name
+    val (mod_context,cur_mod) = if(ModuleDef.builtinmodules.contains(moduleval.moduledef.name)){
+      val x = VAL(None,None)
+      x.fromYaml("_MAIN")
+      (parentRunEnv.getRawVar("_CUR_MOD").getOrElse(x),parentRunEnv.getRawVar("_CUR_MOD").getOrElse(x))
+    }else{
+      val x = VAL(None,None)
+      x.fromYaml(moduleval.moduledef.name)
+      (parentRunEnv.getRawVar("_CUR_MOD").getOrElse(x),x)
+    }
+    newargs += ("_MOD_CONTEXT" -> mod_context)
+    newargs += ("_CUR_MOD" -> cur_mod)
+
+    // get usefull (look into module input needs) vars from parent env and copy them into the new env
+    val donotoverride = List("_MOD_CONTEXT","_CUR_MOD","_DEF_DIR","_RUN_DIR")
+    // for anonymous module, copy every parent env vars except previously set
+    if(moduleval.moduledef.name == "_ANONYMOUS"){
+      parentRunEnv.getVars().filter(arg => {
+        !donotoverride.contains(arg._1)
+      }).foreach(arg => {
+        newargs += (arg._1 -> arg._2)
+      })
+
+    }else{
+      moduleval.inputs.foreach(input=>{
+        logger.info("Looking in parent env for "+input._1+" of type "+input._2.getClass.toGenericString+" with value to resolve : "+input._2.asString())
+        val variables = input._2.extractVariables()
+        var ready = true
+        variables.filter(arg => {
+          !donotoverride.contains(arg)
+        }).foreach(variable => {
+          if(parentRunEnv.getRawVar(variable).isEmpty){
+            ready = false
+          }else{
+            val value = if(moduleval.moduledef.inputs.contains(variable)){
+              moduleval.moduledef.inputs(variable).createVal()
+            }else{
+              parentRunEnv.getRawVar(variable).get.newEmpty()
+            }
+            value.fromYaml(parentRunEnv.getRawVar(variable).get.asString())
+            newargs += (variable -> value)
+            //newargs += (variable -> parentRunEnv.getRawVar(variable).get)
+          }
+        })
+        if(ready){
+          logger.info("Found")
+          val newval = input._2.newEmpty()
+          if(moduleval.moduledef.name == "_CMD"){
+            newval.fromYaml(parentRunEnv.resolveValueToString(input._2.toYaml()))
+          }else{
+            newval.fromYaml(parentRunEnv.resolveValueToYaml(input._2.toYaml()))
+          }
+          newargs += (input._1 -> newval)
+
+
+        }
+      });
+
+
+    }
+
+    //TODO allow previous run result to fill missing inputs if run type allow it
+
+    // done in moduleval initialization
+    moduleval.moduledef.inputs.filter(input => {
+      !input._2.value.isEmpty && !newargs.contains(input._1)
+    }).foreach(input => {
+      logger.info("Adding default value for "+input._1)
+      val value = input._2.createVal() //val value = moduleval.inputs(input._1) //
+      value.fromYaml(RunEnv.resolveValueToYaml(newargs,input._2.value.get.toYaml()))
+      newargs += (input._1 -> value)
+    })
+
+
+    // moduledef.inputs must be satisfied by inputs
+
+    newargs.foreach(el => {
+      if(el._2._mytype=="FILE" || el._2._mytype=="DIR"){
+        if(!(new java.io.File(el._2.asString())).exists()){
+          throw new Exception(el._2.asString() + " does not exist! Aborting run")
+        }
+      }
+    })
+
+    new RunEnv(newargs)
+  }
 
 }
 
@@ -523,7 +633,7 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
         process.asInstanceOf[MAPProcess].context = context
       }
       runningModules += (module.namespace -> process)
-      childrenProcess ::= process.id
+      //childrenProcess ::= process.id
       //this.saveStateToDB()
       process.run(env,moduleval.namespace,Some(processPort),true) // not top level modules (called by cpm cli) always run demonized
     })
@@ -558,19 +668,22 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
 class AnonymousModuleProcess(override val moduleval:ModuleVal,override val parentProcess:Option[AbstractProcess],override val id:UUID)  extends ModuleProcess(moduleval,parentProcess,id){
   def this(moduleval:ModuleVal,parentProcess:Option[AbstractProcess]) = this(moduleval,parentProcess,UUID.randomUUID())
 
-  override def updateParentEnv() = {
+  override def updateParentEnv()= {
     logger.debug("Process env contains : ")
     env.debugPrint()
-    moduleval.inputs.foreach(elt => {
-      logger.debug(elt._1+" with value "+elt._2.asString())
-    })
-    parentEnv.setVars(env.getVars().filter(elt => {
-
-      moduleval.moduledef.exec.foldLeft(false)((agg,modval) => {
-        agg || elt._1.startsWith(modval.namespace)
+    if(!moduleval.namespace.startsWith("_MAP")){
+      moduleval.inputs.foreach(elt => {
+        logger.debug(elt._1+" with value "+elt._2.asString())
       })
+      parentEnv.setVars(env.getVars().filter(elt => {
 
-    }).foldLeft(Map[String,AbstractParameterVal]())((map,elt)=>{map + (moduleval.namespace+"."+elt._1->elt._2)}))
+        moduleval.moduledef.exec.foldLeft(false)((agg,modval) => {
+          agg || elt._1.startsWith(modval.namespace)
+        })
+
+      }).foldLeft(Map[String,AbstractParameterVal]())((map,elt)=>{map + (moduleval.namespace+"."+elt._1->elt._2)}))
+
+    }
     logger.debug("New parent env contains : ")
     parentEnv.debugPrint()
   }
@@ -699,6 +812,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     val modvals = moduleval.inputs("RUN").asInstanceOf[LIST[MODVAL]]
     values += ("modules" -> AbstractParameterVal.paramToScalaListModval(modvals))
     values += ("process" -> List[AbstractProcess]())
+    values += ("pcount"->0)
     values += ("completed" -> 0)
     //values += ("tmpenv"->env.copy())
     val filterregex = moduleval.getInput("REGEX",env).asString();
@@ -725,17 +839,15 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
     val prefix = namespace+"_MAP."
     val prefixlength = prefix.length
-    parentEnv.setVars(env.getVars().filter(elt => {
+    val args = env.getVars()
+    //val args = getResult().getVars()
+    parentEnv.setVars(args.filter(elt => {
       elt._1.startsWith(prefix)
     }).groupBy[String](el=>{
       val modnamestartindex = el._1.substring(prefixlength).indexOf(".")
       val modnameendindex = el._1.substring(prefixlength+modnamestartindex+1).indexOf(".")
       prefix+el._1.substring(5+modnamestartindex+1)//.substring(0,modnameendindex)
     }).transform((key,content) => {
-      // TODO know whichever the fuck is the type and create the proper list type
-      /**
-       * +"*"
-       */
       val newel = AbstractModuleParameter.createVal(content.head._2._mytype+"*",content.head._2.format,content.head._2.schema).asInstanceOf[LIST[AbstractParameterVal]]
       content.foldLeft(newel)((agg,elt) => {
         agg.list ::= elt._2
@@ -755,19 +867,39 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
   override protected[this] def endCondition():Boolean = {
     offset>=values("dir").asInstanceOf[java.io.File].listFiles(values("filter").asInstanceOf[FilenameFilter]).length &&
-      values("completed").asInstanceOf[Int] == (values("process").asInstanceOf[List[AbstractProcess]]).length
+      values("completed").asInstanceOf[Int] == values("pcount").asInstanceOf[Int] //(values("process").asInstanceOf[List[AbstractProcess]]).length
   }
 
-  def getResult(varname:String) = {
-    val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
+  def getResult() = {
+    val toProcessFiles = values("dir").asInstanceOf[java.io.File].listFiles(values("filter").asInstanceOf[FilenameFilter])
+    val resEnv = new RunEnv(Map[String,AbstractParameterVal]())
+    var i = 0;
+    //val newenv = values("tmpenv").asInstanceOf[RunEnv]
+    toProcessFiles.foreach(file => {
+      val newenv = env
+      val dirinfo = this.moduleval.getInput("IN",env)
+      val x = FILE(dirinfo.format,dirinfo.schema)
+      x.fromYaml(file.getCanonicalPath)
+      newenv.setVar("_", x)
 
-    val moduleval = new ModuleVal(resultnamespace+"_MAP."+(offset).toString,module,Some(Utils.scalaMap2JavaMap(env.getVars().mapValues(paramval => {
-      paramval.toYaml()
-    }))))
+      val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
 
-    module.exec.find(m=>{
-      m.namespace == varname
-    }).get.moduledef.outputs.find(_ == varname).get._2.value
+      val moduleval = new ModuleVal(resultnamespace+"_MAP."+(offset+i).toString,module,Some(Utils.scalaMap2JavaMap(newenv.getVars().mapValues(paramval => {
+        paramval.toYaml()
+      }))))
+      i+=1
+
+
+      moduleval.moduledef.exec.foreach(modval => {
+        val resolvebaseenv = AbstractProcess.initEnvFrom(newenv,modval)
+        modval.moduledef.outputs.foreach(output => {
+          resEnv.setVar(resultnamespace+"_MAP."+(offset+i).toString+"."+moduleval.namespace+output._1,resolvebaseenv.resolveValue(output._2.value.get))
+        })
+      })
+
+    })
+
+    resEnv
   }
 
 
@@ -796,11 +928,12 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
       }))))
       i+=1
       val process = new AnonymousModuleProcess(moduleval,Some(this))
-      childrenProcess ::= process.id
+      //childrenProcess ::= process.id
       //this.saveStateToDB()
-      var list = values("process").asInstanceOf[List[AbstractProcess]]
+      /*var list = values("process").asInstanceOf[List[AbstractProcess]]
       list ::= process
-      values += ("process" -> list)
+      values += ("process" -> list)*/
+      values += ("pcount" -> (1+values("pcount").asInstanceOf[Int]))
       process.run(newenv,moduleval.namespace,Some(processPort),true)
     })
 

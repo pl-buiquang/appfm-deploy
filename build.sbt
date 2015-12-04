@@ -20,6 +20,7 @@ resolvers += "Sonatype (releases)" at "https://oss.sonatype.org/content/reposito
 
 //libraryDependencies += "org.scalatest" % "scalatest_2.11" % "2.2.4" % "test"
 
+
 libraryDependencies += "org.yaml" % "snakeyaml" % "1.16"
 
 libraryDependencies += "org.zeromq" % "jeromq" % "0.3.5"

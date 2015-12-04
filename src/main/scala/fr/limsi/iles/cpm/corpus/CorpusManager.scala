@@ -54,7 +54,6 @@ object CorpusManager{
         subfiles.put(more)
       }
 
-
       folder.put(curFile.getName,subfiles)
       folder
     }else {

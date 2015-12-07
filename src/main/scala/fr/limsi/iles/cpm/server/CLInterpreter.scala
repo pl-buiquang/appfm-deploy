@@ -253,9 +253,20 @@ object CLInterpreter {
           if(data.isDefined){
             ProcessRunManager.newRun(args(1),data.get,true)
           }else{
-            val confdata = Source.fromFile(args(2)).getLines.mkString
+            val confdata = Source.fromFile(args(2)).getLines.foldLeft("")((agg,line)=>agg+"\n"+line)
             ProcessRunManager.newRun(args(1),confdata,true)
           }
+        }
+        case "info" => {
+          var json = new JSONObject()
+          if(ModuleManager.modules.contains(args(1))){
+            val module = ModuleManager.modules(args(1))
+            json.put("module",new JSONObject(module.serialize()(true)))
+            json.put("source",Source.fromFile(module.confFilePath).getLines.foldLeft("")((agg,line)=>agg+"\n"+line))
+          }else{
+            json.put("source",Source.fromFile(args(1)).getLines.foldLeft("")((agg,line)=>agg+"\n"+line))
+          }
+          json.toString
         }
         case "getdesc" => {
           if(ModuleManager.modules.contains(args(1))){

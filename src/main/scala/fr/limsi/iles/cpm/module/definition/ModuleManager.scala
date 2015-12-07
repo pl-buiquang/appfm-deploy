@@ -4,7 +4,15 @@ import java.io.{File, FileInputStream}
 
 import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.utils._
+import org.json.{JSONArray, JSONObject}
 import org.yaml.snakeyaml.Yaml
+
+import scala.io.Source
+
+
+class ModTree
+case class ModLeaf(modName:String,modDefFilePath:String) extends ModTree
+case class ModNode(modPath:String,modItems:List[ModTree]) extends ModTree
 
 /**
  * Created by buiquang on 9/7/15.
@@ -12,6 +20,7 @@ import org.yaml.snakeyaml.Yaml
 object ModuleManager extends LazyLogging{
 
   var modules = Map[String,ModuleDef]()
+  private var modulestree :ModNode = ModNode("/",List[ModTree]())
 
   /**
    * Check every modules found in the listed directory supposely containing modules definition/implementation/resources
@@ -22,12 +31,24 @@ object ModuleManager extends LazyLogging{
     if(!ConfManager.confMap.containsKey("modules_dir")){
       throw new Exception("no module directories set in configuration!")
     }
+
     val list : java.util.ArrayList[String] = ConfManager.get("modules_dir").asInstanceOf[java.util.ArrayList[String]]
     val iterator = list.iterator()
     while(iterator.hasNext){
+      var modlist = List[ModTree]()
       val path = iterator.next()
       val file = new File(path)
-      findModuleConf(file,ModuleManager.initModule)
+      if(file.exists()){
+        findModuleConf(file,ModuleManager.initModule) match{
+          case Some(x:ModTree)=>{
+            modlist = x :: modlist
+          }
+          case None => {
+
+          }
+        }
+        modulestree = ModNode("/",ModNode(file.getParent,modlist)::modulestree.modItems)
+      }
     }
 
     var firstRun = true
@@ -62,7 +83,38 @@ object ModuleManager extends LazyLogging{
    */
   def reload()={
     modules = Map[String,ModuleDef]()
+    modulestree = ModNode("/",List[ModTree]())
     init()
+  }
+
+  def jsonTreeExport(tree:ModTree):Object = {
+    tree match {
+      case ModNode(dirpath,list) => {
+        var json = new JSONObject()
+        var array = new JSONArray()
+        list.foreach(subtree => {
+          array.put(jsonTreeExport(subtree))
+        })
+        json.put("folder",true)
+        json.put("foldername",dirpath)
+        json.put("items",array)
+        json
+      }
+      case ModLeaf(name,filepath) => {
+        if(modules.contains(name)){
+          var json = new JSONObject()
+          json.put("modulename",name)
+          json.put("sourcepath",filepath)
+          json.put("module",new JSONObject(modules(name).serialize()(true)))
+          json.put("source",Source.fromFile(modules(name).confFilePath).getLines.foldLeft("")((agg,line)=>agg+"\n"+line))
+        }else{
+          var json = new JSONObject()
+          json.put("modulename",name)
+          json.put("sourcepath",filepath)
+          json.put("source",Source.fromFile(filepath).getLines.foldLeft("")((agg,line)=>agg+"\n"+line))
+        }
+      }
+    }
   }
 
   /**
@@ -71,7 +123,7 @@ object ModuleManager extends LazyLogging{
    * @return
    */
   def jsonExport(onlyname:Boolean):String ={
-    var json ="["
+    /*var json ="["
     modules.foreach(el=>{
       if(onlyname){
         json += el._1 +","
@@ -79,7 +131,8 @@ object ModuleManager extends LazyLogging{
         json += el._2.serialize()(true)+","
       }
     })
-    json.substring(0,json.length-1)+"]"
+    json.substring(0,json.length-1)+"]"*/
+    jsonTreeExport(modulestree).toString
   }
 
   /**
@@ -102,19 +155,39 @@ object ModuleManager extends LazyLogging{
    * @param curFile
    * @param f
    */
-  private def findModuleConf(curFile:java.io.File,f:java.io.File => Unit) :Unit={
+  private def findModuleConf(curFile:java.io.File,f:java.io.File => Option[String]) :Option[ModTree]={
     if(curFile.isFile){
       if(curFile.getName().endsWith(".module")){
-        f(curFile)
+        f(curFile) match {
+          case Some(modulename)=>{
+            Some(ModLeaf(modulename,curFile.getCanonicalPath))
+          }
+          case None =>{None}
+        }
+      }else{
+        None
       }
     }else if(curFile.isDirectory){
+      var list = List[ModTree]()
       val iterator = curFile.listFiles().iterator
       while(iterator.hasNext){
         val file = iterator.next()
-        findModuleConf(file,f)
+        findModuleConf(file,f) match{
+          case Some(x:ModTree)=>{
+            list = x :: list
+          }
+          case None => {
+
+          }
+        }
       }
+      if(list.length > 0)
+        Some(ModNode(curFile.getName,list))
+      else
+        None
     }else{
       logger.warn("File at path "+curFile.getPath+" is neither file nor directory!")
+      None
     }
   }
 
@@ -122,7 +195,8 @@ object ModuleManager extends LazyLogging{
    * Init module definition conf from definition file
    * @param moduleConfFile
    */
-  private def initModule(moduleConfFile:File):Unit={
+  private def initModule(moduleConfFile:File):Option[String]={
+    var foundModule : Option[String] = None
     try{
       val modulename = moduleConfFile.getName.substring(0,moduleConfFile.getName.lastIndexOf('.'))
       logger.debug("Initiating module "+modulename)
@@ -141,11 +215,12 @@ object ModuleManager extends LazyLogging{
       // check if module name already exist
       modules.get(modulename) match {
         case Some(m:ModuleDef) => throw new Exception("Module already exist, defined in "+moduleConfFile.getParent)
-        case None => modules += (modulename -> module)
+        case None => foundModule = Some(modulename); modules += (modulename -> module); foundModule
       }
     }catch{
-      case e: Throwable => e.printStackTrace(); logger.error("Wrong module defintion in "+moduleConfFile.getCanonicalPath+"\n"+e.getMessage+"\n This module will not be registered.")
+      case e: Throwable => e.printStackTrace(); logger.error("Wrong module defintion in "+moduleConfFile.getCanonicalPath+"\n"+e.getMessage+"\n This module will not be registered."); foundModule
     }
+
   }
 
 

@@ -18,15 +18,17 @@ for netinfo in netinfos :
 		i+=1
 	if(elts[0] == "default" or elts[0]=="0.0.0.0"):
 		host = elts[i]
-		print host
 
-host = "localhost"
 
-if len(sys.argv) > 4 :
-	pid = sys.argv[1]
-	name = sys.argv[2]
-	port = sys.argv[3]
-	cmd = " ".join(sys.argv[4:])
+
+if len(sys.argv) > 5 :
+	dockerized = sys.argv[1]
+	if dockerized!="true" :
+		host = "localhost"
+	pid = sys.argv[2]
+	name = sys.argv[3]
+	port = sys.argv[4]
+	cmd = " ".join(sys.argv[5:])
 else :
   exit()
 

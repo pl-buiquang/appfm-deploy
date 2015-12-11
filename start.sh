@@ -1,5 +1,5 @@
 #!/bin/bash
 
-cd  `dirname $0`/cpm-core;
+cd  $CPM_CORE;
 sbt -java-home $CPM_HOME/lib/jdk1.8.0_51 run
 

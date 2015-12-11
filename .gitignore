@@ -4,3 +4,4 @@ core/**
 cli/**
 data/**
 .vagrant/**
+tmp/**

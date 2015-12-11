@@ -1,7 +1,6 @@
-examples/**
 modules/**
-cpm-web-ui/**
-cpm-core/**
-cpm-cli/**
+web/**
+core/**
+cli/**
 data/**
 .vagrant/**

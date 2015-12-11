@@ -2,6 +2,7 @@ package fr.limsi.iles.cpm.module.process
 
 import java.io.FileInputStream
 import java.util.UUID
+import java.util.concurrent.Executors
 import java.util.function.BiConsumer
 
 import com.mongodb.BasicDBObject
@@ -9,8 +10,10 @@ import com.mongodb.casbah.commons.MongoDBObject
 import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.definition.ModuleManager
 import fr.limsi.iles.cpm.module.value._
+import fr.limsi.iles.cpm.server.Server
 import fr.limsi.iles.cpm.utils.{YamlElt, ConfManager, DB}
 import org.yaml.snakeyaml.Yaml
+import org.zeromq.ZMQ
 
 /**
  * Created by buiquang on 10/6/15.
@@ -104,7 +107,13 @@ object ProcessRunManager extends LazyLogging{
 
 
     // finally launch the process and return the id of it
-    process.run(env,"",None,async).toString
+    //val runid = process.run(env,"",None,async)
+    process.saveStateToDB()
+    val mps = new MasterProcessShell(process,async,"",env)
+    mps.run()
+
+    uuid.toString
+
     //env.args.foldLeft("")((toprint,elt) => {toprint+"\n"+elt._1+" = "+elt._2.asString()})
 
   }
@@ -131,6 +140,71 @@ object ProcessRunManager extends LazyLogging{
     runresultdirpath
   }
 
+}
+
+class MasterProcessShell(process:AbstractProcess,detached:Boolean,ns:String,env:RunEnv){
+  def run() = {
+
+    if(detached){
+      val executorService = Executors.newSingleThreadExecutor()
+      val process = executorService.execute(new Runnable {
+        override def run(): Unit = {
+          runSupervisor()
+        }
+      })
+      // TODO new thread stuff etc.
+      executorService.shutdown();
+    }else{
+      runSupervisor()
+    }
+
+
+
+  }
+
+  def runSupervisor()={
+    val socket = Server.context.socket(ZMQ.PULL)
+    var connected = 10
+    var processPort = AbstractProcess.newPort()
+    while(connected!=0)
+      try {
+        socket.bind("tcp://*:" + processPort)
+        connected = 0
+      }catch {
+        case e:Throwable => {
+          processPort = AbstractProcess.newPort()
+          connected -= 1
+        }
+      }
+
+    process.run(env,ns,Some(processPort),detached)
+    var finished = false
+    var error = "0"
+
+    while (!finished) {
+
+      val rawmessage = socket.recvStr()
+      val message: ProcessMessage = rawmessage
+
+      message match {
+        case ValidProcessMessage(sender,status,exitval) => status match {
+          case "FINISHED" => {
+            finished = true
+
+
+          }
+          case s : String => finished = true
+        }
+        case _ => finished = true
+      }
+
+    }
+
+    process.saveStateToDB()
+
+
+    socket.close();
+  }
 }
 
 

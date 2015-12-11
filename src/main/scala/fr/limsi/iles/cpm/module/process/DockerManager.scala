@@ -22,7 +22,7 @@ object DockerManager extends LazyLogging{
     exist(ConfManager.defaultDockerBaseImage) match {
       case true => true
       case false => {
-        build(ConfManager.defaultDockerBaseImage,ConfManager.get("cpm_home_dir") + "/cpm-process-shell")
+        build(ConfManager.defaultDockerBaseImage,ConfManager.get("cpm_home_dir") +"/"+ ConfManager.get("process-shell-home").toString)
       }
     }
   }
@@ -62,15 +62,15 @@ object DockerManager extends LazyLogging{
         dockercmd.!!
         servicesAvailable = name :: servicesAvailable
       } catch {
-        case e: Throwable => e.printStackTrace()
+        case e: Throwable => logger.info("TODO : check with docker utilities if docker container is already running instead of catching error")
       }
     }
   }
 
   def serviceExec(pid:UUID,name:String,host:String,port:String,cmd:String,foldersync:java.io.File,dockercontainername:String) = {
     val absolutecmd = cmd.replace("\n"," ").replaceAll("^./",foldersync.getCanonicalPath+"/")
-    val dockercmd = "docker exec -td "+dockercontainername+" /home/app/bin/cpm-process-shell.py "+pid.toString+" "+name+" "+port+" "+absolutecmd+""
-    logger.debug(dockercmd)
+    val dockercmd = "docker exec -td "+dockercontainername+" /home/pshell/bin/cpm-process-shell.py true "+pid.toString+" "+name+" "+port+" "+absolutecmd+""
+    logger.info(dockercmd)
     dockercmd.!!
     "true"
   }
@@ -131,6 +131,15 @@ object DockerManager extends LazyLogging{
     }else{
       true // if the image exists we suppose everything is fine :)
     }
+  }
+
+  /**
+   * Transform a name into correct docker repository regex name
+   * @param name
+   * @return
+   */
+  def nameToDockerName(name:String) : String = {
+    name.replace("@","-at-").replace("_","--").replace("#","-id-").toLowerCase()
   }
 
   /**

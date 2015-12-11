@@ -67,11 +67,16 @@ object AbstractProcess extends LazyLogging{
       case _ => None
     }
     val env = RunEnv.deserialize(obj.getOrDefault("env","").toString)
+    val parentEnv = RunEnv.deserialize(obj.getOrDefault("parentEnv","").toString)
     val namespace = obj.getOrDefault("modvalnamespace","").toString
     val modulename = obj.get("name").toString
     val modulevalconf = obj.get("modvalconf") match{
       case "" => None
-      case x:String => Some((new Yaml).load(x).asInstanceOf[java.util.Map[String,Any]])
+      case x:String => try{
+        Some((new Yaml).load(x).asInstanceOf[java.util.Map[String,Any]])
+      }catch{
+        case e:Throwable =>None
+      }
       case _ => logger.warn("missing modval conf in serialized obj"); None
     }
     val parentPort = obj.getOrDefault("parentport","NONE") match {
@@ -87,6 +92,7 @@ object AbstractProcess extends LazyLogging{
     }
 
     x.env = env
+    x.parentEnv = parentEnv
     x
   }
 
@@ -97,7 +103,11 @@ object AbstractProcess extends LazyLogging{
 
     // create new subdirectory run dir and set path to env vars
     val runresultdir = DIR(None,None)
-    runresultdir.fromYaml(parentRunEnv.getRawVar("_RUN_DIR").get.asString()+"/"+moduleval.namespace)
+    if(moduleval.moduledef.name=="_CMD"){
+      runresultdir.fromYaml(parentRunEnv.getRawVar("_RUN_DIR").get.asString())
+    }else{
+      runresultdir.fromYaml(parentRunEnv.getRawVar("_RUN_DIR").get.asString()+"/"+moduleval.namespace)
+    }
     val newdir = new java.io.File(runresultdir.asString())
     newdir.mkdirs()
     newargs += ("_RUN_DIR" -> runresultdir)
@@ -141,7 +151,7 @@ object AbstractProcess extends LazyLogging{
       moduleval.inputs.foreach(input=>{
         logger.info("Looking in parent env for "+input._1+" of type "+input._2.getClass.toGenericString+" with value to resolve : "+input._2.asString())
         val variables = input._2.extractVariables()
-        var ready = true
+        var ready = false
         variables.filter(arg => {
           !donotoverride.contains(arg)
         }).foreach(variable => {
@@ -169,6 +179,8 @@ object AbstractProcess extends LazyLogging{
           newargs += (input._1 -> newval)
 
 
+        }else{
+          logger.info("Not found...")
         }
       });
 
@@ -282,20 +294,19 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
           case _ => ""
         }
       },
-      "parentEnv" -> {parentProcess match {
-        case Some(thing) => ""
-        case None => parentEnv match {
+      "parentEnv" -> {
+        parentEnv match {
           case x:RunEnv => x.serialize()
           case _ => ""
         }
-      }}
+      }
     )
     var customattrs = this.attrserialize()
     staticfields :::= customattrs._1.toList
     changingfields :::= customattrs._2.toList
 
     val obj = if(update) {
-      $set(changingfields(0),changingfields(1),changingfields(2),changingfields(3),changingfields(4))
+      $set(changingfields(0),changingfields(1),changingfields(2),changingfields(3),changingfields(4),changingfields(5))
     }else{
       MongoDBObject(staticfields++changingfields)
     }
@@ -411,6 +422,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
   }
 
   protected def initRunEnv(parentRunEnv:RunEnv) = {
+
     logger.debug("Initializing environement for "+moduleval.moduledef.name)
     logger.debug("Parent env contains : ")
     parentRunEnv.debugPrint()
@@ -418,114 +430,10 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     // set parent env reference
     parentEnv = parentRunEnv
 
-    // new env vars container
-    var newargs = Map[String,AbstractParameterVal]()
-
-    // create new subdirectory run dir and set path to env vars
-    val runresultdir = DIR(None,None)
-    runresultdir.fromYaml(parentRunEnv.getRawVar("_RUN_DIR").get.asString()+"/"+moduleval.namespace)
-    val newdir = new java.io.File(runresultdir.asString())
-    newdir.mkdirs()
-    newargs += ("_RUN_DIR" -> runresultdir)
-
-    // set module defintion directory info
-    // builtin modules haven't any real definition directory, use parent's
-    val defdir = if(ModuleDef.builtinmodules.contains(moduleval.moduledef.name)){
-      parentRunEnv.getRawVar("_DEF_DIR").get
-    }else{
-      val x = DIR(None,None)
-      x.fromYaml(moduleval.moduledef.defdir)
-      x
-    }
-    newargs += ("_DEF_DIR" -> defdir)
-
-    // set information about current running module name and caller context module name
-    // for built in module, use name of first parent custom module name
-    val (mod_context,cur_mod) = if(ModuleDef.builtinmodules.contains(moduleval.moduledef.name)){
-      val x = VAL(None,None)
-      x.fromYaml("_MAIN")
-      (parentRunEnv.getRawVar("_CUR_MOD").getOrElse(x),parentRunEnv.getRawVar("_CUR_MOD").getOrElse(x))
-    }else{
-      val x = VAL(None,None)
-      x.fromYaml(moduleval.moduledef.name)
-      (parentRunEnv.getRawVar("_CUR_MOD").getOrElse(x),x)
-    }
-    newargs += ("_MOD_CONTEXT" -> mod_context)
-    newargs += ("_CUR_MOD" -> cur_mod)
-
-    // get usefull (look into module input needs) vars from parent env and copy them into the new env
-    val donotoverride = List("_MOD_CONTEXT","_CUR_MOD","_DEF_DIR","_RUN_DIR")
-    // for anonymous module, copy every parent env vars except previously set
-    if(moduleval.moduledef.name == "_ANONYMOUS"){
-      parentEnv.getVars().filter(arg => {
-        !donotoverride.contains(arg._1)
-      }).foreach(arg => {
-        newargs += (arg._1 -> arg._2)
-      })
-
-    }else{
-      moduleval.inputs.foreach(input=>{
-        logger.info("Looking in parent env for "+input._1+" of type "+input._2.getClass.toGenericString+" with value to resolve : "+input._2.asString())
-        val variables = input._2.extractVariables()
-        var ready = true
-        variables.filter(arg => {
-          !donotoverride.contains(arg)
-        }).foreach(variable => {
-          if(parentRunEnv.getRawVar(variable).isEmpty){
-            ready = false
-          }else{
-            val value = if(moduleval.moduledef.inputs.contains(variable)){
-              moduleval.moduledef.inputs(variable).createVal()
-            }else{
-              parentEnv.getRawVar(variable).get.newEmpty()
-            }
-            value.fromYaml(parentRunEnv.getRawVar(variable).get.asString())
-            newargs += (variable -> value)
-            //newargs += (variable -> parentRunEnv.getRawVar(variable).get)
-          }
-        })
-        if(ready){
-          logger.info("Found")
-          val newval = input._2.newEmpty()
-          if(moduleval.moduledef.name == "_CMD"){
-            newval.fromYaml(parentEnv.resolveValueToString(input._2.toYaml()))
-          }else{
-            newval.fromYaml(parentEnv.resolveValueToYaml(input._2.toYaml()))
-          }
-          newargs += (input._1 -> newval)
 
 
-        }
-      });
 
-
-    }
-
-    //TODO allow previous run result to fill missing inputs if run type allow it
-
-    // done in moduleval initialization
-    moduleval.moduledef.inputs.filter(input => {
-      !input._2.value.isEmpty && !newargs.contains(input._1)
-    }).foreach(input => {
-      logger.info("Adding default value for "+input._1)
-      val value = input._2.createVal() //val value = moduleval.inputs(input._1) //
-      value.fromYaml(RunEnv.resolveValueToYaml(newargs,input._2.value.get.toYaml()))
-      newargs += (input._1 -> value)
-    })
-
-
-    // moduledef.inputs must be satisfied by inputs
-
-    newargs.foreach(el => {
-      if(el._2._mytype=="FILE" || el._2._mytype=="DIR"){
-        if(!(new java.io.File(el._2.asString())).exists()){
-          throw new Exception(el._2.asString() + " does not exist! Aborting run")
-        }
-      }
-    })
-
-    val newenv = new RunEnv(newargs)
-    env = newenv
+    env = AbstractProcess.initEnvFrom(parentEnv,moduleval)
     logger.debug("Child env contains : ")
     env.debugPrint()
   }
@@ -671,7 +579,7 @@ class AnonymousModuleProcess(override val moduleval:ModuleVal,override val paren
   override def updateParentEnv()= {
     logger.debug("Process env contains : ")
     env.debugPrint()
-    if(!moduleval.namespace.startsWith("_MAP")){
+    if(true || !moduleval.namespace.startsWith("_MAP")){
       moduleval.inputs.foreach(elt => {
         logger.debug(elt._1+" with value "+elt._2.asString())
       })
@@ -709,7 +617,8 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
       env.resolveValueToString(moduleval.inputs("DOCKERFILE").toYaml()) match {
         case x :String => {
           if(x=="true"){
-            val name = env.getRawVar("_MOD_CONTEXT").get.asString()+"-"+moduleval.namespace // _MOD_CONTEXT should always be the module defintion that holds this command
+            // replace @ by "_at_" (docker doesn't accept @ char)
+            val name = DockerManager.nameToDockerName(env.getRawVar("_MOD_CONTEXT").get.asString()+"-"+moduleval.namespace) // _MOD_CONTEXT should always be the module defintion that holds this command
             if(!DockerManager.exist(name)){
               DockerManager.build(name,wd+"/Dockerfile")
             }
@@ -736,11 +645,11 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
     }else{
       val cmd = env.resolveValueToString(moduleval.inputs("CMD").asString())
       val absolutecmd = cmd.replace("\n"," ").replace("\"","\\\"").replaceAll("^./",folder.getCanonicalPath+"/")
-      val cmdtolaunch = "python "+ConfManager.get("cpm_home_dir")+"/"+ConfManager.processshell+" "+this.id.toString+" "+moduleval.namespace+" "+processPort+" "+absolutecmd+""
+      val cmdtolaunch = "python "+ConfManager.get("cpm_home_dir")+"/"+ConfManager.get("process_shell_bin")+" false "+this.id.toString+" "+moduleval.namespace+" "+processPort+" "+absolutecmd+""
       logger.info("Launchin cmd : "+cmdtolaunch)
       val exitval = Process(cmdtolaunch,new java.io.File(wd)) ! ProcessLogger(line => stdout+="\n"+line,line=>stderr+="\n"+line)
-      stdoutval.rawValue = stdout
-      stderrval.rawValue = stderr
+      /*stdoutval.rawValue = stdout
+      stderrval.rawValue = stderr*/
       if(exitval!=0){
         throw new Exception(stderr)
       }
@@ -752,6 +661,11 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
   }
 
   override protected[this] def updateParentEnv(): Unit = {
+
+    stdoutval.rawValue = Source.fromFile("/tmp/out"+this.id.toString).getLines().foldLeft("")(_+"\n"+_)
+    stderrval.rawValue = Source.fromFile("/tmp/err"+this.id.toString).getLines().foldLeft("")(_+"\n"+_)
+
+
     //stdoutval.rawValue = Source.fromFile("/tmp/out"+this.id.toString).getLines.mkString
     stdoutval.resolvedValue = stdoutval.rawValue
 
@@ -759,8 +673,8 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
     stderrval.resolvedValue = stderrval.rawValue
 
 
-    parentEnv.logs += (moduleval.namespace -> stderrval)
     parentEnv.setVar(moduleval.namespace+".STDOUT", stdoutval)
+    parentEnv.setVar(moduleval.namespace+".STDERR", stderrval)
 
 
   }
@@ -770,8 +684,6 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
       case ValidProcessMessage(sender,status,exitval) => status match {
         case "FINISHED" => {
           logger.debug(sender + " just finished")
-          // TODO message should contain new env data?
-          // anyway update env here could be good since there is no need to lock...
 
           if(exitval!="0"){
             throw new Exception(sender+" failed with exit value "+exitval)

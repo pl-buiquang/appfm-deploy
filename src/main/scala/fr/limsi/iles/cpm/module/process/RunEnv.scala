@@ -18,7 +18,14 @@ class RunEnv(private var args:Map[String,AbstractParameterVal]) extends LazyLogg
 
   def serialize():String={
     args.foldLeft("")((agg,el)=>{
-      agg+"\n"+el._1+" : \n\ttype : "+el._2._mytype+"\n\tvalue : "+el._2.toYaml()
+      el._2.toYaml()
+
+      val yamlel = if(el._2._mytype.endsWith("*")){
+        "\n    "+el._2.toYaml().replace("\n","\n    ")
+      }else{
+        ">\n    "+el._2.toYaml().trim.replace("\n","\n    ")
+      }
+      agg+"\n\""+el._1+"\" : \n  type : "+el._2._mytype+"\n  value : "+yamlel
     })
   }
 
@@ -130,7 +137,7 @@ object RunEnv {
   }
 
   def resolveValueToYaml(env:Map[String,AbstractParameterVal],value:String)(implicit skip:Boolean=false) : String ={
-    var resolved = """\$\{(.*?)\}""".r.replaceAllIn(value,m => {
+    var resolved = """(?<!\\)\$\{(.*?)\}""".r.replaceAllIn(value,m => {
       val splitted = m.group(1).split(":")
       val complexvariable = if(splitted.length>1){
         (splitted.slice(0,splitted.length-1).mkString("."),splitted(splitted.length-1))
@@ -149,7 +156,7 @@ object RunEnv {
         m.group(0).replace("$","\\$") // escape "$" to prevent group reference
       }
     })
-    resolved = """\$([a-zA-Z_\-]+)""".r.replaceAllIn(resolved,m => {
+    resolved = """(?<!\\)\$([a-zA-Z_\-]+)""".r.replaceAllIn(resolved,m => {
       if(env.contains(m.group(1))){
         env(m.group(1)) match{
           case o:AbstractParameterVal => val s = o.toYaml(); Log(s);s
@@ -163,7 +170,7 @@ object RunEnv {
   }
 
   def resolveValueToString(env:Map[String,AbstractParameterVal],value:String)(implicit skip:Boolean=false) :String={
-    var resolved = """\$\{(.*?)\}""".r.replaceAllIn(value,m => {
+    var resolved = """(?<!\\)\$\{(.*?)\}""".r.replaceAllIn(value,m => {
       val splitted = m.group(1).split(":")
       val complexvariable = if(splitted.length>1){
         (splitted.slice(0,splitted.length-1).mkString("."),splitted(splitted.length-1))
@@ -182,7 +189,7 @@ object RunEnv {
         m.group(0).replace("$","\\$") // escape "$" to prevent group reference
       }
     })
-    resolved = """\$([a-zA-Z_\-]+)""".r.replaceAllIn(resolved,m => {
+    resolved = """(?<!\\)\$([a-zA-Z_\-]+)""".r.replaceAllIn(resolved,m => {
       if(env.contains(m.group(1))){
         env(m.group(1)) match{
           case o:AbstractParameterVal => val s = o.toString(); Log(s);s

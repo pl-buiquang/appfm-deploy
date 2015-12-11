@@ -11,8 +11,9 @@ import fr.limsi.iles.cpm.corpus.CorpusManager
 import fr.limsi.iles.cpm.module.definition.ModuleManager
 import fr.limsi.iles.cpm.module.process.ProcessRunManager
 import fr.limsi.iles.cpm.module.value.AbstractModuleVal
-import fr.limsi.iles.cpm.utils.{Log, Utils, ConfManager}
+import fr.limsi.iles.cpm.utils.{YamlElt, Log, Utils, ConfManager}
 import org.json.{JSONObject, JSONArray}
+import org.yaml.snakeyaml.Yaml
 
 import scala.io.Source
 import scala.sys.process._
@@ -131,24 +132,27 @@ object CLInterpreter {
           }else {
             (false,false)
           }
-/*          val master = MongoDBObject("master"->true)
-          val it = ProcessRunManager.processCollection.find(master)
-          var toprint = ""
+          var toprint : String = ""
+          var ids = Array[String]()
+          // first in memory (running) process
+          ProcessRunManager.list.foreach(el=>{
+            ids = ids :+ el._1.toString
+            toprint += el._2.moduleval.moduledef.name+" : "+el._1+"\n"
+          })
+          // then those saved in db (past process)
+          val it = ProcessRunManager.processCollection.find()
           while(it.hasNext){
             val pobj = it.next()
-            if(opt._1 || pobj.get("status")=="Running"){
-              toprint += pobj.get("name") + "\t" + pobj.get("ruid").toString
-              if(opt._2){
+            val id = pobj.get("ruid").toString
+            if(opt._1 && !ids.contains(id)/*|| pobj.get("status")=="Running"*/){
+              toprint += pobj.get("name") + " : " + id+"\n"
+              /*if(opt._2){
                 toprint+="\n"+processChildrenRecPrint(pobj,"  |")+"\n"
               }else{
                 toprint+="\n"
-              }
+              }*/
             }
-          }*/
-          var toprint = ""
-          ProcessRunManager.list.foreach(el=>{
-            toprint += el._1 + ":"+el._2.moduleval.namespace+"\n"
-          })
+          }
 
           toprint
         } catch {case e:Throwable => "Error :"+e.getMessage}
@@ -180,12 +184,25 @@ object CLInterpreter {
         case "view" => {
           if(args.size > 2){
             val process = ProcessRunManager.getProcess(UUID.fromString(args(1)))
-            val result = if(process.parentEnv.getVars().contains(args(2))){
+            val result = if(process.parentEnv != null && process.parentEnv.getVars().contains(args(2))){
               process.parentEnv.getRawVar(args(2)).get.asString()
             }else if(process.env.getRawVar(args(2)).isDefined){
-              process.env.getRawVar(args(2)).get.asString()
+              val yamlstring = process.env.getRawVar(args(2)).get.toYaml()
+              if(args.exists(_=="--json")){
+                val yaml= new Yaml();
+                val obj = yaml.load(yamlstring);
+                return YamlElt.fromJava(obj).toJSONObject().toString
+              }else{
+                yamlstring
+              }
+
             }else if(args(2)=="__ALL__"){
-              val r = process.parentEnv.getVars().keys.foldLeft("")(_ +","+ _)+process.env.getVars().keys.foldLeft("")(_ +","+ _)
+              val r0 = if(process.parentEnv!=null){
+                process.parentEnv.getVars().keys.foldLeft("")(_ +","+ _)
+              }else{
+                ""
+              }
+              val r = r0+process.env.getVars().keys.foldLeft("")(_ +","+ _)
               if(r.length>0)
                 r.substring(1)
               else

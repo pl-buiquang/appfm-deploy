@@ -39,18 +39,18 @@ sealed abstract class AbstractParameterVal(val format:Option[String],val schema:
   def isExpression() : Boolean = {
     val value = toYaml().trim
 
-    val complexVarsRemoved = """\$\{(.+?)\}""".r.replaceFirstIn(value,"")
+    val complexVarsRemoved = """(?<!\\)\$\{(.+?)\}""".r.replaceFirstIn(value,"")
     if(complexVarsRemoved == ""){
       return false
     }
-    val simpleVarsRemoved = """\$([a-zA-Z_\-]+)""".r.replaceFirstIn(complexVarsRemoved,"")
+    val simpleVarsRemoved = """(?<!\\)\$([a-zA-Z_\-]+)""".r.replaceFirstIn(complexVarsRemoved,"")
     !(simpleVarsRemoved == "" && value.length == complexVarsRemoved.length)
   }
 
   def extractVariables() : Array[String]={
     val value = toYaml()
-    val complexVars = """\$\{(.+?)\}""".r.findAllMatchIn(value)
-    val simpleVars = """\$([a-zA-Z_\-]+)""".r.findAllMatchIn(value)
+    val complexVars = """(?<!\\)\$\{(.+?)\}""".r.findAllMatchIn(value)
+    val simpleVars = """(?<!\\)\$([a-zA-Z_\-]+)""".r.findAllMatchIn(value)
     var vars = Array[String]()
     while(complexVars.hasNext){
       val complexvar = complexVars.next()
@@ -119,7 +119,7 @@ case class VAL(override val format:Option[String],override val schema:Option[Str
   }
 
   override def toYaml(): String = {
-    this.rawValue
+    this.rawValue.replace("\t","  ") // because when parsing back yaml tab are not well handled
   }
 }
 
@@ -335,7 +335,11 @@ case class LIST[P <: AbstractParameterVal](override val format:Option[String],ov
   }
   var list : List[P] = List[P]()
 
-  def make: P = manifest.runtimeClass.getConstructor(classOf[Option[String]],classOf[Option[String]]).newInstance(format,schema).asInstanceOf[P]
+  def make: P = if(_mytype.endsWith("**")){
+    manifest.runtimeClass.getConstructor(classOf[Option[String]],classOf[Option[String]],classOf[Manifest[_]]).newInstance(format,schema,manifest.typeArguments(0)).asInstanceOf[P]
+  }else{
+    manifest.runtimeClass.getConstructor(classOf[Option[String]],classOf[Option[String]]).newInstance(format,schema).asInstanceOf[P]
+  }
 
   def getBaseType(manifest: Manifest[_]):String={
     if(manifest.typeArguments.length>0){

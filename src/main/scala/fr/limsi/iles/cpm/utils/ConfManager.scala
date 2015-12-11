@@ -10,7 +10,6 @@ object ConfManager {
   val defaultDockerBaseImage = "base_cpm_shell"
   val moduleDefinitionDirectory = "_DEF_DIR"
   val runWorkingDirectory = "_RUN_DIR"
-  val processshell = "cpm-process-shell/bin/cpm-process-shell.py"
 
   var confMap : java.util.Map[String,Any] = null
   val defaultConfFile = "/conf.yml"
@@ -19,7 +18,11 @@ object ConfManager {
     if(confMap==null){
       init()
     }
-    confMap.get(key)
+    if(confMap.containsKey(key)){
+      confMap.get(key)
+    }else{
+      throw new Exception(key+" was not found in configuration!")
+    }
   }
 
   /**

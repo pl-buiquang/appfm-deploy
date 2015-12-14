@@ -53,6 +53,7 @@ else :
 
 ...
 
-modules.
+process.getLog()
+...
 
 

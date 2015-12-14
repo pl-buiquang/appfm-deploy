@@ -25,13 +25,21 @@ dpkg -i influxdb_0.9.4.2_amd64.deb
 service influxdb start
 
 # webserver (nginx + php)
-apt-get install -y nginx
-/etc/init.d/nginx start
-apt-get install -y php5-fpm
-/etc/init.d/php5-fpm restart
+#apt-get install -y nginx
+#/etc/init.d/nginx start
+#apt-get install -y php5-fpm
+#/etc/init.d/php5-fpm restart
+
+#webserver (apache)
+apt-get install -y apache2 libapache2-mod-php5
+
 
 # mongodb php driver
 apt-get install -y php5-dev php5-cli php-pear
 pecl install mongo
+
+# zmq php bindings
+apt-get install -y pkg-config
+pecl install zmq-beta
 
 

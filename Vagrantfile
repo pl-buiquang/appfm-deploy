@@ -14,7 +14,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     v.customize ["modifyvm", :id, "--memory","4096"]
     v.customize ["modifyvm", :id, "--cpus","2"]
     unless File.exist?(file_to_disk)
-      v.customize ['createhd', '--filename', file_to_disk, '--size', 100000 * 1024]
+      v.customize ['createhd', '--filename', file_to_disk, '--size', 100 * 1024]
     end
     v.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', 1, '--device', 0, '--type', 'hdd', '--medium', file_to_disk]
   end
@@ -26,7 +26,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # Every Vagrant virtual environment requires a box to build off of.
   config.vm.box = "debian/jessie64"
   config.vm.provision "shell", path: "scripts/bootstrap.sh"
-#	config.vm.provision "shell", path: "server-start.sh", run: "always"
+	config.vm.provision "shell", path: "server-start.sh", run: "always"
 #  config.vm.network "private_network", ip: "192.168.50.4"
   config.vm.network "forwarded_port", guest:5555, host:5555
   config.vm.network "forwarded_port", guest:8001, host:8001
@@ -35,7 +35,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.network "forwarded_port", guest:8082, host:8082
   config.vm.network "forwarded_port", guest:8083, host:8083
   config.vm.network "forwarded_port", guest:8086, host:8086
-  config.vm.network "forwarded_port", guest:3000, host:3000
+  config.vm.network "forwarded_port", guest:8070, host:8070
+ config.vm.network "forwarded_port", guest:3000, host:3000
 
 
 

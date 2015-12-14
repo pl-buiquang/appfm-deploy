@@ -8,8 +8,8 @@ RUN apt-get update \
 
 RUN pip install pyzmq 
 
-RUN mkdir -p /home/app
-WORKDIR /home/app
+RUN mkdir -p /home/pshell
+WORKDIR /home/pshell
 ADD bin/ bin/
 
 ENTRYPOINT ["bin/dummy.py"]

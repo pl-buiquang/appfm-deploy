@@ -1,0 +1,43 @@
+# CPM Server Configuration
+
+cpm_home_dir : /home/paul/projects/custom/cpm #/people/buiquang/projects/custom/cpm #/vagrant #
+
+# main port to connect client with
+cmd_listen_port : 5555
+
+#
+backend_port : 5005
+
+# modules directory
+# default is modules in cpm package
+modules_dir :
+  - /home/paul/projects/custom/cpm/examples/modules
+  - /home/paul/projects/custom/cpm/modules
+  - /people/buiquang/projects/custom/cpm/modules
+  - /people/buiquang/projects/custom/cpm/examples/modules
+  - /vagrant/modules
+  - /vagrant/examples/modules
+
+default_result_dir : /home/paul/projects/custom/cpm/data/results
+#default_result_dir : /people/buiquang/projects/custom/cpm/data/results
+#default_result_dir : /vagrant/data/results
+
+default_corpus_dir : /home/paul/projects/custom/cpm/data/corpus
+default_corpus_dir : /people/buiquang/projects/custom/cpm/data/corpus
+#default_corpus_dir : /vagrant/data/corpus
+
+
+# db info
+dbhost : localhost
+dbport : 27017
+dbname : cpmdb
+
+
+#misc
+process_shell_bin : pshell/bin/cpm-process-shell.py
+process-shell-home : pshell
+
+
+
+
+

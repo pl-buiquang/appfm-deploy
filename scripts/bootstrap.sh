@@ -34,19 +34,22 @@ service influxdb start
 apt-get install -y apache2 libapache2-mod-php5
 mv /etc/apache2/ports.conf /etc/apache2/ports.conf.origin
 sed -e 's/Listen\s*80/Listen 8080/g' /etc/apache2/ports.conf.origin > /etc/apache2/ports.conf
-cp /vagrant/web/private/apachesite.conf /etc/apache2/sites-available/appfm.conf
+cp /vagrant/web/private/appfm.conf /etc/apache2/sites-available
 a2ensite appfm.conf
-
+a2enmod rewrite
+service apache2 restart
+chmod a+w /vagrant/web/log/custom.log 
 
 # mongodb php driver
 apt-get install -y php5-dev php5-cli php-pear libsasl2-dev
 pecl install mongodb
+pecl install mongo
 
 # zmq php bindings
 apt-get install -y pkg-config
 pecl install zmq-beta
 
-printf "[zmq]\nextension=zmq.so\n\n[mongodb]\nextension=mongodb.zmq" >> /etc/php5/apache2/php.ini
+printf "[zmq]\nextension=zmq.so\n\n[mongodb]\nextension=mongo.so" >> /etc/php5/apache2/php.ini
 
 # additionnal disk for mongo & docker
 apt-get install -y parted

@@ -23,7 +23,7 @@ object ProcessRunManager extends LazyLogging{
   // the mongodb process collection
   val processCollection = DB.get("process")
 
-  var list : Map[UUID,AbstractProcess] = Map[UUID,AbstractProcess]()
+  @volatile var list : Map[UUID,AbstractProcess] = Map[UUID,AbstractProcess]()
 
 
 

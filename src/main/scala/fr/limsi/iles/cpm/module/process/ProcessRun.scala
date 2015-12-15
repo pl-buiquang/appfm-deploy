@@ -29,6 +29,20 @@ abstract class ProcessStatus {
     this.getClass.getSimpleName
   }
 }
+object ProcessStatus{
+  implicit def fromString(serialized:String):ProcessStatus={
+    """(\w+)(\((.*?)\))?""".r.findFirstMatchIn(serialized) match{
+      case Some(matching)=> {
+        matching.group(1) match{
+          case "Running"=> Running()
+          case "Exited" => Exited(matching.group(3))
+          case _ => Waiting()
+        }
+      }
+      case None => Waiting()
+    }
+  }
+}
 case class Running() extends ProcessStatus
 case class Exited(exitcode:String) extends ProcessStatus {
   override def toString():String={
@@ -68,6 +82,7 @@ object AbstractProcess extends LazyLogging{
     }
     val env = RunEnv.deserialize(obj.getOrDefault("env","").toString)
     val parentEnv = RunEnv.deserialize(obj.getOrDefault("parentEnv","").toString)
+    val runconf = RunEnv.deserialize(obj.getOrDefault("runconf","").toString)
     val namespace = obj.getOrDefault("modvalnamespace","").toString
     val modulename = obj.get("name").toString
     val modulevalconf = obj.get("modvalconf") match{
@@ -84,6 +99,15 @@ object AbstractProcess extends LazyLogging{
       case "NONE" => None
       case x:String => Some(x)
     }
+    val status : ProcessStatus = obj.getOrDefault("status","Waiting").toString
+    val creationDate : java.time.LocalDateTime = java.time.LocalDateTime.parse(obj.getOrDefault("creationdate","").toString)
+    val completedDate : java.time.LocalDateTime = {
+      if(obj.getOrDefault("completeddate","").toString != ""){
+        java.time.LocalDateTime.parse(obj.getOrDefault("completeddate","").toString)
+      }else{
+        null
+      }
+    }
     val x =  modulename match {
       case "_CMD" => new CMDProcess(new CMDVal(namespace,modulevalconf),parentProcess,uuid)
       case "_MAP" => new MAPProcess(new MAPVal(namespace,modulevalconf),parentProcess,uuid)
@@ -91,6 +115,10 @@ object AbstractProcess extends LazyLogging{
       case _ => new ModuleProcess(new ModuleVal(namespace,ModuleManager.modules(modulename),modulevalconf),parentProcess,uuid)
     }
 
+    x.status = status
+    x.creationDate = creationDate
+    x.completedDate = completedDate
+    x.originalenv = runconf
     x.env = env
     x.parentEnv = parentEnv
     x
@@ -151,7 +179,7 @@ object AbstractProcess extends LazyLogging{
       moduleval.inputs.foreach(input=>{
         logger.info("Looking in parent env for "+input._1+" of type "+input._2.getClass.toGenericString+" with value to resolve : "+input._2.asString())
         val variables = input._2.extractVariables()
-        var ready = false
+        var ready = true
         variables.filter(arg => {
           !donotoverride.contains(arg)
         }).foreach(variable => {
@@ -224,6 +252,10 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
   var skipped = List[String]() // moduleval namespace to prevent from running and fetch previous result
   var replacements = Map[String,UUID]() // map (moduleval namespace -> run) result replacement
 
+  var tags = List[String]()
+  var creationDate = java.time.LocalDateTime.now()
+  var completedDate : java.time.LocalDateTime = null
+  var originalenv : RunEnv = null
   var parentEnv : RunEnv = null
   var env : RunEnv = null
   val moduleval : AbstractModuleVal
@@ -240,8 +272,6 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
   var resultnamespace : String = null
 //  var rawlog : List[String]
 
-  ProcessRunManager.list += (id -> this)
-
   def getOutput(outputName:String) = {
     env.getRawVar(outputName) match {
       case Some(thing) => thing
@@ -257,8 +287,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
   protected[this] def attrserialize():(Map[String,String],Map[String,String])
   protected[this] def attrdeserialize(mixedattrs:Map[String,String]):Unit
 
-
-  private def serializeToMongoObject(update:Boolean) : MongoDBObject = {
+  def serialize()={
     var staticfields = List(
       "ruid" -> id.toString,
       "def" -> moduleval.moduledef.confFilePath,
@@ -276,7 +305,8 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
       },
       "modvalconf" -> (new Yaml).dump(moduleval.conf.getOrElse("")),
       "modvalnamespace" -> moduleval.namespace,
-      "resultnamespace" -> resultnamespace
+      "resultnamespace" -> resultnamespace,
+      "creationdate" -> creationDate.toString
     )
     var changingfields = List(
       "parentport" -> parentPort.getOrElse("NONE"),
@@ -288,6 +318,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
         else
           el.toString
       }),
+      "runconf"->{if(this.originalenv!=null)this.originalenv.serialize()else ""},
       "env" -> {
         env match {
           case x:RunEnv => x.serialize()
@@ -299,14 +330,40 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
           case x:RunEnv => x.serialize()
           case _ => ""
         }
-      }
+      },
+      "completeddate" -> {if(completedDate!=null){completedDate.toString}else{""}}
+      //"tags" =>
     )
+    (staticfields,changingfields)
+  }
+
+  def serializeToJSON() : JSONObject = {
+    val fields = serialize()
+    var json = new JSONObject()
+    fields._1.foreach(pair=>{
+      json.put(pair._1,pair._2)
+    })
+    fields._2.foreach(pair=>{
+      val value = if(pair._1 == "env" || pair._1 == "parentEnv" || pair._1 == "runconf"){
+        YamlElt.fromJava(pair._2).toJSONObject()
+      }else{
+        pair._2
+      }
+      json.put(pair._1,value)
+    })
+    json
+  }
+
+  private def serializeToMongoObject(update:Boolean) : MongoDBObject = {
+    var fields = serialize()
+    var staticfields = fields._1
+    var changingfields = fields._2
     var customattrs = this.attrserialize()
     staticfields :::= customattrs._1.toList
     changingfields :::= customattrs._2.toList
 
     val obj = if(update) {
-      $set(changingfields(0),changingfields(1),changingfields(2),changingfields(3),changingfields(4),changingfields(5))
+      $set(changingfields(0),changingfields(1),changingfields(2),changingfields(3),changingfields(4),changingfields(5),changingfields(6),changingfields(7))
     }else{
       MongoDBObject(staticfields++changingfields)
     }
@@ -339,6 +396,9 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
 
   def run(parentEnv:RunEnv,ns:String,parentPort:Option[String],detached:Boolean):UUID = {
+    ProcessRunManager.list += (id -> this)
+
+    this.originalenv = parentEnv.copy()
     this.parentPort = parentPort
     status match {
       case Running() => throw new Exception("Process already running")

@@ -1,6 +1,7 @@
 package fr.limsi.iles.cpm.module.value
 
 import java.util.function.Consumer
+import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.definition.{ModuleManager, MAPDef, CMDDef}
 import fr.limsi.iles.cpm.module.parameter.AbstractModuleParameter
 import fr.limsi.iles.cpm.utils.{Utils, YamlString, YamlList, YamlElt}
@@ -93,7 +94,7 @@ object AbstractParameterVal{
 /**
  * VAL are string value, they may be internally stored to save the result of a run but are passed as a full string value
  */
-case class VAL(override val format:Option[String],override val schema:Option[String]) extends AbstractParameterVal(format,schema) {
+case class VAL(override val format:Option[String],override val schema:Option[String]) extends AbstractParameterVal(format,schema) with LazyLogging {
   var rawValue : String = _
   var resolvedValue : String = _
   override val _mytype = "VAL"
@@ -101,6 +102,7 @@ case class VAL(override val format:Option[String],override val schema:Option[Str
 
   override protected def parseYaml(yaml: Any): Unit = {
     if(yaml == null){
+      rawValue = ""
       return
     }
     val value :Option[String]= Some(yaml.toString)//YamlElt.readAs[String](yaml)
@@ -119,7 +121,12 @@ case class VAL(override val format:Option[String],override val schema:Option[Str
   }
 
   override def toYaml(): String = {
-    this.rawValue.replace("\t","  ") // because when parsing back yaml tab are not well handled
+    if(this.rawValue!=null){
+      this.rawValue.replace("\t","  ") // because when parsing back yaml tab are not well handled
+    }else{
+      logger.warn("null value for VAL")
+      ""
+    }
   }
 }
 

@@ -23,7 +23,7 @@ default_result_dir : /home/paul/projects/custom/cpm/data/results
 #default_result_dir : /vagrant/data/results
 
 default_corpus_dir : /home/paul/projects/custom/cpm/data/corpus
-default_corpus_dir : /people/buiquang/projects/custom/cpm/data/corpus
+#default_corpus_dir : /people/buiquang/projects/custom/cpm/data/corpus
 #default_corpus_dir : /vagrant/data/corpus
 
 

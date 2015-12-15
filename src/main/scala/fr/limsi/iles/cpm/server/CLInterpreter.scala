@@ -136,8 +136,10 @@ object CLInterpreter {
           var ids = Array[String]()
           // first in memory (running) process
           ProcessRunManager.list.foreach(el=>{
-            ids = ids :+ el._1.toString
-            toprint += el._2.moduleval.moduledef.name+" : "+el._1+"\n"
+            if(el._2.parentProcess.isEmpty){ // only master process
+              ids = ids :+ el._1.toString
+              toprint += el._2.moduleval.moduledef.name+" : "+el._1+"\n"
+            }
           })
           // then those saved in db (past process)
           val it = ProcessRunManager.processCollection.find()
@@ -156,6 +158,14 @@ object CLInterpreter {
 
           toprint
         } catch {case e:Throwable => "Error :"+e.getMessage}
+        case "get" => try{
+          if(args.size > 1){
+            ProcessRunManager.getProcess(UUID.fromString(args(1))).serializeToJSON().toString
+
+          }else{
+            "Missing pid"
+          }
+        }catch {case e:Throwable => "Error :"+e.getMessage}
         case "status" => try{
           if(args.size > 1){
             ProcessRunManager.getProcess(UUID.fromString(args(1))).getStatus(true)

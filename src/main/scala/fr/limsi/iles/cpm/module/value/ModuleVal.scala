@@ -38,6 +38,9 @@ abstract class AbstractModuleVal(val moduledef:ModuleDef,val conf:Option[java.ut
   def isExecutable(env:RunEnv):Boolean = {
     inputs.foldLeft(true)((result,input) => {
       val vars = input._2.extractVariables()
+      if(!input._2.isExpression()){
+        logger.info("variable is not an expression, should check if type match...")
+      }
       var exist = true
       vars.foreach(varname => {
         logger.info("Looking for "+varname)

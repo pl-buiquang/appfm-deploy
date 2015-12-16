@@ -32,14 +32,45 @@ service influxdb start
 
 #webserver (apache)
 apt-get install -y apache2 libapache2-mod-php5
-
+mv /etc/apache2/ports.conf /etc/apache2/ports.conf.origin
+sed -e 's/Listen\s*80/Listen 8080/g' /etc/apache2/ports.conf.origin > /etc/apache2/ports.conf
+cp /vagrant/web/private/appfm.conf /etc/apache2/sites-available
+a2ensite appfm.conf
+a2enmod rewrite
+service apache2 restart
+chmod a+w /vagrant/web/log/custom.log 
 
 # mongodb php driver
-apt-get install -y php5-dev php5-cli php-pear
+apt-get install -y php5-dev php5-cli php-pear libsasl2-dev
+pecl install mongodb
 pecl install mongo
 
 # zmq php bindings
 apt-get install -y pkg-config
 pecl install zmq-beta
+
+printf "[zmq]\nextension=zmq.so\n\n[mongodb]\nextension=mongo.so" >> /etc/php5/apache2/php.ini
+
+# additionnal disk for mongo & docker
+apt-get install -y parted
+parted /dev/sdb mklabel msdos
+parted /dev/sdb mkpart primary 512 100%
+mkfs.ext4 /dev/sdb1
+mkdir /mnt/disk
+echo `blkid /dev/sdb1 | awk '{print$2}' | sed -e 's/"//g'` /mnt/disk   ext4   noatime,nobarrier   0   0 >> /etc/fstab
+mount /mnt/disk/
+
+
+service mongodb stop
+service docker stop
+
+mv /var/lib/docker /mnt/disk
+mv /var/lib/mongodb /mnt/disk
+
+ln -s /mnt/disk/mongodb /var/lib/mongodb
+ln -s /mnt/disk/docker /var/lib/docker
+
+service mongodb start
+service docker start
 
 

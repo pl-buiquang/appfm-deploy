@@ -580,8 +580,27 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
    *
    */
   override def step() = {
-    // TODO add strict mode where the modules are launched one by one following the list definition order
     logger.debug("Trying to run next submodule for module "+moduleval.moduledef.name)
+    val module = moduleval.moduledef.exec(completedModules.size)
+    if(module.isExecutable(env)){
+      logger.debug("Launching "+module.moduledef.name)
+      val process = module.toProcess(Some(this))
+      if(module.moduledef.name=="_MAP"){
+        process.asInstanceOf[MAPProcess].parentInputsDef = moduleval.moduledef.inputs
+        var context = List[AbstractModuleVal]()
+        runningModules.foreach(elt => {
+          context ::= elt._2.moduleval
+        })
+        process.asInstanceOf[MAPProcess].context = context
+      }
+      runningModules += (module.namespace -> process)
+      //childrenProcess ::= process.id
+      //this.saveStateToDB()
+      process.run(env,moduleval.namespace,Some(processPort),true)
+    }
+    // this code only takes into account runnable module based on variables existence
+    // it can run multiple modules in parallel not taking into account the execution description modules order
+    /*
     val runnableModules = moduleval.moduledef.exec.filter(module => {
       if(runningModules.contains(module.namespace)){
         false
@@ -604,7 +623,7 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
       //childrenProcess ::= process.id
       //this.saveStateToDB()
       process.run(env,moduleval.namespace,Some(processPort),true) // not top level modules (called by cpm cli) always run demonized
-    })
+    })*/
   }
 
   override def updateParentEnv() = {

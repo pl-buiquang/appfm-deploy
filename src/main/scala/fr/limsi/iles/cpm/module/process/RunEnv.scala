@@ -23,7 +23,7 @@ class RunEnv(private var args:Map[String,AbstractParameterVal]) extends LazyLogg
       val yamlel = if(el._2._mytype.endsWith("*")){
         "\n    "+el._2.toYaml().replace("\n","\n    ")
       }else{
-        ">\n    "+el._2.toYaml().trim.replace("\n","\n    ")
+        ">\n    "+"""""""+el._2.toYaml().trim.replace("\n","\n    ").replace("""\""","""\\""").replace(""""""","""\"""")+"""""""
       }
       agg+"\n\""+el._1+"\" : \n  type : "+el._2._mytype+"\n  value : "+yamlel
     })

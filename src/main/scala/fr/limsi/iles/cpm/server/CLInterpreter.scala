@@ -166,6 +166,14 @@ object CLInterpreter {
             "Missing pid"
           }
         }catch {case e:Throwable => "Error :"+e.getMessage}
+        case "del" => try{
+          if(args.size > 1){
+            ProcessRunManager.getProcess(UUID.fromString(args(1))).serializeToJSON().toString
+
+          }else{
+            "Missing pid"
+          }
+        }catch {case e:Throwable => "Error :"+e.getMessage}
         case "status" => try{
           if(args.size > 1){
             ProcessRunManager.getProcess(UUID.fromString(args(1))).getStatus(true)

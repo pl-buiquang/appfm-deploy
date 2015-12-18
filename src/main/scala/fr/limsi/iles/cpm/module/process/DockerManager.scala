@@ -148,6 +148,9 @@ object DockerManager extends LazyLogging{
    * @return
    */
   def cleanup():Boolean={
+    servicesAvailable.foreach(servicename => {
+      ("docker kill "+servicename)!
+    })
     "docker ps -a -q -f status=exited" #| "xargs docker rm -v" ! ;
     true
   }

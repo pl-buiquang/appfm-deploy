@@ -18,15 +18,30 @@ git submodule update --init --recursive
 3. Add an additional disk to the virtual machine :
 change in the file Vagrantfile the path to a virtual disk that will be created/used as additionnal disk for the virtual machine
 
-4. Installation (may take about 15~20 minutes) :
+4. Installation (may take about 15~30 minutes) :
 vagrant up
+vagrant ssh
+/vagrant/scripts/setup.sh
 
 5. First run :
-vagrant ssh
-cd vagrant
+cd /vagrant
 ./start.sh 
 
 When finished you can go to http://localhost:8080
+
+To disconnect session from the virtual machine:
+exit
+
+To stop the server (and the virtual machine) :
+vagrant halt (from anywhere within the cpm directory)
+
+To restart :
+vagrant ssh (from anywhere within the cpm directory)
+cd /vagrant
+./start.sh
+
+To completly destroy the virtual machine (needs re installation (step 4)) :
+vagrant destroy (from anywhere within the cpm directory)
 
 == Web interface ==
 

@@ -1,6 +1,5 @@
 #!/bin/bash
 
 source /vagrant/scripts/env.sh
-cd  $CPM_CORE;
-sbt -java-home $CPM_HOME/lib/jdk1.8.0_51 run $1
+$CPM_HOME/lib/jdk1.8.0_51/bin/java -jar $CPM_HOME/core/target/scala-2.11/cpm-core-server-assembly-0.1.jar
 

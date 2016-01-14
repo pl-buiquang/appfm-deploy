@@ -37,6 +37,8 @@ sed -e 's/Listen\s*80/Listen 8080/g' /etc/apache2/ports.conf.origin > /etc/apach
 cp /vagrant/web/private/appfm.conf /etc/apache2/sites-available
 a2ensite appfm.conf
 a2enmod rewrite
+mkdir -p /vagrant/web/log
+touch /vagrant/web/log/custom.log
 chmod a+w /vagrant/web/log/custom.log 
 
 # mongodb php driver
@@ -73,5 +75,6 @@ ln -s /mnt/disk/docker /var/lib/docker
 
 service mongodb start
 service docker start
+
 
 

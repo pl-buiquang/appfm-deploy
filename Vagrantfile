@@ -8,28 +8,35 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # All Vagrant configuration is done here. The most common configuration
   # options are documented and commented below. For a complete reference,
   # please see the online documentation at vagrantup.com.
+  
+  # the filepath to the additional disk used for storing docker images and mongodb data
   file_to_disk = '/localHD/cpm_vagrant_disk.vdi'
 
   config.vm.provider "virtualbox" do |v|
+    # here you can set the max memory and core allocated to the virtual machine
     v.customize ["modifyvm", :id, "--memory","4096"]
     v.customize ["modifyvm", :id, "--cpus","2"]
+
+    # here is to attach/create the additional disk, you can change disk size
     unless File.exist?(file_to_disk)
       v.customize ['createhd', '--filename', file_to_disk, '--size', 100 * 1024]
     end
     v.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', 1, '--device', 0, '--type', 'hdd', '--medium', file_to_disk]
   end
 
-  config.vm.synced_folder "/people/buiquang/projects/custom/cpm_workspace_test/", "/srv/modules"
-  config.vm.synced_folder "/people/buiquang/projects/custom/cpm/data", "/data"
-#  config.vm.synced_folder "/people/buiquang/projects/data/docker","/vagrant/docker", type: "nfs"
+  # Change this if you want to 
+  #config.vm.synced_folder "/people/buiquang/projects/custom/cpm/data", "/data"
 
   # Every Vagrant virtual environment requires a box to build off of.
   config.vm.box = "debian/jessie64"
+
+  # this is the provision script that is used to install all required dependencies
   config.vm.provision "shell", path: "scripts/bootstrap.sh"
-#  config.vm.network "private_network", ip: "192.168.50.4"
-  config.vm.network "forwarded_port", guest:5555, host:5555
-  config.vm.network "forwarded_port", guest:8001, host:8001
-  config.vm.network "forwarded_port", guest:8080, host:8080
+
+  # default ports
+  config.vm.network "forwarded_port", guest:5555, host:5555 # cpm main client port
+  config.vm.network "forwarded_port", guest:8001, host:8001 
+  config.vm.network "forwarded_port", guest:8080, host:8080 # default web ui port
   config.vm.network "forwarded_port", guest:8081, host:8081
   config.vm.network "forwarded_port", guest:8082, host:8082
   config.vm.network "forwarded_port", guest:8083, host:8083
@@ -37,7 +44,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.network "forwarded_port", guest:8070, host:8070
  config.vm.network "forwarded_port", guest:3000, host:3000
 
-
+  # Above is default configuration examples and documentation provided by Vagrant
 
    # The url from where the 'config.vm.box' box will be fetched if it
   # doesn't already exist on the user's system.

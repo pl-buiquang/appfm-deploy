@@ -13,3 +13,7 @@
 [submodule "cpm-web-ui"]
   path = web
   url = git2@versatile-world.net:~/cpm-web-ui.git
+
+[submodule "cpm-data"]
+  path = data
+  url = git2@versatile-world.net:~/cpm-data.git

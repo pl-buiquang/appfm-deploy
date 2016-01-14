@@ -2,7 +2,7 @@
 
 apt-get update
 
-# docker
+# docker installation
 apt-get install -y curl
 curl -sSL https://get.docker.com/ | sh
 service docker start
@@ -37,7 +37,6 @@ sed -e 's/Listen\s*80/Listen 8080/g' /etc/apache2/ports.conf.origin > /etc/apach
 cp /vagrant/web/private/appfm.conf /etc/apache2/sites-available
 a2ensite appfm.conf
 a2enmod rewrite
-service apache2 restart
 chmod a+w /vagrant/web/log/custom.log 
 
 # mongodb php driver
@@ -50,6 +49,8 @@ apt-get install -y pkg-config
 pecl install zmq-beta
 
 printf "[zmq]\nextension=zmq.so\n\n[mongodb]\nextension=mongo.so" >> /etc/php5/apache2/php.ini
+
+service apache2 restart
 
 # additionnal disk for mongo & docker
 apt-get install -y parted

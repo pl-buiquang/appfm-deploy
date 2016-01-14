@@ -11,7 +11,7 @@ import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.definition.ModuleManager
 import fr.limsi.iles.cpm.module.value._
 import fr.limsi.iles.cpm.server.Server
-import fr.limsi.iles.cpm.utils.{YamlElt, ConfManager, DB}
+import fr.limsi.iles.cpm.utils.{Utils, YamlElt, ConfManager, DB}
 import org.yaml.snakeyaml.Yaml
 import org.zeromq.ZMQ
 
@@ -31,6 +31,29 @@ object ProcessRunManager extends LazyLogging{
 
   }
 
+  def deleteProcess(uuid:UUID):String ={
+    val query = MongoDBObject("ruid"->uuid.toString)
+    processCollection.findOne(query) match {
+      case Some(thing) => {
+        val processdbobject = thing.asInstanceOf[BasicDBObject]
+        processCollection.remove(processdbobject)
+        deleteResultDir(AbstractProcess.fromMongoDBObject(processdbobject))
+        "ok"
+      }
+      case None => "no such process exist"
+    }
+  }
+
+  def deleteResultDir(process:AbstractProcess)={
+    val dirpath = process.env.getVars()("_RUN_DIR").asString()
+    logger.debug("deleting dir "+dirpath)
+    val dirfile = new java.io.File(dirpath)
+    if(dirfile.getParentFile.list().length==1){
+      Utils.deleteDirectory(dirfile.getParentFile)
+    }else{
+      Utils.deleteDirectory(dirfile)
+    }
+  }
 
   def getProcess(uuid:UUID):AbstractProcess={
     if(list.contains(uuid)){

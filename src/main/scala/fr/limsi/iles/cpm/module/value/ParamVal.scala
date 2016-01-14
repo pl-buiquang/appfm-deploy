@@ -25,12 +25,12 @@ sealed abstract class AbstractParameterVal(val format:Option[String],val schema:
   var yamlVal : Any = _
   val _mytype : String
 
-  def fromYaml(yaml:Any):Unit = {
+  def fromYaml(yaml:Any)(implicit stringdeserialization:Boolean = false):Unit = {
     yamlVal = yaml
-    parseYaml(yaml)
+    parseYaml(yaml)(stringdeserialization)
   }
 
-  protected def parseYaml(yaml:Any):Unit
+  protected def parseYaml(yaml:Any)(implicit stringdeserialization:Boolean = false):Unit
 
   def toYaml():String
 
@@ -100,14 +100,20 @@ case class VAL(override val format:Option[String],override val schema:Option[Str
   override val _mytype = "VAL"
 
 
-  override protected def parseYaml(yaml: Any): Unit = {
+  override protected def parseYaml(yaml: Any)(implicit stringdeserialization:Boolean = false): Unit = {
     if(yaml == null){
       rawValue = ""
       return
     }
     val value :Option[String]= Some(yaml.toString)//YamlElt.readAs[String](yaml)
     rawValue = value match {
-      case Some(theval:String) => theval
+      case Some(theval:String) => {
+        if(stringdeserialization){
+          theval//.replace("""\"""",""""""").replace("""\\""","""\""")
+        }else{
+          theval
+        }
+      }
       case None => "Error reading val value (should be a string)"
     }
   }
@@ -141,7 +147,7 @@ case class FILE(override val format:Option[String],override val schema:Option[St
   var rawValue : String = _
   override val _mytype = "FILE"
 
-  override protected def parseYaml(yaml: Any): Unit = {
+  override protected def parseYaml(yaml: Any)(implicit stringdeserialization:Boolean = false): Unit = {
     val value = YamlElt.readAs[String](yaml)
     rawValue = value match {
       case Some(theval) => theval
@@ -201,7 +207,7 @@ case class DIR(override val format:Option[String],override val schema:Option[Str
   var rawValue : String = _
   override val _mytype = "DIR"
 
-  override protected def parseYaml(yaml: Any): Unit = {
+  override protected def parseYaml(yaml: Any)(implicit stringdeserialization:Boolean = false): Unit = {
     val value = YamlElt.readAs[String](yaml)
     rawValue = value match {
       case Some(theval) => theval
@@ -259,7 +265,7 @@ case class DIR(override val format:Option[String],override val schema:Option[Str
  */
 case class CORPUS(override val format:Option[String],override val schema:Option[String]) extends AbstractParameterVal(format,schema) {
   override val _mytype = "CORPUS"
-  override protected def parseYaml(yaml: Any): Unit = {
+  override protected def parseYaml(yaml: Any)(implicit stringdeserialization:Boolean = false): Unit = {
 
   }
 
@@ -281,7 +287,7 @@ case class DB(override val format:Option[String],override val schema:Option[Stri
 
 
 
-  override protected def parseYaml(yaml: Any): Unit = {
+  override protected def parseYaml(yaml: Any)(implicit stringdeserialization:Boolean = false): Unit = {
     // retrieve connection parameters
   }
 
@@ -306,7 +312,7 @@ case class MODVAL(override val format:Option[String],override val schema:Option[
   override val _mytype = "MODVAL"
   var moduleval : AbstractModuleVal = _
 
-  override protected def parseYaml(yaml: Any): Unit = {
+  override protected def parseYaml(yaml: Any)(implicit stringdeserialization:Boolean = false): Unit = {
     moduleval = AbstractModuleVal.fromConf(yaml,List[AbstractModuleVal](),Map[String,AbstractModuleParameter]())
   }
 
@@ -356,7 +362,7 @@ case class LIST[P <: AbstractParameterVal](override val format:Option[String],ov
     }
   }
 
-  override protected def parseYaml(yaml: Any): Unit = {
+  override protected def parseYaml(yaml: Any)(implicit stringdeserialization:Boolean = false): Unit = {
 
     list = YamlElt.fromJava(yaml) match {
       case YamlList(list) => {
@@ -365,7 +371,7 @@ case class LIST[P <: AbstractParameterVal](override val format:Option[String],ov
 
           override def accept(t: Any): Unit = {
             val el : P = make
-            el.fromYaml(t)
+            el.fromYaml(t)(stringdeserialization)
             thelist = thelist :+ el
           }
         })
@@ -375,7 +381,7 @@ case class LIST[P <: AbstractParameterVal](override val format:Option[String],ov
         var thelist :List[P]= List[P]()
         implicitlist.split("\\s+").foreach(t => {
           val el: P = make
-          el.fromYaml(t)
+          el.fromYaml(t)(stringdeserialization)
           thelist = thelist :+ el
         })
         thelist
@@ -407,7 +413,7 @@ case class MAP(override val format:Option[String],override val schema:Option[Str
   override val _mytype = "MAP"
   var map : Map[String,AbstractParameterVal] = Map[String,AbstractParameterVal]()
 
-  override protected def parseYaml(yaml: Any): Unit = {
+  override protected def parseYaml(yaml: Any)(implicit stringdeserialization:Boolean = false): Unit = {
 
   }
 

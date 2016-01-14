@@ -10,7 +10,7 @@ import com.typesafe.scalalogging.{Logger, LazyLogging}
 import fr.limsi.iles.cpm.module.definition.ModuleManager
 import fr.limsi.iles.cpm.module.process.DockerManager
 import fr.limsi.iles.cpm.module.value.MODVAL
-import fr.limsi.iles.cpm.server.Server
+import fr.limsi.iles.cpm.server.{EventManager, Server}
 import fr.limsi.iles.cpm.utils.{Log, ConfManager}
 import org.slf4j.LoggerFactory
 
@@ -56,6 +56,7 @@ object CPM extends App{
     // start the main loop server
     val port = ConfManager.get("cmd_listen_port").toString
     Log("Listening on port : "+port)
+    EventManager.start()
     Server.run(port)
   }
 

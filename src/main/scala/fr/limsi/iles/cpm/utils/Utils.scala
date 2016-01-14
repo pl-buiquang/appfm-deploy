@@ -1,5 +1,8 @@
 package fr.limsi.iles.cpm.utils
 
+import java.io.{FilenameFilter, File, FileFilter}
+import java.nio.file.DirectoryStream.Filter
+import java.nio.file.{Path, FileSystems, Files}
 import java.text.SimpleDateFormat
 import java.util
 import java.util.function.{BiConsumer, Consumer}
@@ -31,6 +34,56 @@ object Log {
 }
 
 object Utils{
+
+  def lsDir(curFilepath:String,from:Int) : Object = {
+    var jsonserial = new JSONArray();
+    val curfilepathnormalized = if(!curFilepath.endsWith("/")){
+      curFilepath + "/"
+    }else{
+      curFilepath
+    }
+    val curFile = new java.io.File(curfilepathnormalized)
+    val files = curFile.listFiles()
+    files.sortWith((fileA,fileB)=>{
+      fileA.isDirectory && fileB.isFile || fileA.isDirectory && fileB.isDirectory && fileA.getName < fileB.getName ||  fileB.isFile && fileA.isFile && fileA.getName < fileB.getName
+    }).toStream.drop(from).take(20).foreach(file=>{
+      var fileobj : Object = null;
+      if(file.isDirectory){
+        var dir = new JSONObject()
+        var emptyls = new JSONArray()
+        var more = new JSONObject()
+        more.put("...",0)
+        emptyls.put(more)
+        dir.put(file.getName,emptyls)
+        fileobj = dir
+      }else{
+        fileobj = file.getName
+      }
+      jsonserial.put(fileobj)
+    })
+
+    if(files.length>20+from){
+      var more = new JSONObject()
+      more.put("...",from+20)
+      jsonserial.put(more)
+    }
+    jsonserial
+  }
+
+  def deleteDirectory(dir:java.io.File) : Boolean = {
+    if(dir.isDirectory){
+      var deleted = true
+      dir.listFiles().foreach(child => {
+        deleted = deleteDirectory(child) && deleted
+      })
+      if(deleted){
+        deleted = dir.delete() && deleted
+      }
+      deleted
+    }else{
+      dir.delete()
+    }
+  }
 
   def scalaMap2JavaMap(map:Map[String,Any]):java.util.Map[String,Any]={
     var javamap = new java.util.HashMap[String,Any]()
@@ -156,8 +209,14 @@ object YamlElt{
         val content = thing.asInstanceOf[String]
         if(content.contains('\n')){
           val yaml = new Yaml()
-          val confMap = yaml.load(content)
-          YamlElt.fromJava(confMap)
+          var retEl : YamlElt = null
+          try{
+            val confMap = yaml.load(content)
+            retEl = YamlElt.fromJava(confMap)
+          }catch {
+            case e:Throwable => retEl = YamlString(content)
+          }
+          retEl
         }else{
           YamlString(thing.asInstanceOf[String])
         }

@@ -35,19 +35,17 @@ object ModuleManager extends LazyLogging{
     val list : java.util.ArrayList[String] = ConfManager.get("modules_dir").asInstanceOf[java.util.ArrayList[String]]
     val iterator = list.iterator()
     while(iterator.hasNext){
-      var modlist = List[ModTree]()
       val path = iterator.next()
       val file = new File(path)
       if(file.exists()){
         findModuleConf(file,ModuleManager.initModule) match{
           case Some(x:ModTree)=>{
-            modlist = x :: modlist
+            modulestree = ModNode("/",x::modulestree.modItems)
           }
           case None => {
 
           }
         }
-        modulestree = ModNode("/",ModNode(file.getParent,modlist)::modulestree.modItems)
       }
     }
 
@@ -85,6 +83,27 @@ object ModuleManager extends LazyLogging{
     modules = Map[String,ModuleDef]()
     modulestree = ModNode("/",List[ModTree]())
     init()
+  }
+
+  /**
+   * Create a module from a name, a location and yaml formatted data description
+   * @param name
+   * @param folderpath
+   * @param data
+   * @return a string indicating if creation was a success, an error message otherwise
+   */
+  def createModule(name:String,folderpath:String,data:String):String={
+    "not yet implemented"
+  }
+
+  /**
+   * Update a module definition from a name and yaml formatted data description
+   * @param name
+   * @param data
+   * @return a string indicating if modification was a success, an error message otherwise
+   */
+  def updateModule(name:String,data:String):String={
+    "not yet implemented"
   }
 
   def jsonTreeExport(tree:ModTree):Object = {

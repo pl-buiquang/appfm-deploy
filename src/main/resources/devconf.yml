@@ -5,8 +5,7 @@ cpm_home_dir : /people/buiquang/projects/custom/cpm #/vagrant #/home/paul/projec
 # main port to connect client with
 cmd_listen_port : 5556
 
-#
-backend_port : 5005
+event_pub_port : 5858
 
 # modules directory
 # default is modules in cpm package

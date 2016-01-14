@@ -1,6 +1,8 @@
 package fr.limsi.iles.cpm.corpus
 
 import java.io.{File, FileFilter}
+import java.nio.file.DirectoryStream.Filter
+import java.nio.file._
 import java.util.function.Consumer
 
 import fr.limsi.iles.cpm.utils.ConfManager
@@ -15,15 +17,74 @@ class CorpusManager {
 
 object CorpusManager{
 
-  def jsonExport() = {
-    val rootfolder = new java.io.File(ConfManager.get("default_corpus_dir").toString)
-    buildJSONTree(rootfolder)
+  var cachelist : JSONObject = null
+
+  def jsonExport(reload:Boolean)(implicit onlyInputs : Boolean = true) = {
+    if(cachelist == null || reload){
+      val corpusrootfolder = new java.io.File(ConfManager.get("default_corpus_dir").toString)
+      val corpustree = buildJSONTree(corpusrootfolder)
+
+      val mastertree = new JSONObject();
+
+      if(!onlyInputs){
+        val resultsrootfolder = new java.io.File(ConfManager.get("default_result_dir").toString)
+        val resulttree = buildJSONTree(resultsrootfolder)
+        mastertree.put("results",resulttree.asInstanceOf[JSONObject].get(resulttree.asInstanceOf[JSONObject].keys().next()))
+      }
+
+      mastertree.put("corpus",corpustree.asInstanceOf[JSONObject].get(corpustree.asInstanceOf[JSONObject].keys().next()))
+      cachelist = mastertree
+    }
+    cachelist
   }
 
+
+
   def buildJSONTree(curFile:java.io.File) :Object={
+    var maxFolder = 20
+    var maxFile = 20
+
     if(curFile.isDirectory){
       var folder = new JSONObject()
       var subfiles = new JSONArray()
+
+      val dirStream = Files.newDirectoryStream(FileSystems.getDefault.getPath(curFile.getCanonicalPath),new Filter[Path] {
+        override def accept(entry: Path): Boolean = {
+          entry.toFile.isDirectory
+        }
+      })
+      val dirit = dirStream.iterator()
+      while(dirit.hasNext && maxFolder > 0){
+        subfiles.put(buildJSONTree(dirit.next().toFile))
+        maxFolder-=1
+      }
+      if(dirit.hasNext){
+        var more = new JSONObject()
+        more.put("...","dir")
+        subfiles.put(more)
+      }
+
+      dirStream.close()
+
+      val fileStream = Files.newDirectoryStream(FileSystems.getDefault.getPath(curFile.getCanonicalPath),new Filter[Path] {
+        override def accept(entry: Path): Boolean = {
+          entry.toFile.isFile
+        }
+      })
+      val fileit = fileStream.iterator()
+      while(fileit.hasNext && maxFile > 0){
+        subfiles.put(buildJSONTree(fileit.next().toFile))
+        maxFile-=1
+      }
+      if(fileit.hasNext){
+        var more = new JSONObject()
+        more.put("...","file")
+        subfiles.put(more)
+      }
+
+      fileStream.close()
+
+      /*
       val dirs = curFile.listFiles(new FileFilter {
         override def accept(pathname: File): Boolean = {
           pathname.isDirectory
@@ -53,7 +114,7 @@ object CorpusManager{
         more.put("...","file")
         subfiles.put(more)
       }
-
+      */
       folder.put(curFile.getName,subfiles)
       folder
     }else {
@@ -62,7 +123,7 @@ object CorpusManager{
   }
 
   def ls() = {
-    val jsontree = jsonExport()
+    val jsontree = jsonExport(false)
     lsPrint(jsontree,"")
   }
 

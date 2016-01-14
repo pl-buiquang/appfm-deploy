@@ -132,7 +132,8 @@ class ModuleDef(
 
 
 object ModuleDef extends LazyLogging{
-  val nameRegex = """^[a-zA-Z][a-zA-Z0-9\-_]+(@[a-zA-Z0-9\-_]+)?$"""
+  val nameRegex = """[a-zA-Z][a-zA-Z0-9\-_]+(@[a-zA-Z0-9\-_]+)?"""
+  val extendedNameRegex = "(_?"+nameRegex+")"
 
   def fromYaml(modulename:String,conf:String,conffile:String):ModuleDef={
 
@@ -154,7 +155,7 @@ object ModuleDef extends LazyLogging{
 
   def initName(providedName:String,confMap:java.util.Map[String,Any]) = YamlElt.fromJava(confMap.get("name")) match {
     case YamlString(s) => {
-      val regex = ModuleDef.nameRegex
+      val regex = "^"+ModuleDef.nameRegex+"$"
       if(regex.r.findAllMatchIn(s).isEmpty){
         throw new Exception("name property ("+s+") must match regex '"+regex+"'!")
       }

@@ -2,13 +2,14 @@ package fr.limsi.iles.cpm.server
 
 import java.io.FileInputStream
 import java.net.URLEncoder
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 import java.util.function.Consumer
 
 import com.mongodb.DBObject
 import com.mongodb.casbah.commons.MongoDBObject
 import fr.limsi.iles.cpm.corpus.CorpusManager
-import fr.limsi.iles.cpm.module.definition.ModuleManager
+import fr.limsi.iles.cpm.module.definition.{ModuleDef, ModuleManager}
 import fr.limsi.iles.cpm.module.process.ProcessRunManager
 import fr.limsi.iles.cpm.module.value.AbstractModuleVal
 import fr.limsi.iles.cpm.utils.{YamlElt, Log, Utils, ConfManager}
@@ -73,12 +74,18 @@ object CLInterpreter {
         case "copy" => "Copy corpus"
         case "resolve" => "Assign new path to corpus for user moved directories"
         case "locate" => "Returns the location of the corpus"
-        case "ls" => val jsonoutput = args.exists(_=="--json")
+        case "lsdir" => {
+          Utils.lsDir(args(1),args(2).toInt).toString
+        }
+        case "ls" => {
+          val jsonoutput = args.exists(_=="--json")
+          val onlycorpora = !(args.exists(_=="-a") || args.exists(_=="--all"))
           if(jsonoutput){
-            CorpusManager.jsonExport().toString
+            CorpusManager.jsonExport(false)(onlycorpora).toString
           }else{
             CorpusManager.ls().toString
           }
+        }
         case "add" => "Add a file to corpus"
         case "commit" => "Version of a corpus"
         case "log" => "Log of operations over corpus"
@@ -138,7 +145,7 @@ object CLInterpreter {
           ProcessRunManager.list.foreach(el=>{
             if(el._2.parentProcess.isEmpty){ // only master process
               ids = ids :+ el._1.toString
-              toprint += el._2.moduleval.moduledef.name+" : "+el._1+"\n"
+              toprint += el._2.moduleval.moduledef.name+" : "+el._1+"("+el._2.creationDate.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)+")\n"
             }
           })
           // then those saved in db (past process)
@@ -147,7 +154,7 @@ object CLInterpreter {
             val pobj = it.next()
             val id = pobj.get("ruid").toString
             if(opt._1 && !ids.contains(id)/*|| pobj.get("status")=="Running"*/){
-              toprint += pobj.get("name") + " : " + id+"\n"
+              toprint += pobj.get("name") + " : " + id+"("+java.time.LocalDateTime.parse(pobj.get("creationdate").toString).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)+")\n"
               /*if(opt._2){
                 toprint+="\n"+processChildrenRecPrint(pobj,"  |")+"\n"
               }else{
@@ -168,8 +175,7 @@ object CLInterpreter {
         }catch {case e:Throwable => "Error :"+e.getMessage}
         case "del" => try{
           if(args.size > 1){
-            ProcessRunManager.getProcess(UUID.fromString(args(1))).serializeToJSON().toString
-
+            ProcessRunManager.deleteProcess(UUID.fromString(args(1)))
           }else{
             "Missing pid"
           }
@@ -308,6 +314,20 @@ object CLInterpreter {
             ModuleManager.modules(args(1)).desc
           }else{
             "Unknown module!"
+          }
+        }
+        case "create" => {
+          if(args.size > 2 && data.isDefined) {
+            ModuleManager.createModule(args(0),args(1),data.get)
+          }else{
+            "missing arguments"
+          }
+        }
+        case "save" => {
+          if(args.size > 1 && data.isDefined) {
+            ModuleManager.updateModule(args(0),data.get)
+          }else{
+            "missing arguments"
           }
         }
 

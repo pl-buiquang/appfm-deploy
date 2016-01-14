@@ -17,17 +17,14 @@ object Server extends LazyLogging{
   // zmq context initialization (global to whole application instance)
   val context = ZMQ.context(1)
 
-  val backendport = ConfManager.get("backend_port")
 
   // run the core server
   def run(port : String) {
     // TODO  Replace all this with proper load balancer
-    val pool: ExecutorService = Executors.newFixedThreadPool(10)
+    val nthreads = 20
+    val pool: ExecutorService = Executors.newFixedThreadPool(nthreads)
 
-    // init request handlers workers threads
-    for(i <- (1 to 10)){
-      pool.execute(new RequestHandler())
-    }
+
 
     val frontend = context.socket(ZMQ.ROUTER)
 
@@ -35,7 +32,13 @@ object Server extends LazyLogging{
     frontend.bind ("tcp://*:"+port)
 
     val backend = context.socket(ZMQ.DEALER)
-    backend.bind("tcp://*:"+backendport)
+    backend.bind("inproc://backendcmdhandler")
+    //backend.bind("tcp://*:"+backendport)
+
+    // init request handlers workers threads
+    for(i <- (1 to nthreads)){
+      pool.execute(new RequestHandler())
+    }
 
     ZMQ.proxy(frontend,backend,null)
 
@@ -53,7 +56,8 @@ class RequestHandler extends Runnable with LazyLogging{
    */
   def run()={
     val socket = Server.context.socket(ZMQ.REP)
-    socket.connect ("tcp://localhost:"+Server.backendport)
+    socket.connect ("inproc://backendcmdhandler")
+    //socket.connect("tcp://localhost:"+Server.backendport)
 
     while (!Thread.currentThread().isInterrupted) {
       //  Wait for next request from client

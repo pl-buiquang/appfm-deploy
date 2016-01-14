@@ -23,9 +23,18 @@ class RunEnv(private var args:Map[String,AbstractParameterVal]) extends LazyLogg
       val yamlel = if(el._2._mytype.endsWith("*")){
         "\n    "+el._2.toYaml().replace("\n","\n    ")
       }else{
-        ">\n    "+"""""""+el._2.toYaml().trim.replace("\n","\n    ").replace("""\""","""\\""").replace(""""""","""\"""")+"""""""
+        //">\n    "+"""""""+el._2.toYaml().trim.replace("\n","\n    ").replace("""\""","""\\""").replace(""""""","""\"""")+"""""""
+        """""""+el._2.toYaml().trim.replace("""\""","""\\""").replace(""""""","""\"""").replace("\n","""\n""")+"""""""
       }
-      agg+"\n\""+el._1+"\" : \n  type : "+el._2._mytype+"\n  value : "+yamlel
+      agg+"\n\""+el._1+"\" : \n  type : "+el._2._mytype+"\n  "+ (if(el._2.format.nonEmpty){
+        "format : "+el._2.format.get+"\n  "
+      }else{
+        ""
+      })+ (if(el._2.schema.nonEmpty){
+        "schema : "+el._2.schema.get+"\n  "
+      }else{
+        ""
+      }) +"value : "+yamlel
     })
   }
 
@@ -112,7 +121,7 @@ object RunEnv {
             }else{
               ""
             }
-            variable.fromYaml(value)
+            variable.fromYaml(value)(true)
             env.args += (t -> variable)
           }
         })
@@ -144,7 +153,7 @@ object RunEnv {
       }else{
         (m.group(1),"")
       }
-      if(env.contains(complexvariable._1)){
+      val replacement = if(env.contains(complexvariable._1)){
         env(complexvariable._1) match{
           case o:AbstractParameterVal => complexvariable._2 match {
             case "" => o.toYaml()
@@ -153,18 +162,20 @@ object RunEnv {
           case _ => throw new Exception("undefined value");
         }
       }else{
-        m.group(0).replace("$","\\$") // escape "$" to prevent group reference
+        m.group(0)
       }
+      replacement.replace("$","\\$") // escape "$" to prevent group reference
     })
     resolved = """(?<!\\)\$([a-zA-Z_\-]+)""".r.replaceAllIn(resolved,m => {
-      if(env.contains(m.group(1))){
+      val replacement = if(env.contains(m.group(1))){
         env(m.group(1)) match{
           case o:AbstractParameterVal => val s = o.toYaml(); Log(s);s
           case _ => throw new Exception("undefined value");
         }
       }else{
-        m.group(0).replace("$","\\$") // escape "$" to prevent group reference
+        m.group(0)
       }
+      replacement.replace("$","\\$") // escape "$" to prevent group reference
     })
     resolved
   }
@@ -177,7 +188,7 @@ object RunEnv {
       }else{
         (m.group(1),"")
       }
-      if(env.contains(complexvariable._1)){
+      val replacement = if(env.contains(complexvariable._1)){
         env(complexvariable._1) match{
           case o:AbstractParameterVal => complexvariable._2 match {
             case "" => o.toString()
@@ -186,18 +197,20 @@ object RunEnv {
           case _ => throw new Exception("undefined value");
         }
       }else{
-        m.group(0).replace("$","\\$") // escape "$" to prevent group reference
+        m.group(0)
       }
+      replacement.replace("$","\\$") // escape "$" to prevent group reference
     })
     resolved = """(?<!\\)\$([a-zA-Z_\-]+)""".r.replaceAllIn(resolved,m => {
-      if(env.contains(m.group(1))){
+      val replacement = if(env.contains(m.group(1))){
         env(m.group(1)) match{
           case o:AbstractParameterVal => val s = o.toString(); Log(s);s
           case _ => throw new Exception("undefined value");
         }
       }else{
-        m.group(0).replace("$","\\$") // escape "$" to prevent group reference
+        m.group(0)
       }
+      replacement.replace("$","\\$") // escape "$" to prevent group reference
     })
     resolved
   }

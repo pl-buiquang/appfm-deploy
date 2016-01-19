@@ -231,7 +231,11 @@ object AbstractProcess extends LazyLogging{
     // moduledef.inputs must be satisfied by inputs
 
     newargs.foreach(el => {
-      if(el._2._mytype=="FILE" || el._2._mytype=="DIR"){
+      if(
+        moduleval.moduledef.inputs.exists(input=>{ // only check modules inputs
+          el._1 == input._1
+        })
+          && (el._2._mytype=="FILE" || el._2._mytype=="DIR")){
         if(!(new java.io.File(el._2.asString())).exists()){
           throw new Exception(el._2.asString() + " does not exist! Aborting run")
         }
@@ -741,19 +745,24 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
 
   override protected[this] def updateParentEnv(): Unit = {
 
-    stdoutval.rawValue = Source.fromFile("/tmp/out"+this.id.toString).getLines().foldLeft("")(_+"\n"+_)
-    stderrval.rawValue = Source.fromFile("/tmp/err"+this.id.toString).getLines().foldLeft("")(_+"\n"+_)
+    try{
+      stdoutval.rawValue = Source.fromFile("/tmp/out"+this.id.toString).getLines().foldLeft("")(_+"\n"+_)
+      stderrval.rawValue = Source.fromFile("/tmp/err"+this.id.toString).getLines().foldLeft("")(_+"\n"+_)
 
 
-    //stdoutval.rawValue = Source.fromFile("/tmp/out"+this.id.toString).getLines.mkString
-    stdoutval.resolvedValue = stdoutval.rawValue
+      //stdoutval.rawValue = Source.fromFile("/tmp/out"+this.id.toString).getLines.mkString
+      stdoutval.resolvedValue = stdoutval.rawValue
 
-    //stderrval.rawValue = Source.fromFile("/tmp/err"+this.id.toString).getLines.mkString
-    stderrval.resolvedValue = stderrval.rawValue
+      //stderrval.rawValue = Source.fromFile("/tmp/err"+this.id.toString).getLines.mkString
+      stderrval.resolvedValue = stderrval.rawValue
 
 
-    parentEnv.setVar(moduleval.namespace+".STDOUT", stdoutval)
-    parentEnv.setVar(moduleval.namespace+".STDERR", stderrval)
+      parentEnv.setVar(moduleval.namespace+".STDOUT", stdoutval)
+      parentEnv.setVar(moduleval.namespace+".STDERR", stderrval)
+    }catch{
+      case e:Throwable => logger.error("Error when fetching default stdout and stderr of cmd process!")
+    }
+
 
 
   }

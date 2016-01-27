@@ -123,6 +123,19 @@ object Utils{
     }).toList
   }
 
+  def ensureTrailingSlash(dirname:String):String={
+    val removedDoubleSlash = if(dirname.startsWith("//")){
+      dirname.substring(1)
+    }else{
+      dirname
+    }
+    if(removedDoubleSlash.endsWith("/")){
+      removedDoubleSlash
+    }else{
+      removedDoubleSlash+"/"
+    }
+  }
+
 
 }
 

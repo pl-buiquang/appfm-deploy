@@ -11,6 +11,8 @@ event_pub_port : 5858
 modules_dir :
   - /vagrant/modules
 
+default_module_dir : /vagrant/modules
+
 default_result_dir : /vagrant/data/results
 
 default_corpus_dir : /vagrant/data/corpus

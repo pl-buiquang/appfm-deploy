@@ -17,6 +17,8 @@ modules_dir :
   - /vagrant/modules
   - /vagrant/examples/modules
 
+default_module_dir : /people/buiquang/projects/custom/cpm/modules
+
 #default_result_dir : /home/paul/projects/custom/cpm/data/results
 default_result_dir : /people/buiquang/projects/custom/cpm/data/results
 #default_result_dir : /vagrant/data/results

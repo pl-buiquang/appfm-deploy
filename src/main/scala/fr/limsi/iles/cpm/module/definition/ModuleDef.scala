@@ -272,7 +272,7 @@ object ModuleDef extends LazyLogging{
   }
 
 
-  val builtinmodules :List[String] = List("_CMD","_MAP","_FILTER","_ANONYMOUS")
+  val builtinmodules :Map[String,ModuleDef] = Map("_CMD"->CMDDef,"_MAP"->MAPDef)//,"_FILTER","_ANONYMOUS")
 
 }
 
@@ -332,11 +332,11 @@ object AnonymousDef extends LazyLogging{
   }
 }
 
-object CMDDef extends ModuleDef("/no/path","_CMD","Built-in module that run a UNIX commad",ModuleDef.initCMDInputs(),ModuleDef.initCMDOutputs(),Map[String,String](),List[AbstractModuleVal]()){
+object CMDDef extends ModuleDef(ConfManager.get("default_module_dir")+"/default/_CMD.module","_CMD","Built-in module that run a UNIX commad",ModuleDef.initCMDInputs(),ModuleDef.initCMDOutputs(),Map[String,String](),List[AbstractModuleVal]()){
 
 }
 
-object MAPDef extends ModuleDef("/no/path","_MAP","Built-in module that map a LIST of FILE in Modules that process a single file",ModuleDef.initMAPInputs(),ModuleDef.initMAPOutputs(),Map[String,String](),List[AbstractModuleVal]()) {
+object MAPDef extends ModuleDef(ConfManager.get("default_module_dir")+"/default/_MAP.module","_MAP","Built-in module that map a LIST of FILE in Modules that process a single file",ModuleDef.initMAPInputs(),ModuleDef.initMAPOutputs(),Map[String,String](),List[AbstractModuleVal]()) {
 }
 
 

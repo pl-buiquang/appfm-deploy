@@ -74,7 +74,7 @@ object AbstractModuleVal extends LazyLogging{
             throw new Exception("Error parsing module value name")
           }
         }
-        if(ModuleManager.modules.keys.exists(_ == modulename)){
+        if(ModuleManager.modules.keys.exists(_ == modulename) && !ModuleDef.builtinmodules.contains(modulename)){
           val runitemconf : java.util.Map[String,Any] = YamlElt.readAs[java.util.HashMap[String,Any]](moduleval.get(runitemname)) match {
             case Some(map) => map
             case None => throw new Exception("malformed module value")

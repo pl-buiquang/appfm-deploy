@@ -318,14 +318,14 @@ object CLInterpreter {
         }
         case "create" => {
           if(args.size > 2 && data.isDefined) {
-            ModuleManager.createModule(args(0),args(1),data.get)
+            ModuleManager.createModule(args(1),args(2),data.get)
           }else{
             "missing arguments"
           }
         }
-        case "save" => {
+        case "update" => {
           if(args.size > 1 && data.isDefined) {
-            ModuleManager.updateModule(args(0),data.get)
+            ModuleManager.updateModule(args(1),data.get)
           }else{
             "missing arguments"
           }

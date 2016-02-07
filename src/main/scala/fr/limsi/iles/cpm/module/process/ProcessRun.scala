@@ -16,6 +16,7 @@ import fr.limsi.iles.cpm.module.value._
 import fr.limsi.iles.cpm.server.Server
 import fr.limsi.iles.cpm.utils.{YamlElt, DB, Utils, ConfManager}
 import org.json.JSONObject
+import org.slf4j.LoggerFactory
 import org.yaml.snakeyaml.Yaml
 import org.zeromq.ZMQ
 
@@ -283,6 +284,10 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     }
   }
 
+  def getLog():String={
+    "no logs... see the cpm core log"
+  }
+
   protected[this] def postInit():Unit={}
   protected[this] def step():Unit
   protected[this] def update(message:ProcessMessage)
@@ -517,9 +522,17 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
         None
       }
     }
+
+    var catchUpdateParentEnvErrorMessage = error
+
     logger.debug("Setting results to parent env")
     // set outputs value to env
-    updateParentEnv()
+    try{
+      updateParentEnv()
+    }catch{
+      case e:Exception => {catchUpdateParentEnvErrorMessage+="\nError when updating parent environment\n"+e.getMessage}
+    }
+
 
 
     status = Exited(error)
@@ -530,7 +543,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     socket match {
       case Some(sock) => {
         logger.debug("Sending completion signal")
-        sock.send(new ValidProcessMessage(moduleval.namespace,"FINISHED",error))
+        sock.send(new ValidProcessMessage(moduleval.namespace,"FINISHED",catchUpdateParentEnvErrorMessage))
         sock.close()
       }
       case None => {

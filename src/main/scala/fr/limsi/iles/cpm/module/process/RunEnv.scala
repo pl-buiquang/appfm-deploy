@@ -126,7 +126,13 @@ object RunEnv {
           }
         })
       }
-      case _ => throw new Exception("can't parse serialized environnment ("+serialized+")")
+      case _ => {
+        if(serialized==""){
+          Log("warning : empty environment!")
+        }else{
+          throw new Exception("can't parse serialized environnment ("+serialized+")")
+        }
+      }
     }
     env
   }

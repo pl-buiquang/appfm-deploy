@@ -46,6 +46,9 @@ object CLInterpreter {
           ModuleManager.reload()
           "ok"
         }
+        case "status"=>{
+          "Active (more details about configuration and state to come)"
+        }
         case "settings"=>{
           var moreargs = Array[String]()
           if(args.length>=1){
@@ -59,7 +62,7 @@ object CLInterpreter {
         case _ => "No such method!"
       }
     }catch{
-      case e:Throwable => "Missing argument"
+      case e:Throwable => "Command error. More details in Core Log"
     }
   }
 
@@ -199,7 +202,7 @@ object CLInterpreter {
               if(process.moduleval.moduledef.name=="_CMD")
                 Source.fromFile("/tmp/err"+args(1)).getLines.mkString
               else
-                "ll"
+                process.getLog();
             }
           }else{
             "Missing pid"
@@ -291,11 +294,12 @@ object CLInterpreter {
           }
         }
         case "run" => {
+          val synced = !args.exists(_=="--sync")
           if(data.isDefined){
-            ProcessRunManager.newRun(args(1),data.get,true)
+            ProcessRunManager.newRun(args(1),data.get,synced)
           }else{
             val confdata = Source.fromFile(args(2)).getLines.foldLeft("")((agg,line)=>agg+"\n"+line)
-            ProcessRunManager.newRun(args(1),confdata,true)
+            ProcessRunManager.newRun(args(1),confdata,synced)
           }
         }
         case "info" => {
@@ -307,7 +311,7 @@ object CLInterpreter {
           }else{
             json.put("source",Source.fromFile(args(1)).getLines.foldLeft("")((agg,line)=>agg+"\n"+line))
           }
-          json.toString
+          json.toString(2)
         }
         case "getdesc" => {
           if(ModuleManager.modules.contains(args(1))){

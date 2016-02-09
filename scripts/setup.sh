@@ -7,9 +7,10 @@ cd $CPM_HOME/core
 sbt assembly
 
 echo "Installing python client :"
+export PATH=$PATH:$HOME/.local/bin
 cd $CPM_HOME/cli
-pip install .
+pip install --user --editable .
 ./generate-autocomplete.sh
-echo ". $CPM_HOME/cli/cpm-complete.sh" >> /home/vagrant/.bashrc
+echo ". $CPM_HOME/cli/cpm-complete.sh" >> $HOME/.bashrc
 
 

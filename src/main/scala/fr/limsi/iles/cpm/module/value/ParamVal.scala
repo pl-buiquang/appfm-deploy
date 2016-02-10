@@ -38,7 +38,7 @@ sealed abstract class AbstractParameterVal(val format:Option[String],val schema:
   override def toString()=asString()
 
   def isExpression() : Boolean = {
-    val value = toYaml().trim
+    val value = asString().trim
 
     val complexVarsRemoved = """(?<!\\)\$\{(.+?)\}""".r.replaceFirstIn(value,"")
     if(complexVarsRemoved == ""){

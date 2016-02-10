@@ -637,7 +637,8 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
       logger.debug("Looking to resolve : "+output._2.value.get.asString())
       val x = output._2.createVal()
       logger.debug("Found :"+env.resolveValueToYaml(output._2.value.get.asString()))
-      x.fromYaml(env.resolveValueToYaml(output._2.value.get.toYaml()))
+
+      x.fromYaml(env.resolveValueToYaml(output._2.value.get.asString())) // changed toYaml to asString (for list bug...)
       val namespace = moduleval.namespace match {
         case "" => ""
         case _ => moduleval.namespace+"."

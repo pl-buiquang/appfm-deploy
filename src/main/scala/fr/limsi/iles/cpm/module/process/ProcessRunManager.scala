@@ -135,9 +135,12 @@ object ProcessRunManager extends LazyLogging{
     val mps = new MasterProcessShell(process,async,"",env)
     mps.run()
 
-    uuid.toString
+    if(async){
+      uuid.toString
+    }else{
+      env.getVars().foldLeft("")((toprint,elt) => {toprint+"\n"+elt._1+" = "+elt._2.asString()})
+    }
 
-    //env.args.foldLeft("")((toprint,elt) => {toprint+"\n"+elt._1+" = "+elt._2.asString()})
 
   }
 

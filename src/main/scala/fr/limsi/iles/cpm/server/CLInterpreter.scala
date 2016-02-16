@@ -334,6 +334,13 @@ object CLInterpreter {
             "missing arguments"
           }
         }
+        case "updateDisplay" => {
+          if(args.size > 1 && data.isDefined){
+            ModuleManager.updateModuleDisplay(args(1),data.get)
+          }else{
+            "missing arguments"
+          }
+        }
 
         case _ => "Invalid argument"
       }

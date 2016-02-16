@@ -21,6 +21,7 @@ object ModuleManager extends LazyLogging{
 
   var modules : Map[String,ModuleDef]= Map[String,ModuleDef]()
   private var modulestree :ModNode = ModNode("/",List[ModTree]())
+  val modulesCollection = DB.get("modules")
 
   /**
    * Check every modules found in the listed directory supposely containing modules definition/implementation/resources
@@ -198,6 +199,10 @@ object ModuleManager extends LazyLogging{
     }
 
     response.toString()
+
+  }
+
+  def updateModuleDisplay(name:String,data:String):String={
 
   }
 

@@ -109,6 +109,8 @@ object AbstractProcess extends LazyLogging{
         null
       }
     }
+    val log : String = obj.getOrDefault("log","").toString
+
     val x =  modulename match {
       case "_CMD" => new CMDProcess(new CMDVal(namespace,modulevalconf),parentProcess,uuid)
       case "_MAP" => new MAPProcess(new MAPVal(namespace,modulevalconf),parentProcess,uuid)
@@ -122,6 +124,7 @@ object AbstractProcess extends LazyLogging{
     x.originalenv = runconf
     x.env = env
     x.parentEnv = parentEnv
+    x.log=log
     x
   }
 
@@ -270,6 +273,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     AbstractProcess.portUsed = AbstractProcess.portUsed :+ newport
     newport
   }
+  var log = ""
 
   var childrenProcess = List[UUID]()
 
@@ -284,9 +288,26 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     }
   }
 
-  def getLog():String={
-    "no logs... see the cpm core log"
+  def log(info:String) : Unit={
+    getMasterProcess().log += this.moduleval.namespace+" : "+info+"\n"
   }
+
+  def getLog():String={
+    log
+  }
+
+  /**
+   * Retrieve the origin process that has spawn this current process
+   * @return the origin master process
+   */
+  def getMasterProcess() : AbstractProcess= {
+    parentProcess match {
+      case None => this
+      case Some(process) => process.getMasterProcess()
+    }
+  }
+
+
 
   protected[this] def postInit():Unit={}
   protected[this] def step():Unit
@@ -296,6 +317,10 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
   protected[this] def attrserialize():(Map[String,String],Map[String,String])
   protected[this] def attrdeserialize(mixedattrs:Map[String,String]):Unit
 
+  /**
+   * Note : if changing (add or remove) mutable fields, you need to change the content of serializeToMongoObject method...
+   * @return a tuple containing immutable and mutable map fields to be serialized
+   */
   def serialize()={
     var staticfields = List(
       "ruid" -> id.toString,
@@ -340,7 +365,8 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
           case _ => ""
         }
       },
-      "completeddate" -> {if(completedDate!=null){completedDate.toString}else{""}}
+      "completeddate" -> {if(completedDate!=null){completedDate.toString}else{""}},
+      "log" -> log
       //"tags" =>
     )
     (staticfields,changingfields)
@@ -372,7 +398,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     changingfields :::= customattrs._2.toList
 
     val obj = if(update) {
-      $set(changingfields(0),changingfields(1),changingfields(2),changingfields(3),changingfields(4),changingfields(5),changingfields(6),changingfields(7))
+      $set(changingfields(0),changingfields(1),changingfields(2),changingfields(3),changingfields(4),changingfields(5),changingfields(6),changingfields(7),changingfields(8))
     }else{
       MongoDBObject(staticfields++changingfields)
     }
@@ -483,7 +509,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
 
     }catch{
-      case e:Throwable => error = "error when running : "+e.getMessage; logger.error(e.getMessage)
+      case e:Throwable => error = "error when running : "+e.getMessage; logger.error(e.getMessage); log(e.getMessage)
     }finally {
       socket.close();
       exitRoutine(error)
@@ -705,9 +731,10 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
     logger.debug("Launching CMD "+env.resolveValueToString(moduleval.inputs("CMD").asString()))
     var stderr = ""
     var stdout = ""
-    val wd = env.getRawVar("_DEF_DIR").get.asString()
-    val folder = new java.io.File(wd)
-
+    val defdir = env.getRawVar("_DEF_DIR").get.asString()
+    val wd = env.getRawVar("_RUN_DIR").get.asString()
+    val deffolder = new java.io.File(defdir)
+    val runfolder = new java.io.File(wd)
 
 
     val dockerimagename = {
@@ -717,7 +744,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
             // replace @ by "_at_" (docker doesn't accept @ char)
             val name = DockerManager.nameToDockerName(env.getRawVar("_MOD_CONTEXT").get.asString()+"-"+moduleval.namespace) // _MOD_CONTEXT should always be the module defintion that holds this command
             if(!DockerManager.exist(name)){
-              DockerManager.build(name,wd+"/Dockerfile")
+              DockerManager.build(name,defdir+"/Dockerfile")
             }
             name
           }else{
@@ -737,12 +764,12 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
 
 
     if(dockerimagename!=""){
-      DockerManager.serviceRun(containername,dockerimagename,folder)
-      run = DockerManager.serviceExec(this.id,moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),folder,containername)
+      DockerManager.serviceRun(containername,dockerimagename,deffolder)
+      run = DockerManager.serviceExec(this.id,moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),deffolder,containername,runfolder)
     }else{
       val cmd = env.resolveValueToString(moduleval.inputs("CMD").asString())
-      val absolutecmd = cmd.replace("\n"," ").replace("\"","\\\"").replaceAll("^./",folder.getCanonicalPath+"/")
-      val cmdtolaunch = "python "+ConfManager.get("cpm_home_dir")+"/"+ConfManager.get("process_shell_bin")+" false "+this.id.toString+" "+moduleval.namespace+" "+processPort+" "+absolutecmd+""
+      val absolutecmd = cmd.replace("\n"," ").replace("\"","\\\"").replaceAll("^\\./",deffolder.getCanonicalPath+"/")
+      val cmdtolaunch = "python "+ConfManager.get("cpm_home_dir")+"/"+ConfManager.get("process_shell_bin")+" false "+this.id.toString+" "+moduleval.namespace+" "+processPort+" "+runfolder.getCanonicalPath+" "+absolutecmd+""
       logger.info("Launchin cmd : "+cmdtolaunch)
       val exitval = Process(cmdtolaunch,new java.io.File(wd)) ! ProcessLogger(line => stdout+="\n"+line,line=>stderr+="\n"+line)
       /*stdoutval.rawValue = stdout
@@ -773,6 +800,13 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
 
       parentEnv.setVar(moduleval.namespace+".STDOUT", stdoutval)
       parentEnv.setVar(moduleval.namespace+".STDERR", stderrval)
+
+      // delete all files created for this process
+      Utils.deleteFile("/tmp/out"+this.id.toString)
+      Utils.deleteFile("/tmp/err"+this.id.toString)
+      Utils.deleteFile("/tmp/pinfo"+this.id.toString)
+
+      log(stderrval.rawValue)
     }catch{
       case e:Throwable => logger.error("Error when fetching default stdout and stderr of cmd process!")
     }

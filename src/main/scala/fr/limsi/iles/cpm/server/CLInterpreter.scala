@@ -6,7 +6,7 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 import java.util.function.Consumer
 
-import com.mongodb.DBObject
+import com.mongodb.{BasicDBObject, DBObject}
 import com.mongodb.casbah.commons.MongoDBObject
 import fr.limsi.iles.cpm.corpus.CorpusManager
 import fr.limsi.iles.cpm.module.definition.{ModuleDef, ModuleManager}
@@ -152,7 +152,9 @@ object CLInterpreter {
             }
           })
           // then those saved in db (past process)
-          val it = ProcessRunManager.processCollection.find()
+          val sort = new BasicDBObject()
+          sort.put("creationdate",-1)
+          val it = ProcessRunManager.processCollection.find().sort(sort)
           while(it.hasNext){
             val pobj = it.next()
             val id = pobj.get("ruid").toString
@@ -194,15 +196,10 @@ object CLInterpreter {
           if(args.size > 1){
             val process = ProcessRunManager.getProcess(UUID.fromString(args(1)))
             if(args.size > 2 && args(2)=="--gui"){
-              if(process.moduleval.moduledef.name=="_CMD")
-                "index.php?file="+URLEncoder.encode("/tmp/err"+args(1),"utf-8")
-              else
-                "mm"
+              // TODO in web allow get to open panels
+              process.getLog()
             }else{
-              if(process.moduleval.moduledef.name=="_CMD")
-                Source.fromFile("/tmp/err"+args(1)).getLines.mkString
-              else
-                process.getLog();
+              process.getLog();
             }
           }else{
             "Missing pid"

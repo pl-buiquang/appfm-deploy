@@ -27,20 +27,6 @@ object DockerManager extends LazyLogging{
     }
   }
 
-  /**
-   * Run a command in the default base image (useless now since using docker is not the default behavior for command run)
-   * @param pid
-   * @param name
-   * @param host
-   * @param port
-   * @param cmd
-   * @param foldersync
-   * @return
-   */
-  def baseRun(pid:UUID,name:String,host:String,port:String,cmd:String,foldersync:java.io.File) = {
-    run(pid,name,host,port,cmd,foldersync,ConfManager.defaultDockerBaseImage)
-  }
-
 
   def serviceRun(name:String,dockerimage:String,foldersync:java.io.File) = {
     if(!servicesAvailable.exists(_==dockerimage)) {
@@ -67,22 +53,14 @@ object DockerManager extends LazyLogging{
     }
   }
 
-  def serviceExec(pid:UUID,name:String,host:String,port:String,cmd:String,foldersync:java.io.File,dockercontainername:String) = {
-    val absolutecmd = cmd.replace("\n"," ").replaceAll("^./",foldersync.getCanonicalPath+"/")
-    val dockercmd = "docker exec -td "+dockercontainername+" /home/pshell/bin/cpm-process-shell.py true "+pid.toString+" "+name+" "+port+" "+absolutecmd+""
+  def serviceExec(pid:UUID,name:String,host:String,port:String,cmd:String,foldersync:java.io.File,dockercontainername:String,workingdir:java.io.File) = {
+    val absolutecmd = cmd.replace("\n"," ").replaceAll("^\\./",foldersync.getCanonicalPath+"/")
+    val dockercmd = "docker exec -td "+dockercontainername+" /home/pshell/bin/cpm-process-shell.py true "+pid.toString+" "+name+" "+port+" "+workingdir.getCanonicalPath+" "+absolutecmd
     logger.info(dockercmd)
     dockercmd.!!
     "true"
   }
 
-  def run(pid:UUID,name:String,host:String,port:String,cmd:String,foldersync:java.io.File,dockerimage:String) = {
-    val mount = "-v "+foldersync.getCanonicalPath+":"+foldersync.getCanonicalPath
-    val mount2 = " -v /tmp:/tmp -v "+ConfManager.get("default_result_dir")+":"+ConfManager.get("default_result_dir")+" -v "+ConfManager.get("default_corpus_dir")+":"+ConfManager.get("default_corpus_dir")+" "
-    val absolutecmd = cmd.replace("\n"," ").replace("\"","\\\"").replaceAll("^./",foldersync.getCanonicalPath+"/")
-    val dockercmd = "docker run "+mount+mount2+" -td "+dockerimage+" "+pid.toString+" "+name+" "+port+" "+absolutecmd+""
-    logger.debug(dockercmd)
-    dockercmd.!!
-  }
 
   /**
    * Check if a docker image name already exists
@@ -114,22 +92,24 @@ object DockerManager extends LazyLogging{
    * @return
    */
   def build(name:String,path:String) : Boolean= {
-    if(!DockerManager.exist(name)) {
-      logger.info("Building docker image " + name)
-      try {
-        val filepath = new java.io.File(path)
-        val dir = if (filepath.isDirectory) {
-          filepath.getCanonicalPath
-        } else {
-          filepath.getParent
+    this.synchronized { // this is to prevent multiple concurrent building of the same image...
+      if(!DockerManager.exist(name)) {
+        logger.info("Building docker image " + name)
+        try {
+          val filepath = new java.io.File(path)
+          val dir = if (filepath.isDirectory) {
+            filepath.getCanonicalPath
+          } else {
+            filepath.getParent
+          }
+          val output = ("docker build -t " + name + " " + dir).!
+          output == 0
+        } catch {
+          case e: Throwable => logger.error(e.getMessage); fr.limsi.iles.cpm.utils.Log.error(e); false
         }
-        val output = ("docker build -t " + name + " " + dir).!
-        output == 0
-      } catch {
-        case e: Throwable => logger.error(e.getMessage); fr.limsi.iles.cpm.utils.Log.error(e); false
+      }else{
+        true // if the image exists we suppose everything is fine :)
       }
-    }else{
-      true // if the image exists we suppose everything is fine :)
     }
   }
 

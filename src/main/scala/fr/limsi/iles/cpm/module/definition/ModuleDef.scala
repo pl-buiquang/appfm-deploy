@@ -197,12 +197,12 @@ object ModuleDef extends LazyLogging{
     var moduleoutputs = Map[String,AbstractModuleParameter]()
     val parsed = YamlElt.fromJava(confMap.get("output"))
     parsed match {
-      case YamlMap(inputs) => {
-        val outputnames = inputs.keySet();
+      case YamlMap(outputs) => {
+        val outputnames = outputs.keySet();
         val it = outputnames.iterator()
         while(it.hasNext){
           val name = it.next()
-          val parsedoutputdef = inputs.get(name)
+          val parsedoutputdef = outputs.get(name)
           moduleoutputs += (name -> AbstractModuleParameter.fromYamlConf(name,parsedoutputdef,true))
         }
       }

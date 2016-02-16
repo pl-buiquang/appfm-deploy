@@ -7,6 +7,7 @@ import java.text.SimpleDateFormat
 import java.util
 import java.util.function.{BiConsumer, Consumer}
 
+import com.typesafe.scalalogging.LazyLogging
 import org.slf4j.LoggerFactory
 import org.yaml.snakeyaml.Yaml
 
@@ -33,7 +34,7 @@ object Log {
 
 }
 
-object Utils{
+object Utils extends LazyLogging{
 
   def lsDir(curFilepath:String,from:Int) : Object = {
     var jsonserial = new JSONArray();
@@ -82,6 +83,15 @@ object Utils{
       deleted
     }else{
       dir.delete()
+    }
+  }
+
+  def deleteFile(filepath:String) : Boolean = {
+    try{
+      val file = new java.io.File(filepath)
+      file.delete()
+    }catch{
+      case e:Throwable => logger.warn("couldn't delete "+filepath); false
     }
   }
 

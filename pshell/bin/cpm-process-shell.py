@@ -28,7 +28,8 @@ if len(sys.argv) > 5 :
 	pid = sys.argv[2]
 	name = sys.argv[3]
 	port = sys.argv[4]
-	cmd = " ".join(sys.argv[5:])
+        wd = sys.argv[5]
+	cmd = " ".join(sys.argv[6:])
 else :
   exit()
 
@@ -47,7 +48,7 @@ errfile = open("/tmp/err"+pid,"w")
 processinfo.write(cmd+"\n")
 
 
-exitval = subprocess.call(cmd,shell=True,stdout=outfile,stderr=errfile)
+exitval = subprocess.call(cmd,shell=True,stdout=outfile,stderr=errfile,cwd=wd)
 
 
 processinfo.write(str(exitval))

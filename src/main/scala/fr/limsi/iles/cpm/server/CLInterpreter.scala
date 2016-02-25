@@ -56,6 +56,13 @@ object CLInterpreter {
           }
           interpretSettingsCommands(moreargs,data)
         }
+        case "fs"=>{
+          var moreargs = Array[String]()
+          if(args.length>=1){
+            moreargs = args.slice(1,args.length)
+          }
+          interpretFileSystemCommands(moreargs,data)
+        }
         case "restart" =>
           "Restart cpm"
         case "test" => Thread.sleep(10000); "ok"
@@ -312,7 +319,17 @@ object CLInterpreter {
         }
         case "getdesc" => {
           if(ModuleManager.modules.contains(args(1))){
-            ModuleManager.modules(args(1)).desc
+            val module = ModuleManager.modules(args(1))
+            module.desc + {
+              if (args.exists(_=="--extended")){
+                "Inputs : \n"+
+                module.inputs.foldLeft("\n")((agg,input)=>{
+                  agg + ModuleDef.printInput(input) + "\n\n"
+                })
+              }else{
+                ""
+              }
+            }
           }else{
             "Unknown module!"
           }
@@ -346,6 +363,49 @@ object CLInterpreter {
     }
   }
 
+  def interpretFileSystemCommands(args:Array[String],data:Option[String]):String = {
+    if(args.size==0){
+      return cliError("Missing argument")
+    }
+    try{
+      args(0) match{
+        case "get" => {
+          if(args.size>1){
+            if (!(new java.io.File(args(1))).exists()){
+              return cliError("File doesn't exist!")
+            }
+            val lines = Source.fromFile(args(1)).getLines()
+            if (lines.hasNext){
+              lines.foldLeft("")((agg,line)=>agg+"\n"+line).substring(1)
+            }else{
+              ""
+            }
+          }else{
+            cliError("Missing file")
+          }
+        }
+        case "ls" => {
+          if(args.size>1){
+            if (!(new java.io.File(args(1))).exists()){
+              return cliError("File doesn't exist!")
+            }
+            val lines = Source.fromFile(args(1)).getLines()
+            if (lines.hasNext){
+              lines.foldLeft("")((agg,line)=>agg+"\n"+line).substring(1)
+            }else{
+              ""
+            }
+          }else{
+            cliError("Missing file")
+          }
+        }
+        case _ => cliError("Invalid argument")
+      }
+    }catch {
+      case e:Throwable => cliError(e.getMessage)
+    }
+  }
+
   def interpretExecCommands(args:Seq[String]) = {
     try{
       args(0) match{
@@ -354,6 +414,15 @@ object CLInterpreter {
     }catch{
       case e:Throwable => "Missing argument"
     }
+  }
+
+  /**
+   * Default message error tag for cli
+   * @param message
+   * @return
+   */
+  def cliError(message:String):String={
+    "__APPFM_ERROR_B__"+message+"__APPFM_ERROR_E__"
   }
 
   /**

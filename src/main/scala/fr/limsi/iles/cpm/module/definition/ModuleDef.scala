@@ -271,6 +271,40 @@ object ModuleDef extends LazyLogging{
     x
   }
 
+  def printInput(input:(String,AbstractModuleParameter)):String={
+    var switch = false;
+    {
+      if (input._2.desc.isDefined){
+        input._2.desc.get+"\n"
+      }else{
+        ""
+      }
+    }+
+    {
+      input._1 + ":" + input._2.paramType
+    }+
+    {
+      if (input._2.format.isDefined){
+        switch = true
+        "("+input._2.format.get+" "
+      }else{
+        "("
+      }
+    }+ {
+      if (input._2.schema.isDefined) {
+        {
+          if (switch){
+            "| "
+          }else{
+            ""
+          }
+        }+
+        input._2.schema.get+")"
+      } else {
+        ")"
+      }
+    }
+  }
 
   val builtinmodules :Map[String,ModuleDef] = Map("_CMD"->CMDDef,"_MAP"->MAPDef)//,"_FILTER","_ANONYMOUS")
 

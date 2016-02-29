@@ -203,7 +203,7 @@ object ModuleManager extends LazyLogging{
   }
 
   def updateModuleDisplay(name:String,data:String):String={
-
+    "not implemented"
   }
 
   def insertInModuleTree(modulename:String,moduledefparentpath:String,tree:ModNode,parentPath:String):Option[ModNode]={

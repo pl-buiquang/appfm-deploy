@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#source /vagrant/scripts/env.sh
-source /home/paul/projects/custom/cpm/scripts/env.sh
+source /vagrant/scripts/env.sh
+#source /home/paul/projects/custom/cpm/scripts/env.sh
 
 
 cd  $CPM_CORE;

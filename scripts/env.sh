@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # The base path of the installation (the place where the cpm git repository was cloned)
-#export CPM_HOME=/vagrant 
-export CPM_HOME=/home/paul/projects/custom/cpm 
+export CPM_HOME=/vagrant 
+#export CPM_HOME=/home/paul/projects/custom/cpm 
 
 
 # Paths of provided dependencies relative to the base path

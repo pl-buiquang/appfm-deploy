@@ -241,11 +241,7 @@ object CLInterpreter {
             }else{
               "no result"
             }
-            if(args.size > 3 && args(3)=="--gui"){
-              "index.php?content="+URLEncoder.encode(result,"utf-8")
-            }else{
-              result
-            }
+            result
           }else{
             "Missing pid"
           }

@@ -138,7 +138,10 @@ object ProcessRunManager extends LazyLogging{
     if(async){
       uuid.toString
     }else{
-      env.getVars().foldLeft("")((toprint,elt) => {toprint+"\n"+elt._1+" = "+elt._2.asString()})
+      val runid = VAL(None,None)
+      runid.fromYaml(uuid.toString)
+      env.setVar("_RUN_ID",runid)
+      env.getVars().foldLeft("")((toprint,elt) => {toprint+"\n"+elt._1+" : "+elt._2.asString()}).substring(1)
     }
 
 

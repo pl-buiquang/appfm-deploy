@@ -25,25 +25,30 @@ git clone git2@versatile-world.net:~/cpm.git
 cd cpm
 
 1. Install (some) Dependencies (on debian) :
-sudo apt-get install git vagrant virtualbox*
+sudo apt-get install git vagrant virtualbox 
 
 2. Fetch projects modules :
 git submodule update --init --recursive
 (you will need to enter multiple times the repository password)
 
-3. Add an additional disk to the virtual machine :
+3. Configure virtual machine : Set up resources and add an additional disk to the virtual machine :
 change in the file "Vagrantfile" the path to a virtual disk ("file_to_disk" variable) that will be created/used as additionnal disk for the virtual machine
 eg. : file_to_disk = "$HOME/appfm_vagrant_additional_disk.vdi"
-this virtual disk is used to store Docker container and application mongodb data
+this virtual disk is used to store Docker container and application mongodb data and is set to size 100G
 
-4. Installation (may take about 15~30 minutes) :
+default resources allocated are 2 cpus and 4G of ram (you can change this in the proper fields in the Vagrantfile : eg. v.customize ["modifyvm", :id, "--memory","4096"])
+Note that depending of your system, you may need to change other settings in the Vagrantfile like port mapping.
+
+
+4. Installation (may take about 10~30 minutes) :
 vagrant up
 vagrant ssh
 /vagrant/scripts/setup.sh
 
-5. First run :
+
+5. First run (takes a long the first time since it builds base containers):
 cd /vagrant
-./start.sh 
+./start.sh  (or ./start-daemon.sh)
 
 When finished you can go to http://localhost:8080
 
@@ -51,7 +56,7 @@ To disconnect session from the virtual machine:
 exit
 
 To stop the server (and the virtual machine) :
-vagrant halt (from anywhere within the cpm directory)
+vagrant halt (from outside the virtual machine session and anywhere within the cpm directory)
 
 To restart :
 vagrant ssh (from anywhere within the cpm directory)
@@ -60,6 +65,56 @@ cd /vagrant
 
 To completly destroy the virtual machine (needs re installation (step 4)) :
 vagrant destroy (from anywhere within the cpm directory)
+
+== First Steps ==
+
+If installed within a virtual machine (quick start instructions), you may also want to install the cli within your host to be able to use appfm from outside the vm.
+To do so, go the cli subproject directory and follow the quick install guide in the README 
+
+With default installation, there is some modules already availables.
+Following instructions assume that you didn't change the default paths configuration.
+
+=== Corpus / Data ===
+
+There is some example data in the data/corpus directory, you can add more within this directory.
+Only data stored in this directory is visible by applications of AppFM.
+You can find the path of the data directory in config.yml (if running under a virtual machine, you have to change the Vagrantfile as well)
+
+Results are by default stored in data/results
+
+Warning ! All the paths are relative to the virtual machine filesystem tree !
+
+=== Modules ===
+
+Modules are located in the modules directory. More information for how to implement modules is in the wiki.
+Since documentation isn't yet complete. You can also look into the .module files of already implemented modules interface frame.
+
+=== Examples ===
+
+Listing availables modules :
+cpm module ls
+
+Running module synchronously :
+- extract pdf content into html :
+cpm module run pdfbox@munshi --arg IN_DIR:/vagrant/data/corpus/some-pdfs --sync
+
+Running module asynchronously :
+- apply bonsai parser onto extracted content (may take several minutes up to 30min.. :/)
+cpm module run bonsai-parser@munshi --arg IN_DIR:[insert_result_dir_of_previous_run]
+
+Get process information :
+cpm process get [insert_process_id_of_previous_command]
+
+View process results :
+cpm process view [pid]
+cpm process view [pid] [outputname]
+
+
+
+
+
+
+
 
 == Web interface ==
 

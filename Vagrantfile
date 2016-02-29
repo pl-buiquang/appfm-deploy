@@ -21,7 +21,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     unless File.exist?(file_to_disk)
       v.customize ['createhd', '--filename', file_to_disk, '--size', 100 * 1024]
     end
-    v.customize ["storagectl", :id, "--name", "SATA Controller", "--add", "sata"]
+#    v.customize ["storagectl", :id, "--name", "SATA Controller", "--add", "sata"]
     v.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', 1, '--device', 0, '--type', 'hdd', '--medium', file_to_disk]
   end
 

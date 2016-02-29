@@ -39,6 +39,12 @@ this virtual disk is used to store Docker container and application mongodb data
 default resources allocated are 2 cpus and 4G of ram (you can change this in the proper fields in the Vagrantfile : eg. v.customize ["modifyvm", :id, "--memory","4096"])
 Note that depending of your system, you may need to change other settings in the Vagrantfile like port mapping.
 
+If the error "Stderr: VBoxManage: error: Could not find a controller named 'SATA Controller'" appears, add 
+v.customize ["storagectl", :id, "--name", "SATA Controller", "--add", "sata"]
+before the line 
+v.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', 1, '--device', 0, '--type', 'hdd', '--medium', file_to_disk]
+
+
 
 4. Installation (may take about 10~30 minutes) :
 vagrant up

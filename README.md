@@ -109,8 +109,9 @@ View process results :
 cpm process view [pid]
 cpm process view [pid] [outputname]
 
+...
 
-
+Note that you can view the results and process via the webinterface
 
 
 

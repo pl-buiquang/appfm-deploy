@@ -271,6 +271,20 @@ object ModuleDef extends LazyLogging{
     x
   }
 
+  def initIFInputs()={
+    var x = Map[String,AbstractModuleParameter]()
+    x += ("COND"->new ModuleParameter[VAL]("VAL",None,None,None))
+    x += ("THEN"->new ModuleParameter[LIST[MODVAL]]("MODVAL+",None,None,None))
+    x += ("ELSE"->new ModuleParameter[LIST[MODVAL]]("MODVAL+",None,None,None))
+    x
+  }
+
+  def initIFOutputs()={
+    var x = Map[String,AbstractModuleParameter]()
+    x += ("OUT"->new ModuleParameter[MAP]("MAP",None,None,None))
+    x
+  }
+
   def printInput(input:(String,AbstractModuleParameter)):String={
     var switch = false;
     {
@@ -306,7 +320,7 @@ object ModuleDef extends LazyLogging{
     }
   }
 
-  val builtinmodules :Map[String,ModuleDef] = Map("_CMD"->CMDDef,"_MAP"->MAPDef)//,"_FILTER","_ANONYMOUS")
+  val builtinmodules :Map[String,ModuleDef] = Map("_CMD"->CMDDef,"_MAP"->MAPDef,"_IF"->IFDef)//,"_FILTER","_ANONYMOUS")
 
 }
 
@@ -315,6 +329,55 @@ class AnonymousDef(modulelist:List[AbstractModuleVal],context:List[AbstractModul
 }
 
 object AnonymousDef extends LazyLogging{
+
+  def extractVarsFromModuleVals(modulelist:List[AbstractModuleVal],innervars:Map[String,AbstractModuleParameter],context:List[AbstractModuleVal],env:Map[String,AbstractModuleParameter]):(Map[String,AbstractModuleParameter],Map[String,AbstractModuleParameter])={
+    val implicitvars = List("_","_RUN_DIR","_DEF_DIR","_CUR_MOD","_MOD_CONTEXT")
+    var outervariables = Map[String,AbstractModuleParameter]()
+    var innervariables = innervars
+
+    modulelist.foreach(moduleval => {
+      moduleval.inputs.foreach(input => {
+        if (input._2._mytype.startsWith("MODVAL")){
+          val submodules = LIST[MODVAL](None,None)
+          submodules.fromYaml(input._2.toYaml())
+          val sub = AnonymousDef.extractVarsFromModuleVals(AbstractParameterVal.paramToScalaListModval(submodules),innervariables,context,env)
+          outervariables = outervariables ++ sub._2
+
+        }else{
+          val variables = input._2.extractVariables()
+
+          variables.foreach(variable => {
+            logger.debug("search variable "+variable+" in innervariables")
+            if(!innervariables.contains(variable) && !implicitvars.contains(variable)){
+              val value = if(variables.length == 1 && !input._2.isExpression()){
+                moduleval.moduledef.inputs(variable)
+              }else{
+                context.find(contextualmoduleval => {
+                  contextualmoduleval.moduledef.outputs.contains(variable)
+                }) match {
+                  case Some(contextualmoduleval) => contextualmoduleval.moduledef.outputs(variable)
+                  case None => {
+                    if(env.contains(variable)){
+                      env(variable)
+                    }else{
+                      new ModuleParameter[VAL](variable,None,None,None,None)
+                    }
+                  }
+                }
+              }
+              outervariables += (variable -> value)
+            }
+          })
+        }
+      })
+      moduleval.moduledef.outputs.foreach(output => {
+        innervariables += (moduleval.namespace+"."+output._1 -> output._2)
+        logger.debug("added "+moduleval.namespace+"."+output._1)
+      })
+    })
+    (innervariables,outervariables)
+  }
+
   def initOutputs(modulelist:List[AbstractModuleVal]):Map[String,AbstractModuleParameter]={
     val implicitvars = List("_","_RUN_DIR","_DEF_DIR","_CUR_MOD","_MOD_CONTEXT")
     var x = Map[String,AbstractModuleParameter]()
@@ -329,42 +392,17 @@ object AnonymousDef extends LazyLogging{
   }
 
   def initInputs(modulelist:List[AbstractModuleVal],context:List[AbstractModuleVal],env:Map[String,AbstractModuleParameter]):Map[String,AbstractModuleParameter]={
-    val implicitvars = List("_","_RUN_DIR","_DEF_DIR","_CUR_MOD","_MOD_CONTEXT")
-    var outervariables = Map[String,AbstractModuleParameter]()
-    var innervariables = Map[String,AbstractModuleParameter]()
-    modulelist.foreach(moduleval => {
-      moduleval.inputs.foreach(input => {
-        val variables = input._2.extractVariables()
-        variables.foreach(variable => {
-          if(!innervariables.contains(variable) && !implicitvars.contains(variable)){
-            val value = if(variables.length == 1 && !input._2.isExpression()){
-              moduleval.moduledef.inputs(variable)
-            }else{
-              context.find(contextualmoduleval => {
-                contextualmoduleval.moduledef.outputs.contains(variable)
-              }) match {
-                case Some(contextualmoduleval) => contextualmoduleval.moduledef.outputs(variable)
-                case None => {
-                  if(env.contains(variable)){
-                    env(variable)
-                  }else{
-                    new ModuleParameter[VAL](variable,None,None,None,None)
-                  }
-                }
-              }
-            }
-            outervariables += (variable -> value)
-          }
-        })
-      })
-      moduleval.moduledef.outputs.foreach(output => {
-        innervariables += (moduleval.namespace+"."+output._1 -> output._2)
-        logger.debug("added "+moduleval.namespace+"."+output._1)
-      })
-    })
-    outervariables
+    val vars = extractVarsFromModuleVals(modulelist,Map[String,AbstractModuleParameter](),context,env)
+    vars._2
   }
 }
+
+object IFDef extends ModuleDef(ConfManager.get("default_module_dir")+"default/_IF.module","_IF","Built-in module that branch two submodules lists depending of an interpreted boolean condition",
+  ModuleDef.initIFInputs(),
+  ModuleDef.initIFOutputs(),
+  Map[String,String](),
+  List[AbstractModuleVal]()
+)
 
 object CMDDef extends ModuleDef(ConfManager.get("default_module_dir")+"/default/_CMD.module","_CMD","Built-in module that run a UNIX commad",ModuleDef.initCMDInputs(),ModuleDef.initCMDOutputs(),Map[String,String](),List[AbstractModuleVal]()){
 

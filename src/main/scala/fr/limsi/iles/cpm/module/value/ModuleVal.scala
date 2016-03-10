@@ -120,6 +120,9 @@ object AbstractModuleVal extends LazyLogging{
             case "_MAP" => {
               MAPVal(runitemname,Some(inputs))
             }
+            case "_IF" => {
+              IFVal(runitemname,Some(inputs))
+            }
             case _ => throw new Exception("unknown run module item")
           }
         }
@@ -200,6 +203,7 @@ case class ModuleVal(override val namespace:String,override val moduledef:Module
 }
 
 
+
 case class CMDVal(override val namespace:String,override val conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(CMDDef,conf){
 
 
@@ -211,6 +215,43 @@ case class CMDVal(override val namespace:String,override val conf:Option[java.ut
 }
 
 
+case class IFVal(override val namespace:String,override val conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(IFDef,conf){
+  override def toProcess(parentProcess: Option[AbstractProcess]): AbstractProcess = {
+    new IFProcess(new IFVal(namespace,conf),parentProcess)
+  }
+}
+
+object MAPVal extends LazyLogging{
+  def extractVarsFromModuleVals(modulevals:LIST[MODVAL],innervars:Map[String,AbstractModuleParameter]):Array[String]={
+    var outervariables = Array[String]()
+    var innervariables = innervars
+    val modulelist = AbstractParameterVal.paramToScalaListModval(modulevals)
+    val implicitvars = List("_","_RUN_DIR","_DEF_DIR","_CUR_MOD","_MOD_CONTEXT")
+    modulelist.foreach(moduleval => {
+      moduleval.inputs.foreach(input => {
+        logger.debug("looking inner variable "+input._1+" of type "+input._2._mytype)
+        if (input._2._mytype.startsWith("MODVAL")){
+          val submodules = LIST[MODVAL](None,None)
+          submodules.fromYaml(input._2.toYaml())
+          outervariables = outervariables ++ MAPVal.extractVarsFromModuleVals(submodules,innervariables)
+        }else{
+          val variables = input._2.extractVariables()
+          variables.foreach(variable => {
+            if(!innervariables.contains(variable) && !implicitvars.contains(variable)){
+              outervariables = outervariables :+ variable
+            }
+          })
+        }
+      })
+      moduleval.moduledef.outputs.foreach(output => {
+        innervariables += (moduleval.namespace+"."+output._1 -> output._2)
+        logger.debug("added "+moduleval.namespace+"."+output._1)
+      })
+    })
+    outervariables
+  }
+}
+
 case class MAPVal(override val namespace:String,override val conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(MAPDef,conf){
 
 
@@ -221,24 +262,32 @@ case class MAPVal(override val namespace:String,override val conf:Option[java.ut
   override def isExecutable(env: RunEnv): Boolean = {
     inputs.foldLeft(true)((result,input) => {
       val vars = if(input._1 == "RUN"){
+        var outervariables = MAPVal.extractVarsFromModuleVals(input._2.asInstanceOf[LIST[MODVAL]],Map[String,AbstractModuleParameter]())
+          /*Array[String]()
+        var innervariables = Map[String,AbstractModuleParameter]()
         val modulelist = AbstractParameterVal.paramToScalaListModval(input._2.asInstanceOf[LIST[MODVAL]])
         val implicitvars = List("_","_RUN_DIR","_DEF_DIR","_CUR_MOD","_MOD_CONTEXT")
-        var outervariables = Array[String]()
-        var innervariables = Map[String,AbstractModuleParameter]()
         modulelist.foreach(moduleval => {
           moduleval.inputs.foreach(input => {
-            val variables = input._2.extractVariables()
-            variables.foreach(variable => {
-              if(!innervariables.contains(variable) && !implicitvars.contains(variable)){
-                outervariables = outervariables :+ variable
-              }
-            })
+            logger.debug("looking inner variable "+input._1+" of type "+input._2._mytype)
+            if (input._2._mytype.startsWith("MODVAL")){
+              val submodules = LIST[MODVAL](None,None)
+              submodules.fromYaml(input._2.toYaml())
+              outervariables = outervariables ++ MAPVal.extractVarsFromModuleVals(submodules,innervariables)
+            }else{
+              val variables = input._2.extractVariables()
+              variables.foreach(variable => {
+                if(!innervariables.contains(variable) && !implicitvars.contains(variable)){
+                  outervariables = outervariables :+ variable
+                }
+              })
+            }
           })
           moduleval.moduledef.outputs.foreach(output => {
             innervariables += (moduleval.namespace+"."+output._1 -> output._2)
             logger.debug("added "+moduleval.namespace+"."+output._1)
           })
-        })
+        })*/
         outervariables
       }else{
         input._2.extractVariables()

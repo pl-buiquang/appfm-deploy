@@ -27,9 +27,15 @@ object DockerManager extends LazyLogging{
     }
   }
 
-
+  /**
+   * Run a docker image under a specified name
+   * @todo unduplicate checking of available services (servicesAvailable and getContainer docker command result)
+   * @param name
+   * @param dockerimage
+   * @param foldersync
+   */
   def serviceRun(name:String,dockerimage:String,foldersync:java.io.File) = {
-    if(!servicesAvailable.exists(_==dockerimage)) {
+    if(!servicesAvailable.exists(_==name)) {
       try {
         val mount = "-v " + foldersync.getCanonicalPath + ":" + foldersync.getCanonicalPath
         val mount2 = " -v /tmp:/tmp -v " + ConfManager.get("default_result_dir") + ":" + ConfManager.get("default_result_dir") + " -v " + ConfManager.get("default_corpus_dir") + ":" + ConfManager.get("default_corpus_dir") + " "
@@ -45,12 +51,36 @@ object DockerManager extends LazyLogging{
         }
         val dockercmd = "docker run " + mount + mount2 + mount3 + " -td --name " + name + " " + dockerimage
         logger.debug(dockerimage)
-        dockercmd.!!
-        servicesAvailable = name :: servicesAvailable
+        val existingcontainerstatus = getContainers().getOrElse(name,("",""))
+        if(existingcontainerstatus._2 == ""){
+          dockercmd.!!
+          servicesAvailable = name :: servicesAvailable
+        }else if(existingcontainerstatus._2.startsWith("Exited")){
+          ("docker rm "+existingcontainerstatus._1).!!
+          dockercmd.!!
+          if (!servicesAvailable.exists(_ == name)){
+            servicesAvailable = name :: servicesAvailable
+          }
+        }else{
+          logger.info("image "+dockerimage+" with name "+name+" already exists with status : "+existingcontainerstatus._2)
+        }
       } catch {
-        case e: Throwable => logger.info("TODO : check with docker utilities if docker container is already running instead of catching error")
+        case e: Throwable => logger.error(e.getMessage); throw new Exception("error when trying to run service "+dockerimage+" with name "+name+". Error Message : "+e.getMessage)
       }
     }
+  }
+
+  /**
+   * Get a Map of docker containers
+   * @param onlyRunning
+   * @return a map keyed by docker container names into a tuple consisting of container id and status
+   */
+  def getContainers(onlyRunning:Boolean=false):Map[String,(String,String)]={
+    val containerslst  = ("docker ps "+ {if(onlyRunning){""}else{"-a "}}+""" --format "{{.Names}}\t{{.ID}}\t{{.Status}}"""").!!
+    containerslst.split("\n").map(item => {
+      val info = item.stripMargin('"').split("\t")
+      (info(0).trim(),(info(1).trim(),info(2).trim()))
+    }).toMap
   }
 
   def serviceExec(pid:UUID,name:String,host:String,port:String,cmd:String,foldersync:java.io.File,dockercontainername:String,workingdir:java.io.File) = {
@@ -97,12 +127,14 @@ object DockerManager extends LazyLogging{
         logger.info("Building docker image " + name)
         try {
           val filepath = new java.io.File(path)
+          var dockerfile = filepath.getCanonicalPath
           val dir = if (filepath.isDirectory) {
             filepath.getCanonicalPath
+            dockerfile = filepath.getCanonicalPath+"/Dockerfile"
           } else {
             filepath.getParent
           }
-          val output = ("docker build -t " + name + " " + dir).!
+          val output = ("docker build -t " + name + " -f " + dockerfile + " " + dir).!
           output == 0
         } catch {
           case e: Throwable => logger.error(e.getMessage); fr.limsi.iles.cpm.utils.Log.error(e); false

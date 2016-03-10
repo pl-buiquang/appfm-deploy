@@ -223,10 +223,10 @@ object RunEnv {
 
   def initFromConf(confMap:java.util.Map[String,Any]) = {
     var args = Map[String,AbstractParameterVal]()
-    YamlElt.readAs[java.util.HashMap[String,String]](confMap) match {
+    YamlElt.readAs[java.util.HashMap[String,Any]](confMap) match {
       case Some(map) => {
-        map.forEach(new BiConsumer[String,String] {
-          override def accept(t: String, u: String): Unit = {
+        map.forEach(new BiConsumer[String,Any] {
+          override def accept(t: String, u: Any): Unit = {
             val x = VAL(None,None)
             x.fromYaml(u)
             args += (t -> x)

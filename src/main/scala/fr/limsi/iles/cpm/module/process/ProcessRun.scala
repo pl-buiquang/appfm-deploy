@@ -114,6 +114,7 @@ object AbstractProcess extends LazyLogging{
     val x =  modulename match {
       case "_CMD" => new CMDProcess(new CMDVal(namespace,modulevalconf),parentProcess,uuid)
       case "_MAP" => new MAPProcess(new MAPVal(namespace,modulevalconf),parentProcess,uuid)
+      case "_IF"=> new IFProcess(new IFVal(namespace,modulevalconf),parentProcess,uuid)
       //case "_ANONYMOUS" => new AnonymousModuleProcess(new ModuleVal(namespace,new AnonymousDef(),modulevalconf),parentProcess,uuid)
       case _ => new ModuleProcess(new ModuleVal(namespace,ModuleManager.modules(modulename),modulevalconf),parentProcess,uuid)
     }
@@ -135,7 +136,7 @@ object AbstractProcess extends LazyLogging{
 
     // create new subdirectory run dir and set path to env vars
     val runresultdir = DIR(None,None)
-    if(moduleval.moduledef.name=="_CMD"){
+    if(moduleval.moduledef.name=="_CMD" || moduleval.moduledef.name=="_IF"){
       runresultdir.fromYaml(parentRunEnv.getRawVar("_RUN_DIR").get.asString())
     }else{
       runresultdir.fromYaml(parentRunEnv.getRawVar("_RUN_DIR").get.asString()+"/"+moduleval.namespace)
@@ -740,11 +741,17 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
     val dockerimagename = {
       env.resolveValueToString(moduleval.inputs("DOCKERFILE").toYaml()) match {
         case x :String => {
-          if(x=="true"){
+          if(x!="false"){
             // replace @ by "_at_" (docker doesn't accept @ char)
-            val name = DockerManager.nameToDockerName(env.getRawVar("_MOD_CONTEXT").get.asString()+"-"+moduleval.namespace) // _MOD_CONTEXT should always be the module defintion that holds this command
+            val dockerfile = new java.io.File(defdir+"/"+x)
+            val dockerfilename = if (dockerfile.exists()){
+              dockerfile.getName
+            }else{
+              "Dockerfile"
+            }
+            val name = DockerManager.nameToDockerName(env.getRawVar("_MOD_CONTEXT").get.asString()+"-"+moduleval.namespace+"-"+dockerfilename) // _MOD_CONTEXT should always be the module defintion that holds this command
             if(!DockerManager.exist(name)){
-              DockerManager.build(name,defdir+"/Dockerfile")
+              DockerManager.build(name,defdir+"/"+dockerfilename)
             }
             name
           }else{
@@ -970,7 +977,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
       newenv.setVar("_", x)
 
       val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
-
+      logger.debug("anonymous created")
       val moduleval = new ModuleVal(resultnamespace+"_MAP."+(offset+i).toString,module,Some(Utils.scalaMap2JavaMap(newenv.getVars().mapValues(paramval => {
         paramval.toYaml()
       }))))
@@ -1004,6 +1011,65 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
   }
 
+}
+
+
+class IFProcess(override val moduleval:IFVal,override val parentProcess:Option[AbstractProcess],override val id:UUID) extends AbstractProcess(parentProcess,id){
+  def this(moduleval:IFVal,parentProcess:Option[AbstractProcess]) = this(moduleval,parentProcess,UUID.randomUUID())
+
+  var done = false
+  var parentInputsDef : Map[String,AbstractModuleParameter] = Map[String,AbstractModuleParameter]()
+  var context : List[AbstractModuleVal] = List[AbstractModuleVal]()
+
+  def executeSubmodules(pipeline:String) = {
+    val modules = this.moduleval.inputs(pipeline).asInstanceOf[LIST[MODVAL]]
+    val modlist = AbstractParameterVal.paramToScalaListModval(modules)
+
+    val module = new AnonymousDef(modlist,context,parentInputsDef)
+
+    val moduleval = new ModuleVal(resultnamespace,module,Some(Utils.scalaMap2JavaMap(env.getVars().mapValues(paramval => {
+      paramval.toYaml()
+    }))))
+
+    val process = new AnonymousModuleProcess(moduleval,Some(this))
+    //childrenProcess ::= process.id
+    //this.saveStateToDB()
+    /*var list = values("process").asInstanceOf[List[AbstractProcess]]
+    list ::= process
+    values += ("process" -> list)*/
+    process.run(env,moduleval.namespace,Some(processPort),true)
+  }
+
+  override protected[this] def step(): Unit = {
+    val cond = env.resolveValueToString(moduleval.inputs("COND").toYaml())
+    cond.trim match {
+      case "" => executeSubmodules("ELSE")
+      case "0" => executeSubmodules("ELSE")
+      case "false" => executeSubmodules("ELSE")
+      case "False" => executeSubmodules("ELSE")
+      case _ => executeSubmodules("THEN")
+    }
+  }
+
+  override protected[this] def update(message: ProcessMessage): Unit = {
+    done = true
+  }
+
+  override protected[this] def attrserialize(): (Map[String, String], Map[String, String]) = {
+    (Map[String, String](), Map[String, String]())
+  }
+
+  override protected[this] def updateParentEnv(): Unit = {
+
+  }
+
+  override protected[this] def attrdeserialize(mixedattrs: Map[String, String]): Unit = {
+
+  }
+
+  override protected[this] def endCondition(): Boolean = {
+    done
+  }
 }
 
 

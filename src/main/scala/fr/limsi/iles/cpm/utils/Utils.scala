@@ -244,9 +244,9 @@ object YamlElt{
           YamlString(thing.asInstanceOf[String])
         }
       }else if(thing.isInstanceOf[Boolean]){
-        YamlString(thing.asInstanceOf[Boolean].toString)
+        YamlString(String.valueOf(thing.asInstanceOf[Boolean]))
       }else if(thing.isInstanceOf[Integer]){
-        YamlString(thing.asInstanceOf[Integer].toString)
+        YamlString(String.valueOf(thing.asInstanceOf[Integer]))
       }else{
         YamlUnknown(thing.toString)
       }
@@ -257,7 +257,7 @@ object YamlElt{
 
   def readAs[T](thing:Any) :Option[T]= {
     val bugfix = if(thing!=null && thing.isInstanceOf[Boolean]){
-      thing.asInstanceOf[Boolean].toString
+      String.valueOf(thing.asInstanceOf[Boolean])
     }else{
       thing
     }

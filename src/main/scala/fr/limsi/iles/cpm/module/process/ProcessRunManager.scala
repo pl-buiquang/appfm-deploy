@@ -88,7 +88,7 @@ object ProcessRunManager extends LazyLogging{
     val yaml = new Yaml()
 
     val confMap = yaml.load(confdata).asInstanceOf[java.util.Map[String,Any]]
-    val resultdirpath = YamlElt.readAs[java.util.HashMap[String,String]](confMap) match {
+    val resultdirpath = YamlElt.readAs[java.util.HashMap[String,Any]](confMap) match {
       case Some(map) => {
         map.get("RESULT_DIR") match {
           case x:String => x

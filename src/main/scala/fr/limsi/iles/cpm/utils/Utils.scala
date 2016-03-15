@@ -237,7 +237,7 @@ object YamlElt{
             val confMap = yaml.load(content)
             retEl = YamlElt.fromJava(confMap)
           }catch {
-            case e:Throwable => retEl = YamlString(content)
+            case e:Throwable => Log(e.getMessage());retEl = YamlString(content)
           }
           retEl
         }else{

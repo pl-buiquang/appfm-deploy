@@ -147,7 +147,7 @@ object AbstractProcess extends LazyLogging{
 
     // set module defintion directory info
     // builtin modules haven't any real definition directory, use parent's
-    val defdir = if(ModuleDef.builtinmodules.contains(moduleval.moduledef.name)){
+    val defdir = if(ModuleDef.builtinmodules.contains(moduleval.moduledef.name) || moduleval.moduledef.name == "_ANONYMOUS"){
       parentRunEnv.getRawVar("_DEF_DIR").get
     }else{
       val x = DIR(None,None)
@@ -771,7 +771,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
 
 
     if(dockerimagename!=""){
-      DockerManager.serviceRun(containername,dockerimagename,deffolder)
+      DockerManager.serviceRun(containername,dockerimagename,deffolder,moduleval.inputs("DOCKER_OPTS").asString())
       run = DockerManager.serviceExec(this.id,moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),deffolder,containername,runfolder)
     }else{
       val cmd = env.resolveValueToString(moduleval.inputs("CMD").asString())
@@ -794,8 +794,8 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
   override protected[this] def updateParentEnv(): Unit = {
 
     try{
-      stdoutval.rawValue = Source.fromFile("/tmp/out"+this.id.toString).getLines().foldLeft("")(_+"\n"+_)
-      stderrval.rawValue = Source.fromFile("/tmp/err"+this.id.toString).getLines().foldLeft("")(_+"\n"+_)
+      stdoutval.rawValue = Source.fromFile("/tmp/out"+this.id.toString).getLines().foldLeft("")(_+"\n"+_).trim
+      stderrval.rawValue = Source.fromFile("/tmp/err"+this.id.toString).getLines().foldLeft("")(_+"\n"+_).trim
 
 
       //stdoutval.rawValue = Source.fromFile("/tmp/out"+this.id.toString).getLines.mkString

@@ -32,7 +32,7 @@ sealed abstract class AbstractParameterVal(val format:Option[String],val schema:
 
   protected def parseYaml(yaml:Any)(implicit stringdeserialization:Boolean = false):Unit
 
-  def toYaml():String
+  def toYaml()(implicit serialization:Boolean = false):String
 
   def asString():String
   override def toString()=asString()
@@ -126,9 +126,14 @@ case class VAL(override val format:Option[String],override val schema:Option[Str
     throw new Exception("VAL doesn't have any attributes")
   }
 
-  override def toYaml(): String = {
+  override def toYaml()(implicit serialization:Boolean = false): String = {
     if(this.rawValue!=null){
-      this.rawValue.replace("\t","  ") // because when parsing back yaml tab are not well handled
+      val tmp = this.rawValue.replace("\t","  ") // because when parsing back yaml tab are not well handled
+      if(serialization){
+        '"'+tmp.replace(""""""","""\"""").replace("\n","""\n""")+'"'
+      }else{
+        tmp
+      }
     }else{
       logger.warn("null value for VAL")
       ""
@@ -196,7 +201,7 @@ case class FILE(override val format:Option[String],override val schema:Option[St
     }
   }
 
-  override def toYaml(): String = {
+  override def toYaml()(implicit serialization:Boolean = false): String = {
     rawValue
   }
 }
@@ -252,7 +257,7 @@ case class DIR(override val format:Option[String],override val schema:Option[Str
     }
   }
 
-  override def toYaml(): String = {
+  override def toYaml()(implicit serialization:Boolean = false): String = {
     rawValue
   }
 }
@@ -277,7 +282,7 @@ case class CORPUS(override val format:Option[String],override val schema:Option[
     throw new Exception("VAL doesn't have any attributes")
   }
 
-  override def toYaml(): String = {
+  override def toYaml()(implicit serialization:Boolean = false): String = {
     ""
   }
 }
@@ -299,7 +304,7 @@ case class DB(override val format:Option[String],override val schema:Option[Stri
     throw new Exception("no such parameter exist for "+_mytype)
   }
 
-  override def toYaml(): String = {
+  override def toYaml()(implicit serialization:Boolean = false): String = {
     ""
   }
 }
@@ -327,9 +332,9 @@ case class MODVAL(override val format:Option[String],override val schema:Option[
     throw new Exception("VAL doesn't have any attributes")
   }
 
-  override def toYaml(): String = {
+  override def toYaml()(implicit serialization:Boolean = false): String = {
     moduleval.namespace+" :\n  input : "+moduleval.inputs.foldLeft("")((prev,elt) => {
-      prev + "\n    "+elt._1+" : "+Utils.addOffset("    ",elt._2.toYaml())
+      prev + "\n    "+elt._1+" : "+Utils.addOffset("    ",elt._2.toYaml()(serialization))
     })
   }
 }
@@ -402,9 +407,9 @@ case class LIST[P <: AbstractParameterVal](override val format:Option[String],ov
     throw new Exception("VAL doesn't have any attributes")
   }
 
-  override def toYaml(): String = {
+  override def toYaml()(implicit serialization:Boolean = false): String = {
     list.foldLeft("")((str,el) => {
-      str +"\n  - "+ Utils.addOffset("    ",el.toYaml())
+      str +"\n  - "+ Utils.addOffset("    ",el.toYaml()(serialization))
     })
   }
 }
@@ -429,9 +434,9 @@ case class MAP(override val format:Option[String],override val schema:Option[Str
     }
   }
 
-  override def toYaml(): String = {
+  override def toYaml()(implicit serialization:Boolean = false): String = {
     map.foldLeft("")((agg,el)=>{
-      agg + "\n" + el._1 + " : " + el._2.toYaml()
+      agg + "\n" + el._1 + " : " + el._2.toYaml()(serialization)
     })
   }
 }

@@ -120,7 +120,7 @@ class ModuleDef(
     })
     if(tojson){
       val yaml= new Yaml();
-      val obj = yaml.load(yamlstring);
+      val obj = yaml.load(yamlstring.replaceAll("""(?<!\\)\\(?!(\\|"))""","""\\\\"""));
       return YamlElt.fromJava(obj).toJSONObject().toString
     }else{
       return yamlstring
@@ -238,6 +238,9 @@ object ModuleDef extends LazyLogging{
     val forcecontainerized = VAL(None,None)
     forcecontainerized.fromYaml("false")
     x += ("CONTAINED"->new ModuleParameter[VAL]("VAL",None,None,None,Some(forcecontainerized)))
+    val docker_opts = VAL(None,None)
+    docker_opts.fromYaml("")
+    x += ("DOCKER_OPTS"->new ModuleParameter[VAL]("VAL",None,None,None,Some(docker_opts)))
     val defaultdockerfile = VAL(None,None)
     defaultdockerfile.fromYaml("false")
     x += ("DOCKERFILE"->new ModuleParameter[VAL]("VAL",None,None,None,Some(defaultdockerfile)))

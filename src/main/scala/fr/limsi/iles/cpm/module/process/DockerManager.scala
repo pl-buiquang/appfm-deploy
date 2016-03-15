@@ -34,7 +34,7 @@ object DockerManager extends LazyLogging{
    * @param dockerimage
    * @param foldersync
    */
-  def serviceRun(name:String,dockerimage:String,foldersync:java.io.File) = {
+  def serviceRun(name:String,dockerimage:String,foldersync:java.io.File,docker_opts:String) = {
     if(!servicesAvailable.exists(_==name)) {
       try {
         val mount = "-v " + foldersync.getCanonicalPath + ":" + foldersync.getCanonicalPath
@@ -49,7 +49,7 @@ object DockerManager extends LazyLogging{
             mount3 += " -v "+file.getCanonicalPath+":"+file.getCanonicalPath
           }
         }
-        val dockercmd = "docker run " + mount + mount2 + mount3 + " -td --name " + name + " " + dockerimage
+        val dockercmd = "docker run "+docker_opts +" "+ mount + mount2 + mount3 + " -td --name " + name + " " + dockerimage
         logger.debug(dockerimage)
         val existingcontainerstatus = getContainers().getOrElse(name,("",""))
         if(existingcontainerstatus._2 == ""){

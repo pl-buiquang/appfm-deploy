@@ -36,6 +36,17 @@ object Log {
 
 object Utils extends LazyLogging{
 
+  def checkValidPath(path:String):Boolean={
+    val resdir = ConfManager.get("default_result_dir").toString
+    val corpusdir = ConfManager.get("default_corpus_dir").toString
+    try{
+      val normalizedpath = (new File(path)).getCanonicalPath
+      normalizedpath.startsWith(resdir) || normalizedpath.startsWith(corpusdir)
+    }catch {
+      case e: Throwable => logger.error("invalid path " + path); false
+    }
+  }
+
   def lsDir(curFilepath:String,from:Int) : Object = {
     var jsonserial = new JSONArray();
     val curfilepathnormalized = if(!curFilepath.endsWith("/")){

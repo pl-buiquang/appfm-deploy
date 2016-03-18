@@ -10,7 +10,7 @@ import com.mongodb.casbah.commons.MongoDBObject
 import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.definition.ModuleManager
 import fr.limsi.iles.cpm.module.value._
-import fr.limsi.iles.cpm.server.Server
+import fr.limsi.iles.cpm.server.{EventMessage, EventManager, Server}
 import fr.limsi.iles.cpm.utils.{Utils, YamlElt, ConfManager, DB}
 import org.yaml.snakeyaml.Yaml
 import org.zeromq.ZMQ
@@ -37,7 +37,9 @@ object ProcessRunManager extends LazyLogging{
       case Some(thing) => {
         val processdbobject = thing.asInstanceOf[BasicDBObject]
         processCollection.remove(processdbobject)
-        deleteResultDir(AbstractProcess.fromMongoDBObject(processdbobject))
+        val process = AbstractProcess.fromMongoDBObject(processdbobject)
+        deleteResultDir(process)
+        EventManager.emit(new EventMessage("process-deleted",process.id.toString,process.moduleval.moduledef.name))
         "ok"
       }
       case None => "no such process exist"
@@ -173,7 +175,7 @@ object ProcessRunManager extends LazyLogging{
 
 class MasterProcessShell(process:AbstractProcess,detached:Boolean,ns:String,env:RunEnv){
   def run() = {
-
+    EventManager.emit(new EventMessage("process-started",process.id.toString,process.moduleval.moduledef.name))
     if(detached){
       val executorService = Executors.newSingleThreadExecutor()
       val process = executorService.execute(new Runnable {
@@ -219,8 +221,7 @@ class MasterProcessShell(process:AbstractProcess,detached:Boolean,ns:String,env:
         case ValidProcessMessage(sender,status,exitval) => status match {
           case "FINISHED" => {
             finished = true
-
-
+            EventManager.emit(new EventMessage("process-ended",process.id.toString,process.moduleval.moduledef.name))
           }
           case s : String => finished = true
         }

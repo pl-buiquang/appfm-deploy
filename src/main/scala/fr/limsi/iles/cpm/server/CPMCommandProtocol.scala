@@ -37,6 +37,9 @@ object CPMCommand {
 
 class CPMCommand(zmqmessage:String){
 
+
+
+
   val frames = CPMCommand.getFrames(zmqmessage)
 
   val user = frames.getOrElse("USER","_default")

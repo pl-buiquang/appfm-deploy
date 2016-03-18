@@ -176,7 +176,7 @@ object CLInterpreter {
           }
 
           toprint
-        } catch {case e:Throwable => "Error :"+e.getMessage}
+        } catch {case e:Throwable => """{"error" : """"+e.getMessage+"\"}"}
         case "get" => try{
           if(args.size > 1){
             ProcessRunManager.getProcess(UUID.fromString(args(1))).serializeToJSON().toString
@@ -184,21 +184,21 @@ object CLInterpreter {
           }else{
             "Missing pid"
           }
-        }catch {case e:Throwable => "Error :"+e.getMessage}
+        }catch {case e:Throwable => """{"error" : """"+e.getMessage+"\"}"}
         case "del" => try{
           if(args.size > 1){
             ProcessRunManager.deleteProcess(UUID.fromString(args(1)))
           }else{
             "Missing pid"
           }
-        }catch {case e:Throwable => "Error :"+e.getMessage}
+        }catch {case e:Throwable => """{"error" : """"+e.getMessage+"\"}"}
         case "status" => try{
           if(args.size > 1){
             ProcessRunManager.getProcess(UUID.fromString(args(1))).getStatus(true)
           }else{
             "Missing pid"
           }
-        }catch {case e:Throwable => "Error :"+e.getMessage}
+        }catch {case e:Throwable => """{"error" : """"+e.getMessage+"\"}"}
         case "log" => {
           if(args.size > 1){
             val process = ProcessRunManager.getProcess(UUID.fromString(args(1)))
@@ -369,6 +369,9 @@ object CLInterpreter {
           if(args.size>1){
             if (!(new java.io.File(args(1))).exists()){
               return cliError("File doesn't exist!")
+            }
+            if(!Utils.checkValidPath(args(1))){
+              return cliError("Not allowed to retrieve this file ! ("+args(1)+"). Fetchable files must be within corpus or result directories.")
             }
             val lines = Source.fromFile(args(1)).getLines()
             if (lines.hasNext){

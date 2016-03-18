@@ -3,6 +3,7 @@ package fr.limsi.iles.cpm.module.definition
 import java.io.{BufferedWriter, FileWriter, File, FileInputStream}
 
 import com.typesafe.scalalogging.LazyLogging
+import fr.limsi.iles.cpm.server.{EventMessage, EventManager}
 import fr.limsi.iles.cpm.utils._
 import org.json.{JSONArray, JSONObject}
 import org.yaml.snakeyaml.Yaml
@@ -130,6 +131,7 @@ object ModuleManager extends LazyLogging{
     }
 
     if(modules.contains(name)){
+      EventManager.emit(new EventMessage("module-added",name,folderpath))
       response.put("success",name)
       modulestree = insertInModuleTree(name,folderpath,modulestree,modulestree.modPath).get
     }
@@ -195,6 +197,7 @@ object ModuleManager extends LazyLogging{
     }
 
     if(updatesuccess){
+      EventManager.emit(new EventMessage("module-updated",name,normalizeddata))
       response.put("success",name)
     }
 

@@ -244,6 +244,9 @@ object AbstractProcess extends LazyLogging{
         if(!(new java.io.File(el._2.asString())).exists()){
           throw new Exception(el._2.asString() + " does not exist! Aborting run")
         }
+        if(!Utils.checkValidPath(el._2.asString())){
+          throw new Exception(el._2.asString() + " is not an allowed path ! Aborting run")
+        }
       }
     })
 
@@ -771,7 +774,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
 
 
     if(dockerimagename!=""){
-      DockerManager.serviceRun(containername,dockerimagename,deffolder,moduleval.inputs("DOCKER_OPTS").asString())
+      DockerManager.serviceRun(containername,dockerimagename,deffolder,env.resolveValueToString(moduleval.inputs("DOCKER_OPTS").asString()))
       run = DockerManager.serviceExec(this.id,moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),deffolder,containername,runfolder)
     }else{
       val cmd = env.resolveValueToString(moduleval.inputs("CMD").asString())

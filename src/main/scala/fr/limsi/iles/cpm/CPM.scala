@@ -10,7 +10,7 @@ import com.typesafe.scalalogging.{Logger, LazyLogging}
 import fr.limsi.iles.cpm.module.definition.ModuleManager
 import fr.limsi.iles.cpm.module.process.DockerManager
 import fr.limsi.iles.cpm.module.value.MODVAL
-import fr.limsi.iles.cpm.server.{EventManager, Server}
+import fr.limsi.iles.cpm.server.{EventMessage, EventManager, Server, WebsocketServer}
 import fr.limsi.iles.cpm.utils.{Log, ConfManager}
 import org.slf4j.LoggerFactory
 
@@ -34,7 +34,7 @@ object CPM extends App{
 
     // shutdown hook for clean exit
     sys.addShutdownHook({
-      println("ShutdownHook called")
+      EventManager.emit(new EventMessage("kernel-stopped","",""))
       DockerManager.cleanup() // clean up docker exited containers
       //Server.context.term()
     })
@@ -57,7 +57,10 @@ object CPM extends App{
     val port = ConfManager.get("cmd_listen_port").toString
     Log("Listening on port : "+port)
     EventManager.start()
+
+
     Server.run(port)
+
   }
 
 }

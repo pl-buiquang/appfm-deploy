@@ -28,7 +28,6 @@ object Server extends LazyLogging{
 
     val frontend = context.socket(ZMQ.ROUTER)
 
-    println ("starting")
     frontend.bind ("tcp://*:"+port)
 
     val backend = context.socket(ZMQ.DEALER)
@@ -40,6 +39,8 @@ object Server extends LazyLogging{
       pool.execute(new RequestHandler())
     }
 
+    EventManager.emit(new EventMessage("kernel-started","","with "+nthreads+" client threads at port "+port))
+
     ZMQ.proxy(frontend,backend,null)
 
 
@@ -47,6 +48,8 @@ object Server extends LazyLogging{
     backend.close()
     context.term()
   }
+
+
 }
 
 class RequestHandler extends Runnable with LazyLogging{

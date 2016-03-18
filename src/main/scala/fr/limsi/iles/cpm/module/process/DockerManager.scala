@@ -50,7 +50,10 @@ object DockerManager extends LazyLogging{
           }
         }
         val dockercmd = "docker run "+docker_opts +" "+ mount + mount2 + mount3 + " -td --name " + name + " " + dockerimage
+        Thread.sleep(2000)
+        logger.info("sleeping for 2secondes. TODO !! Fix delay needed for possible dockerized server initialization time... :(")
         logger.debug(dockerimage)
+        logger.info(dockercmd)
         val existingcontainerstatus = getContainers().getOrElse(name,("",""))
         if(existingcontainerstatus._2 == ""){
           dockercmd.!!

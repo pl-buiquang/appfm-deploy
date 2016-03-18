@@ -137,8 +137,8 @@ object DockerManager extends LazyLogging{
           val filepath = new java.io.File(path)
           var dockerfile = filepath.getCanonicalPath
           val dir = if (filepath.isDirectory) {
-            filepath.getCanonicalPath
             dockerfile = filepath.getCanonicalPath+"/Dockerfile"
+            filepath.getCanonicalPath
           } else {
             filepath.getParent
           }

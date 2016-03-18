@@ -2,6 +2,7 @@
 
 source /vagrant/scripts/env.sh
 
+
 echo "Compiling and packaging core server :"
 cd $CPM_HOME/core
 sbt assembly

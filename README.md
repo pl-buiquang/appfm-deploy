@@ -54,7 +54,11 @@ vagrant ssh
 
 5. First run (takes a long the first time since it builds base containers):
 cd /vagrant
-./start.sh  (or ./start-daemon.sh)
+./start.sh (or ./start-daemon.sh)
+(first time you should use ./start.sh, this way you can monitor when the (first time only long) initialization is complete before proceeding to next step)
+
+
+The log file is named appfm.log
 
 When finished you can go to http://localhost:8080
 

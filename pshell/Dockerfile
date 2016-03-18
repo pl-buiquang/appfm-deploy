@@ -4,7 +4,7 @@ FROM ubuntu:precise
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-  python python-pip python-dev gcc g++ vim net-tools curl less python-software-properties
+  ca-certificates python python-pip python-dev gcc g++ vim net-tools curl less python-software-properties
 
 RUN pip install pyzmq 
 

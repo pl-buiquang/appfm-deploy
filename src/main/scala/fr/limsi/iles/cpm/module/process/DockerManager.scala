@@ -79,11 +79,16 @@ object DockerManager extends LazyLogging{
    * @return a map keyed by docker container names into a tuple consisting of container id and status
    */
   def getContainers(onlyRunning:Boolean=false):Map[String,(String,String)]={
-    val containerslst  = ("docker ps "+ {if(onlyRunning){""}else{"-a "}}+""" --format "{{.Names}}\t{{.ID}}\t{{.Status}}"""").!!
-    containerslst.split("\n").map(item => {
-      val info = item.stripMargin('"').split("\t")
-      (info(0).trim(),(info(1).trim(),info(2).trim()))
-    }).toMap
+    val containerslstcmd  = ("docker ps "+ {if(onlyRunning){""}else{"-a "}}+""" --format "{{.Names}}\t{{.ID}}\t{{.Status}}"""")
+    try{
+      val containerslst = containerslstcmd.!!
+      containerslst.split("\n").map(item => {
+        val info = item.stripMargin('"').split("\t")
+        (info(0).trim(),(info(1).trim(),info(2).trim()))
+      }).toMap
+    }catch{
+      case e:Throwable => logger.error(containerslstcmd+" : "+e.getMessage); Map[String,(String,String)]()
+    }
   }
 
   def serviceExec(pid:UUID,name:String,host:String,port:String,cmd:String,foldersync:java.io.File,dockercontainername:String,workingdir:java.io.File) = {

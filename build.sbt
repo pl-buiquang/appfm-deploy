@@ -5,6 +5,8 @@ lazy val root = (project in file(".")).
     scalaVersion := "2.11.7"
   )
 
+mainClass in assembly := Some("fr.limsi.iles.cpm.CPM")
+
 val buildSettings = Defaults.coreDefaultSettings ++ Seq(
   //…
   javaOptions += "-Xmx3G"

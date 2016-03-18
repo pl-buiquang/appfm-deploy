@@ -142,7 +142,9 @@ object DockerManager extends LazyLogging{
           } else {
             filepath.getParent
           }
-          val output = ("docker build -t " + name + " -f " + dockerfile + " " + dir).!
+          val buildcmd = ("docker build -t " + name + " -f " + dockerfile + " " + dir)
+          logger.info("Docker : "+buildcmd)
+          val output = buildcmd.!
           output == 0
         } catch {
           case e: Throwable => logger.error(e.getMessage); fr.limsi.iles.cpm.utils.Log.error(e); false

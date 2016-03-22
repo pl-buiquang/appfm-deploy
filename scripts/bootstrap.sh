@@ -38,8 +38,10 @@ cp /vagrant/web/private/appfm.conf /etc/apache2/sites-available
 a2ensite appfm.conf
 a2enmod rewrite
 mkdir -p /vagrant/web/log
+mkdir -p /vagrant/web/dokuwiki/data/cache
+mkdir -p /vagrant/web/dokuwiki/data/index
 touch /vagrant/web/log/custom.log
-chmod a+w /vagrant/web/log/custom.log 
+chmod a+w /vagrant/web/log/custom.log /vagrant/web/dokuwiki/data/index /vagrant/web/dokuwiki/data/cache
 
 # mongodb php driver
 apt-get install -y php5-dev php5-cli php-pear libsasl2-dev

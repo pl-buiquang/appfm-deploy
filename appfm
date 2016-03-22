@@ -1,0 +1,56 @@
+#!/bin/bash
+
+dir=`dirname $0`
+
+source $dir/scripts/env.sh
+
+bin="$CPM_HOME/lib/jdk1.8.0_51/bin/java -jar $CPM_HOME/core/target/scala-2.11/cpm-core-server-assembly-1.0.jar $CPM_HOME/core/src/main/resources/conf.yml"
+pid=$CPM_HOME/`hostname`-appfm.pid
+
+
+start() {
+	if [ -f $pid ] ; then
+		echo "pid file exists ($pid), AppFM may already be running"
+	else
+		if [[ $1 == "-d" || $1 == "--daemon" ]] ; then
+			echo "AppFM started in daemon mode"
+			nohup $bin > $CPM_HOME/appfm.log&
+			echo $! > $pid
+		else
+			echo "AppFM started"
+			$bin
+		fi
+	fi	
+}
+
+stop() {
+	if [ -f $pid ] ; then
+		echo "AppFM stopped"
+		kill -15 `cat $pid`
+		rm $pid
+	else
+		echo "no pid file found, AppFM may not be running"
+	fi
+}
+
+restart() {
+	stop
+	start $1
+}
+
+
+case "$1" in
+ start)
+  start $2
+ ;;
+ stop)
+  stop
+ ;;
+ restart)
+  restart $2
+ ;;
+ *)
+  echo "Usage: appfm {start|stop|restart} [-d|--daemon]"
+  exit 1
+ ;;
+esac

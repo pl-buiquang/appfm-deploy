@@ -1,0 +1,63 @@
+#!/bin/bash
+#
+# AppFM init script
+# Created by Paul Bui-Quang
+#
+# description: Run AppFM - Application Frame Manager for NLP as Linux service.
+# chkconfig: 2345 80 20
+
+# start function will be executed on startup
+. /etc/init.d/functions
+
+source /home/paul/projects/custom/cpm/scripts/env.sh
+myname=AppFM
+bin=$CPM_HOME/script/start.sh $CPM_HOME/core/src/main/resources/conf.yml
+RETVAL=0
+
+# start function will be executed on startup
+start() {
+ echo -n "Starting $myname: "
+ # start application command
+ daemon $bin
+ RETVAL=$?
+ [ $RETVAL -eq 0 ] && touch /var/lock/subsys/$myname
+ echo
+ return $RETVAL
+}
+
+# stop function will be executed on shutdown
+stop() {
+ echo -n "Stopping $myname: "
+ # stop application command
+ killproc $bin
+ RETVAL=$?
+ [ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/$myname
+ echo
+ return $RETVAL
+}
+
+# restart function will be executed for restarting the application
+restart() {
+ stop
+ start
+}
+
+case "$1" in
+ start)
+  start
+ ;;
+ stop)
+  stop
+ ;;
+ restart)
+  restart
+ ;;
+ status)
+  status $bin
+ ;;
+ *)
+  echo "Usage: $myname {start|stop|status|restart}"
+  exit 1
+ ;;
+esac
+exit $?

@@ -14,11 +14,11 @@ import org.java_websocket.server.WebSocketServer;
 class WebsocketServer(port:Int) extends WebSocketServer(new InetSocketAddress( port )){
 
   override def onOpen(conn: WebSocket, handshake: ClientHandshake): Unit = {
-    this.sendToAll( "{\"message\":\"" +"new connection: " + handshake.getResourceDescriptor()+"\"}" );
+    //this.sendToAll( "{\"message\":\"" +"new connection: " + handshake.getResourceDescriptor()+"\"}" );
   }
 
   override def onError(conn: WebSocket, ex: Exception): Unit = {
-    this.sendToAll( "{\"message\":\"" + conn + " disconnected\"}" );
+    //this.sendToAll( "{\"message\":\"" + conn + " disconnected\"}" );
   }
 
   override def onMessage(conn: WebSocket, message: String): Unit = {

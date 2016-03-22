@@ -644,6 +644,8 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
       //childrenProcess ::= process.id
       //this.saveStateToDB()
       process.run(env,moduleval.namespace,Some(processPort),true)
+    }else{
+      throw new Exception("couldn't continue execution env doesn't provide necessary inputs..")
     }
     // this code only takes into account runnable module based on variables existence
     // it can run multiple modules in parallel not taking into account the execution description modules order

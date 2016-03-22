@@ -384,18 +384,16 @@ object CLInterpreter {
           }
         }
         case "ls" => {
-          if(args.size>1){
+          if(args.size>2){
             if (!(new java.io.File(args(1))).exists()){
               return cliError("File doesn't exist!")
             }
-            val lines = Source.fromFile(args(1)).getLines()
-            if (lines.hasNext){
-              lines.foldLeft("")((agg,line)=>agg+"\n"+line).substring(1)
-            }else{
-              ""
+            if(!Utils.checkValidPath(args(1))){
+              return cliError("Not allowed to list this directory ! ("+args(1)+"). Directories must be within corpus or result directories.")
             }
+            Utils.lsDir(args(1),args(2).toInt).toString
           }else{
-            cliError("Missing file")
+            cliError("Missing file or start offset")
           }
         }
         case _ => cliError("Invalid argument")

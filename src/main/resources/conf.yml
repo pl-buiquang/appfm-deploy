@@ -1,6 +1,6 @@
 # CPM Server Configuration
 
-cpm_home_dir : /vagrant 
+cpm_home_dir : /vagrant
 
 # main port to connect client with
 cmd_listen_port : 5555

@@ -35,40 +35,42 @@ object DockerManager extends LazyLogging{
    * @param foldersync
    */
   def serviceRun(name:String,dockerimage:String,foldersync:java.io.File,docker_opts:String) = {
-    if(!servicesAvailable.exists(_==name)) {
-      try {
-        val mount = "-v " + foldersync.getCanonicalPath + ":" + foldersync.getCanonicalPath
-        val mount2 = " -v /tmp:/tmp -v " + ConfManager.get("default_result_dir") + ":" + ConfManager.get("default_result_dir") + " -v " + ConfManager.get("default_corpus_dir") + ":" + ConfManager.get("default_corpus_dir") + " "
-        val list : java.util.ArrayList[String] = ConfManager.get("modules_dir").asInstanceOf[java.util.ArrayList[String]]
-        var mount3 = ""
-        val iterator = list.iterator()
-        while(iterator.hasNext) {
-          val path = iterator.next()
-          val file = new File(path)
-          if(file.exists()){
-            mount3 += " -v "+file.getCanonicalPath+":"+file.getCanonicalPath
+    servicesAvailable.synchronized{
+      if(!servicesAvailable.exists(_==name)) {
+        try {
+          val mount = "-v " + foldersync.getCanonicalPath + ":" + foldersync.getCanonicalPath
+          val mount2 = " -v /tmp:/tmp -v " + ConfManager.get("default_result_dir") + ":" + ConfManager.get("default_result_dir") + " -v " + ConfManager.get("default_corpus_dir") + ":" + ConfManager.get("default_corpus_dir") + " "
+          val list : java.util.ArrayList[String] = ConfManager.get("modules_dir").asInstanceOf[java.util.ArrayList[String]]
+          var mount3 = ""
+          val iterator = list.iterator()
+          while(iterator.hasNext) {
+            val path = iterator.next()
+            val file = new File(path)
+            if(file.exists()){
+              mount3 += " -v "+file.getCanonicalPath+":"+file.getCanonicalPath
+            }
           }
-        }
-        val dockercmd = "docker run "+docker_opts +" "+ mount + mount2 + mount3 + " -td --name " + name + " " + dockerimage
-        Thread.sleep(2000)
-        logger.info("sleeping for 2secondes. TODO !! Fix delay needed for possible dockerized server initialization time... :(")
-        logger.debug(dockerimage)
-        logger.info(dockercmd)
-        val existingcontainerstatus = getContainers().getOrElse(name,("",""))
-        if(existingcontainerstatus._2 == ""){
-          dockercmd.!!
-          servicesAvailable = name :: servicesAvailable
-        }else if(existingcontainerstatus._2.startsWith("Exited")){
-          ("docker rm "+existingcontainerstatus._1).!!
-          dockercmd.!!
-          if (!servicesAvailable.exists(_ == name)){
+          val dockercmd = "docker run "+docker_opts +" "+ mount + mount2 + mount3 + " -td --name " + name + " " + dockerimage
+          Thread.sleep(2000)
+          logger.info("sleeping for 2secondes. TODO !! Fix delay needed for possible dockerized server initialization time... :(")
+          logger.debug(dockerimage)
+          logger.info(dockercmd)
+          val existingcontainerstatus = getContainers().getOrElse(name,("",""))
+          if(existingcontainerstatus._2 == ""){
+            dockercmd.!!
             servicesAvailable = name :: servicesAvailable
+          }else if(existingcontainerstatus._2.startsWith("Exited")){
+            ("docker rm "+existingcontainerstatus._1).!!
+            dockercmd.!!
+            if (!servicesAvailable.exists(_ == name)){
+              servicesAvailable = name :: servicesAvailable
+            }
+          }else{
+            logger.info("image "+dockerimage+" with name "+name+" already exists with status : "+existingcontainerstatus._2)
           }
-        }else{
-          logger.info("image "+dockerimage+" with name "+name+" already exists with status : "+existingcontainerstatus._2)
+        } catch {
+          case e: Throwable => logger.error(e.getMessage); throw new Exception("error when trying to run service "+dockerimage+" with name "+name+". Error Message : "+e.getMessage)
         }
-      } catch {
-        case e: Throwable => logger.error(e.getMessage); throw new Exception("error when trying to run service "+dockerimage+" with name "+name+". Error Message : "+e.getMessage)
       }
     }
   }

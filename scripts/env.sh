@@ -3,6 +3,8 @@
 # The base path of the installation (the place where the cpm git repository was cloned)
 export CPM_HOME=/vagrant 
 
+export ZMQ_LIB=/usr/local/lib
+
 # Paths of provided dependencies relative to the base path
 export JAVA_HOME=$CPM_HOME/lib/jdk1.8.0_51
 export SCALA_HOME=$CPM_HOME/lib/scala-2.11.7

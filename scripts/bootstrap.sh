@@ -30,6 +30,14 @@ service influxdb start
 #apt-get install -y php5-fpm
 #/etc/init.d/php5-fpm restart
 
+#jzmq
+apt-get install libtool-bin
+cd /vagrant/lib/jzmq/jzmq-jni
+./autogen.sh
+./configure
+make
+make install
+
 #webserver (apache)
 apt-get install -y apache2 libapache2-mod-php5
 mv /etc/apache2/ports.conf /etc/apache2/ports.conf.origin

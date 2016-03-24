@@ -90,7 +90,12 @@ object DockerManager extends LazyLogging{
       Thread.sleep(1000)
     }
 
+
     runOnlyOneProcessAtATime.synchronized{
+      val freemem = getFreeMemory()
+      if (freemem < 500){
+        cleanUnusedContainer()
+      }
       val containerName = DockerManager.serviceRun(imagename,foldersync,dockeropts,unique)
       val absolutecmd = cmd.replace("\n"," ").replaceAll("^\\./",foldersync.getCanonicalPath+"/")
       val dockercmd = "docker exec -td "+containerName+" /home/pshell/bin/cpm-process-shell.py true "+pid.toString+" "+name+" "+port+" "+workingdir.getCanonicalPath+" "+absolutecmd
@@ -257,6 +262,9 @@ object DockerManager extends LazyLogging{
     }
   }
 
+  def getFreeMemory() = {
+    Integer.valueOf(("free -m" #| "grep buffers/cache" #| Process (Seq ("sed", "-e", "s/\\s\\+/ /g")) #| Process (Seq ("cut","-f","4","-d"," ")) !!).trim())
+  }
 
   def removeService(name:String)={
     val kill = "docker kill "+name

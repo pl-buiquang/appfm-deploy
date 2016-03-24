@@ -90,10 +90,18 @@ object ProcessRunManager extends LazyLogging{
     val yaml = new Yaml()
 
     val confMap = yaml.load(confdata).asInstanceOf[java.util.Map[String,Any]]
+    var customresultdir = false
     val resultdirpath = YamlElt.readAs[java.util.HashMap[String,Any]](confMap) match {
       case Some(map) => {
         map.get("RESULT_DIR") match {
-          case x:String => x
+          case x:String => {
+            if(Utils.checkValidPath(x)){
+              customresultdir = true
+              x
+            }else{
+              throw new Exception("invalid result directory. must be with "+ConfManager.get("default_result_dir").toString)
+            }
+          }
           case _ => ConfManager.get("default_result_dir").toString+"/"+modulename
         }
       }
@@ -116,7 +124,7 @@ object ProcessRunManager extends LazyLogging{
     val uuid = process.id
 
     // creating base run result dir
-    val runresultdir = createRunResultDir(resultdirpath,uuid)
+    val runresultdir = createRunResultDir(resultdirpath,uuid,customresultdir)
 
     // setting run environment from conf and default variables
     val env = RunEnv.initFromConf(confMap)
@@ -150,7 +158,7 @@ object ProcessRunManager extends LazyLogging{
   }
 
 
-  def createRunResultDir(resultdirpath:String,uuid:UUID) = {
+  def createRunResultDir(resultdirpath:String,uuid:UUID,custom:Boolean) = {
     val resultdir = new java.io.File(resultdirpath)
     if(!resultdir.exists()){
       logger.debug("result dir does not exist, atempting to create it")
@@ -162,10 +170,16 @@ object ProcessRunManager extends LazyLogging{
     }else if(!resultdir.canWrite){
       throw new Exception("cannot write in the result dir")
     }
-    val runresultdirpath = resultdir.getCanonicalPath+"/run-"+uuid
-    val runresultdir = new java.io.File(runresultdirpath)
-    if(!runresultdir.mkdir()){
-      throw new Exception("cannot create run result dir")
+    val runresultdirpath = {
+      if(!custom){
+        val runresultdir = new java.io.File(resultdir.getCanonicalPath+"/run-"+uuid)
+        if(!runresultdir.mkdir()){
+          throw new Exception("cannot create run result dir")
+        }
+        runresultdir.getCanonicalPath
+      }else{
+        resultdirpath
+      }
     }
     logger.debug("created result dir")
     runresultdirpath

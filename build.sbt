@@ -25,7 +25,8 @@ resolvers += "Sonatype (releases)" at "https://oss.sonatype.org/content/reposito
 
 libraryDependencies += "org.yaml" % "snakeyaml" % "1.16"
 
-libraryDependencies += "org.zeromq" % "jeromq" % "0.3.5"
+//libraryDependencies += "org.zeromq" % "jeromq" % "0.3.5"
+libraryDependencies += "org.zeromq" % "jzmq" % "3.1.0"
 
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0"
 

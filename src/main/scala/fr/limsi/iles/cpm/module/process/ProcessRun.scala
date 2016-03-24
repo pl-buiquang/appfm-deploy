@@ -732,6 +732,8 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
   var stdoutval : VAL = VAL(None,None)
   var stderrval : VAL = VAL(None,None)
   var run = ""
+  var container : Option[String]= None
+  var image  : Option[String]= None
 
   override def step(): Unit = {
     logger.debug("Launching CMD "+env.resolveValueToString(moduleval.inputs("CMD").asString()))
@@ -767,26 +769,34 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
       }
     }
 
-    val containername = if(env.resolveValueToString(moduleval.inputs("CONTAINED").toYaml()) == "true") {
+    /*val containername = if(env.resolveValueToString(moduleval.inputs("CONTAINED").toYaml()) == "true") {
       UUID.randomUUID().toString // to ensure a unique docker container is created for this process that should be containerized from other instances of the same process
     } else {
       dockerimagename
-    }
+    }*/
 
-
+    val unique = (env.resolveValueToString(moduleval.inputs("CONTAINED").toYaml()) == "true")
 
     if(dockerimagename!=""){
-      DockerManager.serviceRun(containername,dockerimagename,deffolder,env.resolveValueToString(moduleval.inputs("DOCKER_OPTS").asString()))
-      run = DockerManager.serviceExec(this.id,moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),deffolder,containername,runfolder)
+      image = Some(dockerimagename)
+      val containername = DockerManager.serviceExec(this.id,moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),deffolder,dockerimagename,runfolder,env.resolveValueToString(moduleval.inputs("DOCKER_OPTS").asString()),unique)
+      container = Some(containername)
     }else{
+
       val cmd = env.resolveValueToString(moduleval.inputs("CMD").asString())
       val absolutecmd = cmd.replace("\n"," ").replace("\"","\\\"").replaceAll("^\\./",deffolder.getCanonicalPath+"/")
       val cmdtolaunch = "python "+ConfManager.get("cpm_home_dir")+"/"+ConfManager.get("process_shell_bin")+" false "+this.id.toString+" "+moduleval.namespace+" "+processPort+" "+runfolder.getCanonicalPath+" "+absolutecmd+""
       logger.info("Launchin cmd : "+cmdtolaunch)
+      DockerManager.runOnlyOneProcessAtATime.synchronized {
+        DockerManager.nonDockerProcRunning += 1
+      }
       val exitval = Process(cmdtolaunch,new java.io.File(wd)) ! ProcessLogger(line => stdout+="\n"+line,line=>stderr+="\n"+line)
+      DockerManager.runOnlyOneProcessAtATime.synchronized {
+        DockerManager.nonDockerProcRunning -= 1
+      }
       /*stdoutval.rawValue = stdout
       stderrval.rawValue = stderr*/
-      if(exitval!=0){
+      if(exitval!=0) {
         throw new Exception(stderr)
       }
     }
@@ -832,7 +842,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
       case ValidProcessMessage(sender,status,exitval) => status match {
         case "FINISHED" => {
           logger.debug(sender + " just finished")
-
+          DockerManager.updateServiceStatus(container,image,false)
           if(exitval!="0"){
             throw new Exception(sender+" failed with exit value "+exitval)
           }
@@ -868,7 +878,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
   override def postInit():Unit={
     values += ("dir" -> new java.io.File(moduleval.getInput("IN",env).asString()))
-    values += ("chunksize" -> Integer.valueOf(moduleval.getInput("CHUNK_SIZE",env).asString()))
+    values += ("chunksize" -> Integer.valueOf(ConfManager.get("maxproc").toString))
     val modvals = moduleval.inputs("RUN").asInstanceOf[LIST[MODVAL]]
     values += ("modules" -> AbstractParameterVal.paramToScalaListModval(modvals))
     values += ("process" -> List[AbstractProcess]())

@@ -1,6 +1,7 @@
 package fr.limsi.iles.cpm.module.parameter
 
 
+import fr.limsi.iles.cpm.module.definition.ModuleDef
 import fr.limsi.iles.cpm.module.value._
 import fr.limsi.iles.cpm.utils.{YamlElt, YamlList, YamlMap, YamlString}
 
@@ -25,6 +26,13 @@ abstract class AbstractModuleParameter{
 
   def createVal(): AbstractParameterVal
 
+  def toAbstractParameterVal():AbstractParameterVal={
+    value match{
+      case Some(paramval)=>paramval
+      case None=>createVal()
+    }
+  }
+
   override def toString():String={
     val descin = if(desc.isEmpty){
       ""
@@ -33,6 +41,7 @@ abstract class AbstractModuleParameter{
     }
     paramType + "( format : " + format.getOrElse("none") + " ; schema : " +schema.getOrElse("none")+ ")" + descin
   }
+
 }
 
 class ModuleParameter[U <: AbstractParameterVal](theparamType:String,override val desc:Option[String], override val format:Option[String], override val schema:Option[String], defaultval : Option[U])(implicit manifest: Manifest[U]) extends AbstractModuleParameter{
@@ -53,6 +62,8 @@ class ModuleParameter[U <: AbstractParameterVal](theparamType:String,override va
 }
 
 object AbstractModuleParameter{
+
+
   def createVal(typestr:String,format:Option[String]=None,schema:Option[String]=None) : AbstractParameterVal ={
     """(\w+)\s*((\+|\*)*)""".r.findFirstMatchIn(typestr) match {
       case Some(matched) => {
@@ -128,6 +139,10 @@ object AbstractModuleParameter{
   def fromYamlConf(name:String,confobj:Any):AbstractModuleParameter = fromYamlConf(name,confobj,false)
 
   def fromYamlConf(name:String,confobj:Any,requireValue:Boolean):AbstractModuleParameter={
+    val regex = "^"+ModuleDef.variableRegex+"$"
+    if(regex.r.findAllMatchIn(name).isEmpty){
+      throw new Exception("variable name ("+name+") must match regex '"+regex+"'!")
+    }
     YamlElt.fromJava(confobj) match {
       case YamlMap(paramdef) => {
         val type_ = YamlElt.readAs[String](paramdef.get("type"))

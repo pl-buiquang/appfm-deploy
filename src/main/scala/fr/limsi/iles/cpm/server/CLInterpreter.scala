@@ -8,10 +8,12 @@ import java.util.function.Consumer
 
 import com.mongodb.{BasicDBObject, DBObject}
 import com.mongodb.casbah.commons.MongoDBObject
+import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.corpus.CorpusManager
 import fr.limsi.iles.cpm.module.definition.{ModuleDef, ModuleManager}
 import fr.limsi.iles.cpm.module.process.ProcessRunManager
 import fr.limsi.iles.cpm.module.value.AbstractModuleVal
+import fr.limsi.iles.cpm.service.ServiceManager
 import fr.limsi.iles.cpm.utils.{YamlElt, Log, Utils, ConfManager}
 import org.json.{JSONObject, JSONArray}
 import org.yaml.snakeyaml.Yaml
@@ -22,7 +24,7 @@ import scala.sys.process._
 /**
  * Created by buiquang on 9/15/15.
  */
-object CLInterpreter {
+object CLInterpreter extends LazyLogging{
 
   /**
    * Interpret command line arguments
@@ -65,11 +67,15 @@ object CLInterpreter {
         }
         case "restart" =>
           "Restart cpm"
-        case "test" => Thread.sleep(10000); "ok"
+        case "test" => {
+          ModuleManager.modules.foldLeft("")((output,module)=>{
+            output + "\n"+module._1+" : "+module._2.needsDocker().toString
+          })
+        }
         case _ => "No such method!"
       }
     }catch{
-      case e:Throwable => "Command error. More details in Core Log"
+      case e:Throwable => logger.error(e.getMessage()) ; "Command error. More details in Core Log"
     }
   }
 

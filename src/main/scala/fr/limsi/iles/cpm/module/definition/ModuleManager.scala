@@ -7,6 +7,7 @@ import fr.limsi.iles.cpm.server.{EventMessage, EventManager}
 import fr.limsi.iles.cpm.utils._
 import org.json.{JSONArray, JSONObject}
 import org.yaml.snakeyaml.Yaml
+import fr.limsi.iles.cpm.service.ServiceManager
 
 import scala.io.Source
 
@@ -41,7 +42,7 @@ object ModuleManager extends LazyLogging{
       val path = iterator.next()
       val file = new File(path)
       if(file.exists()){
-        findModuleConf(file,ModuleManager.initModule) match{
+        findModuleConf(file,ModuleManager.initModule,ServiceManager.initService) match{
           case Some(x:ModTree)=>{
             roots = ModNode(file.getParent,x::modulestree.modItems) :: roots
           }
@@ -69,7 +70,7 @@ object ModuleManager extends LazyLogging{
           val wd = (new File(m.confFilePath)).getParent
           val ios = new FileInputStream(m.confFilePath)
           val confMap = yaml.load(ios).asInstanceOf[java.util.Map[String,Any]]
-            m.exec = ModuleDef.initRun(confMap,wd,m.inputs)
+            m.exec = ModuleDef.initRun(confMap,m.inputs)
         })
       }catch{
         case e:Throwable => discarded = curmod; e.printStackTrace(); logger.error("error when initiation exec configuration for module "+curmod+". This module will therefore be discarded");
@@ -115,7 +116,7 @@ object ModuleManager extends LazyLogging{
               bw.write(normalizeddata)
               bw.close()
               val module = modules(name)
-              module.exec = ModuleDef.initRun(map,conffile.getParent,module.inputs)
+              module.exec = ModuleDef.initRun(map,module.inputs)
             }catch{
               case e:Throwable => modules -= name; response.put("error","message : "+e.getMessage); response.put("cause",e.getStackTrace.toString)
             }
@@ -164,7 +165,7 @@ object ModuleManager extends LazyLogging{
             var execisok = false
             try{
               val updatedmodule = modules(name)
-              updatedmodule.exec = ModuleDef.initRun(map,conffile.getParent,updatedmodule.inputs)
+              updatedmodule.exec = ModuleDef.initRun(map,updatedmodule.inputs)
               execisok = true
             }catch{
               case e:Throwable => response.put("error","message : "+e.getMessage);
@@ -311,7 +312,7 @@ object ModuleManager extends LazyLogging{
    * @param curFile
    * @param f
    */
-  private def findModuleConf(curFile:java.io.File,f:java.io.File => Option[String]) :Option[ModTree]={
+  private def findModuleConf(curFile:java.io.File,f:java.io.File => Option[String],g:java.io.File=>Boolean) :Option[ModTree]={
     if(curFile.isFile){
       if(curFile.getName().endsWith(".module")){
         f(curFile) match {
@@ -320,6 +321,9 @@ object ModuleManager extends LazyLogging{
           }
           case None =>{None}
         }
+      }else if(curFile.getName().endsWith(".service")){
+        g(curFile)
+        None
       }else{
         None
       }
@@ -328,7 +332,7 @@ object ModuleManager extends LazyLogging{
       val iterator = curFile.listFiles().iterator
       while(iterator.hasNext){
         val file = iterator.next()
-        findModuleConf(file,f) match{
+        findModuleConf(file,f,g) match{
           case Some(x:ModTree)=>{
             list = x :: list
           }

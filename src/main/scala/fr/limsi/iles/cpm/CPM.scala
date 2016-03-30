@@ -20,6 +20,7 @@ import scala.sys.process._
  * Entry point of CPM server
  */
 object CPM extends App{
+  var dockerEnabled = false;
 
   override def main(args:Array[String]): Unit ={
 
@@ -49,6 +50,10 @@ object CPM extends App{
     // check for modules definition consistency
     ModuleManager.init()
 
+    val withDocker = "docker -v".!
+    if(withDocker==0){
+      dockerEnabled = true
+    }
 
     // check for docker proper initialization
     DockerManager.initCheckDefault()

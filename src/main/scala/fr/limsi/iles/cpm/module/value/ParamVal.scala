@@ -1,5 +1,6 @@
 package fr.limsi.iles.cpm.module.value
 
+import java.io.RandomAccessFile
 import java.util.function.Consumer
 import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.definition.{ModuleManager, MAPDef, CMDDef}
@@ -141,6 +142,26 @@ case class VAL(override val format:Option[String],override val schema:Option[Str
   }
 }
 
+
+case class STREAM(override val format:Option[String],override val schema:Option[String]) extends AbstractParameterVal(format,schema) {
+  override val _mytype: String = "STREAM"
+  var namedPipe : String = _
+
+  override protected def parseYaml(yaml: Any)(implicit stringdeserialization: Boolean): Unit = ???
+
+  override def asString(): String = ???
+
+  override def getAttr(attrName: String): AbstractParameterVal = {
+    attrName match{
+      case "next" =>{
+        val raf = new RandomAccessFile(namedPipe,"r")
+        VAL(format,schema)
+      }
+    }
+  }
+
+  override def toYaml()(implicit serialization: Boolean): String = ???
+}
 
 /**
  * FILE are representated by their file path

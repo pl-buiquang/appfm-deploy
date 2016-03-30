@@ -41,6 +41,12 @@ class ModuleDef(
    var exec:List[AbstractModuleVal]
  ){
 
+  def needsDocker():Boolean = {
+    exec.foldLeft(false)((valence,modval)=>{
+      valence || modval.needsDocker()
+    })
+  }
+
   /**
    * Returns the last modification date of the configuration file for the module
    * @return
@@ -134,6 +140,7 @@ class ModuleDef(
 object ModuleDef extends LazyLogging{
   val nameRegex = """[a-zA-Z][a-zA-Z0-9\-_]+(@[a-zA-Z0-9\-_]+)?"""
   val extendedNameRegex = "(_?"+nameRegex+")"
+  val variableRegex = """[A-Z][A-Z0-9_]*"""
 
   def fromYaml(modulename:String,conf:String,conffile:String):ModuleDef={
 
@@ -149,7 +156,7 @@ object ModuleDef extends LazyLogging{
       Nil
     );
 
-    module.exec = ModuleDef.initRun(confMap,module.defdir,module.inputs)
+    module.exec = ModuleDef.initRun(confMap,module.inputs)
     module
   }
 
@@ -216,7 +223,7 @@ object ModuleDef extends LazyLogging{
     Map[String,String]()
   }
 
-  def initRun(confMap:java.util.Map[String,Any],wd:String,inputs:Map[String,AbstractModuleParameter]) = {
+  def initRun(confMap:java.util.Map[String,Any],inputs:Map[String,AbstractModuleParameter]) = {
     var listmodules = Array[String]()
     var run = List[AbstractModuleVal]()
     YamlElt.fromJava(confMap.get("exec"))  match{
@@ -334,7 +341,7 @@ class AnonymousDef(modulelist:List[AbstractModuleVal],context:List[AbstractModul
 object AnonymousDef extends LazyLogging{
 
   def extractVarsFromModuleVals(modulelist:List[AbstractModuleVal],innervars:Map[String,AbstractModuleParameter],context:List[AbstractModuleVal],env:Map[String,AbstractModuleParameter]):(Map[String,AbstractModuleParameter],Map[String,AbstractModuleParameter])={
-    val implicitvars = List("_","_RUN_DIR","_DEF_DIR","_CUR_MOD","_MOD_CONTEXT")
+    val implicitvars = List("_","_RUN_DIR","_DEF_DIR","_CUR_MOD","_MOD_CONTEXT","_DATA_DIR")
     var outervariables = Map[String,AbstractModuleParameter]()
     var innervariables = innervars
 
@@ -405,13 +412,15 @@ object IFDef extends ModuleDef(ConfManager.get("default_module_dir")+"default/_I
   ModuleDef.initIFOutputs(),
   Map[String,String](),
   List[AbstractModuleVal]()
-)
+){
+}
 
 object CMDDef extends ModuleDef(ConfManager.get("default_module_dir")+"/default/_CMD.module","_CMD","Built-in module that run a UNIX commad",ModuleDef.initCMDInputs(),ModuleDef.initCMDOutputs(),Map[String,String](),List[AbstractModuleVal]()){
 
 }
 
 object MAPDef extends ModuleDef(ConfManager.get("default_module_dir")+"/default/_MAP.module","_MAP","Built-in module that map a LIST of FILE in Modules that process a single file",ModuleDef.initMAPInputs(),ModuleDef.initMAPOutputs(),Map[String,String](),List[AbstractModuleVal]()) {
+
 }
 
 

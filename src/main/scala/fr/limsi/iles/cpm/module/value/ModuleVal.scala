@@ -18,6 +18,7 @@ abstract class AbstractModuleVal(val moduledef:ModuleDef,val conf:Option[java.ut
   val namespace:String
   val inputs:Map[String,AbstractParameterVal] = AbstractModuleVal.initInputs(moduledef,conf)
 
+  def needsDocker():Boolean
 
   def getInput(paramName:String,env:RunEnv)={
     inputs(paramName) match {
@@ -75,17 +76,9 @@ object AbstractModuleVal extends LazyLogging{
           }
         }
         if(ModuleManager.modules.keys.exists(_ == modulename) && !ModuleDef.builtinmodules.contains(modulename)){
-          val runitemconf : java.util.Map[String,Any] = YamlElt.readAs[java.util.HashMap[String,Any]](moduleval.get(runitemname)) match {
+          val inputs : java.util.Map[String,Any] = YamlElt.readAs[java.util.HashMap[String,Any]](moduleval.get(runitemname)) match {
             case Some(map) => map
             case None => throw new Exception("malformed module value")
-          }
-          val inputs = YamlElt.readAs[java.util.HashMap[String,Any]](runitemconf.get("input")) match {
-            case Some(map) => map
-            case None => new java.util.HashMap[String,Any]()
-          }
-          val outputs = YamlElt.readAs[java.util.HashMap[String,Any]](runitemconf.get("output")) match {
-            case Some(map) => map
-            case None => new java.util.HashMap[String,Any]()
           }
           // TODO check for outputs consistency with module def and multiple variable def
           val modulevaldef = ModuleManager.modules(modulename)
@@ -101,17 +94,9 @@ object AbstractModuleVal extends LazyLogging{
             throw new Exception("required module inputs are not all set for module "+modulename)
           }
         }else{
-          val runitemconf : java.util.Map[String,Any] = YamlElt.readAs[java.util.Map[String,Any]](moduleval.get(runitemname)) match {
+          val inputs : java.util.Map[String,Any] = YamlElt.readAs[java.util.Map[String,Any]](moduleval.get(runitemname)) match {
             case Some(map) => map
             case None => throw new Exception("malformed module value")
-          }
-          val inputs = YamlElt.readAs[java.util.Map[String,Any]](runitemconf.get("input")) match {
-            case Some(map) => map
-            case None => new java.util.HashMap[String,Any]()
-          }
-          val outputs = YamlElt.readAs[java.util.Map[String,Any]](runitemconf.get("output")) match {
-            case Some(map) => map
-            case None => new java.util.HashMap[String,Any]()
           }
           modulename match {
             case "_CMD" => {
@@ -200,6 +185,9 @@ case class ModuleVal(override val namespace:String,override val moduledef:Module
 
   }
 
+  override def needsDocker(): Boolean = {
+    this.moduledef.needsDocker()
+  }
 }
 
 
@@ -212,6 +200,18 @@ case class CMDVal(override val namespace:String,override val conf:Option[java.ut
 
   }
 
+  override def needsDocker(): Boolean = {
+    inputs("DOCKERFILE").toYaml() match {
+      case x :String => {
+        if(x!="false"){
+          true
+        }else{
+          false
+        }
+      }
+      case _ =>  false
+    }
+  }
 }
 
 
@@ -261,6 +261,15 @@ case class IFVal(override val namespace:String,override val conf:Option[java.uti
         if (varexist) logger.info("found") else logger.info("not found")
       })
       exist && result
+    })
+  }
+
+  override def needsDocker(): Boolean = {
+
+    AbstractParameterVal.paramToScalaListModval(inputs("ELSE").asInstanceOf[LIST[MODVAL]]).foldLeft(false)((valence,modval)=>{
+      valence || modval.needsDocker()
+    }) || AbstractParameterVal.paramToScalaListModval(inputs("THEN").asInstanceOf[LIST[MODVAL]]).foldLeft(false)((valence,modval)=>{
+      valence || modval.needsDocker()
     })
   }
 }
@@ -346,6 +355,13 @@ case class MAPVal(override val namespace:String,override val conf:Option[java.ut
       exist && result
     })
 
+  }
+
+  override def needsDocker(): Boolean = {
+
+    AbstractParameterVal.paramToScalaListModval(inputs("RUN").asInstanceOf[LIST[MODVAL]]).foldLeft(false)((valence,modval)=>{
+      valence || modval.needsDocker()
+    })
   }
 }
 

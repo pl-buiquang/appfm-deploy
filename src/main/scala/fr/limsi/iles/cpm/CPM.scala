@@ -36,7 +36,10 @@ object CPM extends App{
     // shutdown hook for clean exit
     sys.addShutdownHook({
       EventManager.emit(new EventMessage("kernel-stopped","",""))
-      DockerManager.cleanup() // clean up docker exited containers
+      if(dockerEnabled){
+        DockerManager.cleanup()
+      }
+       // clean up docker exited containers
       //Server.context.term()
     })
 
@@ -50,7 +53,11 @@ object CPM extends App{
     // check for modules definition consistency
     ModuleManager.init()
 
-    val withDocker = "docker -v".!
+    val withDocker = try {
+      "docker -v".!
+    }catch {
+      case e:Throwable => 1
+    }
     if(withDocker==0){
       dockerEnabled = true
     }
@@ -68,6 +75,7 @@ object CPM extends App{
 
 
     Server.run(port)
+
 
   }
 

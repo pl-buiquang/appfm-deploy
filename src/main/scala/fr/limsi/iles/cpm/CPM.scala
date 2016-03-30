@@ -56,7 +56,10 @@ object CPM extends App{
     }
 
     // check for docker proper initialization
-    DockerManager.initCheckDefault()
+    if(dockerEnabled){
+      DockerManager.initCheckDefault()
+    }
+
 
     // start the main loop server
     val port = ConfManager.get("cmd_listen_port").toString

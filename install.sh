@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DEPENDENCIES=(libtool autoconf gcc g++)
+DEPENDENCIES=(libtool autoconf gcc g++ pkg-config)
 
 
 CURDIR=`dirname $0`
@@ -38,7 +38,7 @@ function update_env {
 }
 
 function install_root {
-  apt-get install libzmq libzmq3
+  apt-get install libzmq libzmq3 libzmq3-dev
 
   cd $CURDIR/lib/jzmq/jzmq-jni
   ./autogen.sh
@@ -61,7 +61,7 @@ function install_non_root {
   export CPPFLAGS=-I$PREFIX/include
   export LDFLAGS=-L$PREFIX/lib
   export LD_LIBRARY_PATH=$PREFIX/lib
-  export PATH=$CURDIR/../lib/jdk1.8.0_51/bin:$PATH
+  export PATH=$CURDIR/lib/jdk1.8.0_51/bin:$PATH
 
 
   cd $CURDIR/lib/jzmq/jzmq-jni

@@ -1,8 +1,14 @@
 #!/bin/bash
 
-DEPENDENCIES=(libtool autoconf gcc g++ pkg-config)
 
 
+LSB_RELEASE=$(lsb_release -is)
+if [ $LSB_RELEASE == "Debian" ] ; then
+  DEPENDENCIES=(libtool autoconf gcc g++ pkg-config libtool-bin)
+else
+  DEPENDENCIES=(libtool autoconf gcc g++ pkg-config)
+fi
+    
 CURDIR=$(cd `dirname $0` && pwd)
 
 
@@ -31,7 +37,6 @@ function install_dependencies {
       apt-get install -y $d
     fi
   done
-  apt-get install -y libtool-bin # for debian
 }
 
 function update_env {
@@ -41,6 +46,8 @@ function update_env {
 
 function install_root {
   apt-get install -y libzmq3 libzmq3-dev
+
+  export PATH=$CURDIR/lib/jdk1.8.0_51/bin:$PATH
 
   cd $CURDIR/lib/jzmq/
   ./autogen.sh

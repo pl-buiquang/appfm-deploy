@@ -6,7 +6,24 @@ source $dir/scripts/env.sh
 
 bin="$CPM_HOME/lib/jdk1.8.0_51/bin/java -Djava.library.path=$ZMQ_LIB -jar $CPM_HOME/core/target/scala-2.11/cpm-core-server-assembly-1.0.jar $CPM_HOME/core/src/main/resources/conf.yml"
 pid=$CPM_HOME/`hostname`-appfm.pid
+mongopid=$CPM_HOME/`hostname`-mongo.pid
 
+MONGOSTARTSCRIPT=$CPM_HOME/scripts/mongo-start.sh
+MONGO=`which mongod`
+
+start_mongo() {
+	if [ -z MONGO ] ; then
+		nohup $MONGOSTARTSCRIPT > $CPM_HOME/`hostname`-mongo.log &
+		echo $! > $mongopid
+	fi
+}
+
+stop_mongo() {
+	if [ -f $mongopid ] ; then
+		kill -9 `cat $mongopid`
+		rm $mongopid
+	fi
+}
 
 start() {
 	if [ -f $pid ] ; then
@@ -14,10 +31,12 @@ start() {
 	else
 		if [[ $1 == "-d" || $1 == "--daemon" ]] ; then
 			echo "AppFM started in daemon mode"
+			start_mongo
 			nohup $bin > $CPM_HOME/appfm.log&
 			echo $! > $pid
 		else
 			echo "AppFM started"
+			start_mongo
 			$bin
 		fi
 	fi	
@@ -27,6 +46,7 @@ stop() {
 	if [ -f $pid ] ; then
 		echo "AppFM stopped"
 		kill -15 `cat $pid`
+		stop_mongo
 		rm $pid
 	else
 		echo "no pid file found, AppFM may not be running"

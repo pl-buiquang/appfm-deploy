@@ -26,13 +26,11 @@ Web :
 
 === Install dependencies
 
-sudo apt-get install libtool libtool-bin autoconf g++
+sudo ./install.sh
 
-cd lib/libsodium-1.0.8
-./autogen.sh
-./configure --prefix=YOURHOME/.local
-make
-make install
+or 
+
+install.sh
 
 
 

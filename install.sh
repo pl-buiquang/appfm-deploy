@@ -4,9 +4,11 @@
 
 LSB_RELEASE=$(lsb_release -is)
 if [ $LSB_RELEASE == "Debian" ] ; then
-  DEPENDENCIES=(libtool autoconf gcc g++ pkg-config libtool-bin)
+  DEPENDENCIES=(libtool autoconf gcc g++ pkg-config libtool-bin make)
+  LIBZMQ="libzmq3 libzmq3-dev"
 else
-  DEPENDENCIES=(libtool autoconf gcc g++ pkg-config)
+  DEPENDENCIES=(libtool autoconf gcc g++ pkg-config make)
+  LIBZMQ="libzmq1 libzmq-dev"
 fi
     
 CURDIR=$(cd `dirname $0` && pwd)
@@ -45,7 +47,7 @@ function update_env {
 }
 
 function install_root {
-  apt-get install -y libzmq3 libzmq3-dev
+  apt-get install -y $LIBZMQ
 
   export CPPFLAGS="-I$CURDIR/lib/jdk1.8.0_51/include -I$CURDIR/lib/jdk1.8.0_51/include/linux"
   export PATH=$CURDIR/lib/jdk1.8.0_51/bin:$PATH

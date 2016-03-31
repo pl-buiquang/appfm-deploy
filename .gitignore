@@ -7,3 +7,4 @@ data/**
 tmp/**
 appfm.log
 *.pid
+scripts/env.sh

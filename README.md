@@ -15,7 +15,10 @@ In order to achieve these purpose, the AppFM platform is built around :
 - a command line interface written in Python for basic interaction with the core
 - a web interface (Javascript application) for advanced viewing of module execution results and creation
 
-== Quick Start ==
+
+== Quick Start (using vagrant) ==
+
+To install on your local machine see the different installation guide in INSTALL.md, OR :
 
 Using default configuration, here is how you can get started.
 The password of every git repository is : freepass
@@ -49,13 +52,13 @@ v.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', 
 4. Installation (may take about 10~30 minutes) :
 vagrant up
 vagrant ssh
-/vagrant/scripts/setup.sh
+/vagrant/scripts/install.sh
 
 
 5. First run (takes a long the first time since it builds base containers):
 cd /vagrant
-./start.sh (or ./start-daemon.sh)
-(first time you should use ./start.sh, this way you can monitor when the (first time only long) initialization is complete before proceeding to next step)
+./appfm start (or ./appfm start -d)
+(first time you should use ./appfm, this way you can monitor when the (first time only long) initialization is complete before proceeding to next step)
 
 
 The log file is named appfm.log
@@ -66,12 +69,13 @@ To disconnect session from the virtual machine:
 exit
 
 To stop the server (and the virtual machine) :
+./appfm stop
 vagrant halt (from outside the virtual machine session and anywhere within the cpm directory)
 
 To restart :
 vagrant ssh (from anywhere within the cpm directory)
 cd /vagrant
-./start.sh
+./appfm restart
 
 To completly destroy the virtual machine (needs re installation (step 4)) :
 vagrant destroy (from anywhere within the cpm directory)

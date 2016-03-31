@@ -24,6 +24,19 @@ Web :
 
 == Installation
 
+=== Install dependencies
+
+sudo apt-get install libtool libtool-bin autoconf g++
+
+cd lib/libsodium-1.0.8
+./autogen.sh
+./configure --prefix=YOURHOME/.local
+make
+make install
+
+
+
+
 For an installation exemple script, refer to the file "scripts/bootstrap.sh" that is used for full installation on a Debian system virtualized under Virtualbox.
 
 == Configuration

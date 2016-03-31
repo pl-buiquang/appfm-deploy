@@ -52,7 +52,7 @@ function install_root {
   export CPPFLAGS="-I$CURDIR/lib/jdk1.8.0_51/include -I$CURDIR/lib/jdk1.8.0_51/include/linux"
   export PATH=$CURDIR/lib/jdk1.8.0_51/bin:$PATH
 
-  cd $CURDIR/lib/jzmq/
+  cd $CURDIR/lib/src/jzmq/
   ./autogen.sh
   ./configure
   make
@@ -61,10 +61,10 @@ function install_root {
 }
 
 function install_non_root {
-  PREFIX=$HOME/.local
+  PREFIX=$HOME/.local # $CURDIR/local
   mkdir -p $PREFIX
 
-  cd $CURDIR/lib/zeromq-4.1.4
+  cd $CURDIR/lib/src/zeromq-4.1.4
   ./autogen.sh
   ./configure --prefix=$PREFIX --without-libsodium
   make
@@ -76,7 +76,7 @@ function install_non_root {
   export PATH=$CURDIR/lib/jdk1.8.0_51/bin:$PATH
 
 
-  cd $CURDIR/lib/jzmq/
+  cd $CURDIR/lib/src/jzmq/
   ./autogen.sh
   ./configure --prefix=$PREFIX
   make

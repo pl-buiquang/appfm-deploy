@@ -9,6 +9,7 @@ import java.util.function.Consumer
 import com.mongodb.{BasicDBObject, DBObject}
 import com.mongodb.casbah.commons.MongoDBObject
 import com.typesafe.scalalogging.LazyLogging
+import fr.limsi.iles.cpm.CPM
 import fr.limsi.iles.cpm.corpus.CorpusManager
 import fr.limsi.iles.cpm.module.definition.{ModuleDef, ModuleManager}
 import fr.limsi.iles.cpm.module.process.ProcessRunManager
@@ -281,7 +282,12 @@ object CLInterpreter extends LazyLogging{
       )
       settings.put("result_dir",ConfManager.get("default_result_dir").toString)
       settings.put("corpus_dir",ConfManager.get("default_corpus_dir").toString)
-      settings.toString()
+      settings.put("docker_enabled",CPM.dockerEnabled)
+      val hostname = "hostname".!!.trim()
+      settings.put("host",hostname)
+      settings.put("port",ConfManager.get("cmd_listen_port").toString)
+      settings.put("wshost",hostname+":"+ConfManager.get("websocket_port").toString)
+      settings.toString(2)
     }catch{
       case e:Throwable => e.getMessage+ " (Error processing command)"
     }

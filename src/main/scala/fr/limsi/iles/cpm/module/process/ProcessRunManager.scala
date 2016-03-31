@@ -8,6 +8,7 @@ import java.util.function.BiConsumer
 import com.mongodb.BasicDBObject
 import com.mongodb.casbah.commons.MongoDBObject
 import com.typesafe.scalalogging.LazyLogging
+import fr.limsi.iles.cpm.CPM
 import fr.limsi.iles.cpm.module.definition.ModuleManager
 import fr.limsi.iles.cpm.module.value._
 import fr.limsi.iles.cpm.server.{EventMessage, EventManager, Server}
@@ -84,6 +85,10 @@ object ProcessRunManager extends LazyLogging{
     }
     // fetching module definition
     val module = ModuleManager.modules(modulename)
+
+    if(!CPM.dockerEnabled && module.needsDocker()){
+      return "Docker is not available to this AppFM instance, therefore you cannot run this module based on a Docker container.\nYou can find information to install Docker at http://www.docker.com"
+    }
 
     // fetching configuration file for current run
     var args = Map[String,AbstractParameterVal]()

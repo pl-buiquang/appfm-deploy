@@ -7,8 +7,10 @@ import fr.limsi.iles.cpm.server.{EventMessage, EventManager}
 import fr.limsi.iles.cpm.utils._
 import org.json.{JSONArray, JSONObject}
 import org.yaml.snakeyaml.Yaml
-import fr.limsi.iles.cpm.service.ServiceManager
+import fr.limsi.iles.cpm.service.{Service, ServiceManager}
 
+import scala.collection.generic.CanBuildFrom
+import scala.collection.mutable
 import scala.io.Source
 
 
@@ -55,10 +57,13 @@ object ModuleManager extends LazyLogging{
     modulestree = ModNode("",roots)
 
     var firstRun = true
+    var toRemoveFromTree = List[(String,String)]()
     var discarded = ""
     while(discarded != "" || firstRun){
       if(discarded!=""){
+        val filepath = modules(discarded).confFilePath
         modules -= discarded
+        toRemoveFromTree ::= (discarded,filepath)
       }
       discarded = ""
       firstRun = false
@@ -78,6 +83,8 @@ object ModuleManager extends LazyLogging{
 
     }
 
+    //modulestree = removeInModuleTree(toRemoveFromTree,modulestree).asInstanceOf[ModNode]
+
     logger.info("Finished initializing modules")
   }
 
@@ -87,6 +94,7 @@ object ModuleManager extends LazyLogging{
   def reload()={
     modules = Map[String,ModuleDef]()
     modulestree = ModNode("/",List[ModTree]())
+    ServiceManager.services = Map[String,Service]()
     init()
   }
 
@@ -97,7 +105,7 @@ object ModuleManager extends LazyLogging{
    * @param data
    * @return a string indicating if creation was a success, an error message otherwise
    */
-  def createModule(name:String,folderpath:String,data:String):String={
+  def createModule(name:String,folderpath:String,data:String)(implicit alreadyExistInTree:Boolean=false):String={
     val normalizeddata = data.replace("\t","  ")
     var response = new JSONObject()
     if(modules.contains(name)){
@@ -134,7 +142,9 @@ object ModuleManager extends LazyLogging{
     if(modules.contains(name)){
       EventManager.emit(new EventMessage("module-added",name,folderpath))
       response.put("success",name)
-      modulestree = insertInModuleTree(name,folderpath,modulestree,modulestree.modPath).get
+      if(!alreadyExistInTree){
+        modulestree = insertInModuleTree(name,folderpath,modulestree,modulestree.modPath).get
+      }
     }
 
     response.toString()
@@ -150,9 +160,17 @@ object ModuleManager extends LazyLogging{
   def updateModule(name:String,data:String):String={
     val normalizeddata = data.replace("\t","  ")
     var response = new JSONObject()
+
     if(!modules.contains(name)){
-      response.put("error","module doesn't exist")
-      return response.toString()
+      val module = findInModuleTree(name,modulestree)
+      if(module.isDefined){
+        return  createModule(name,(new java.io.File(module.get.modDefFilePath)).getParent,data)(true)
+      }else{
+        response.put("error","module doesn't exist")
+        return response.toString()
+      }
+    }else{
+
     }
 
     val module = modules(name)
@@ -210,6 +228,27 @@ object ModuleManager extends LazyLogging{
     "not implemented"
   }
 
+  def findInModuleTree(modulename:String,tree:ModNode):Option[ModLeaf]={
+    var element : Option[ModLeaf] = None
+    val found = tree.modItems.find(subtree=>{
+      subtree match{
+        case x:ModLeaf=>{
+          element = Some(x)
+          modulename==x.modName
+        }
+        case x:ModNode=>{
+          element = findInModuleTree(modulename,x)
+          element.isDefined
+        }
+      }
+    })
+    if(found.isDefined){
+      element
+    }else{
+      None
+    }
+  }
+
   def insertInModuleTree(modulename:String,moduledefparentpath:String,tree:ModNode,parentPath:String):Option[ModNode]={
     val currentPath = Utils.ensureTrailingSlash(parentPath)
     val moduledirPath = Utils.ensureTrailingSlash(moduledefparentpath)
@@ -244,13 +283,42 @@ object ModuleManager extends LazyLogging{
 
   }
 
+  /**
+    * @todo add a proper CanBuildFrom that do not add None item in list
+    * @param moduletoremoveinfos
+    * @param tree
+    * @return
+    */
+  def removeInModuleTree(moduletoremoveinfos:List[(String,String)],tree:ModNode):ModTree={
+    val newitems = tree.modItems.map(subtree=>{
+      subtree match{
+        case x:ModLeaf=>{
+          if(moduletoremoveinfos.exists((info)=>{
+            info._1 == x.modName && info._2 == x.modDefFilePath
+          })){
+            None
+          }else{
+            x
+          }
+        }
+        case x:ModNode=>{
+          removeInModuleTree(moduletoremoveinfos,x)
+        }
+      }
+    }).asInstanceOf[List[ModTree]]
+    ModNode(tree.modPath,newitems)
+  }
+
   def jsonTreeExport(tree:ModTree):Object = {
     tree match {
       case ModNode(dirpath,list) => {
         var json = new JSONObject()
         var array = new JSONArray()
         list.foreach(subtree => {
-          array.put(jsonTreeExport(subtree))
+          val element = jsonTreeExport(subtree)
+          if(element != null){
+            array.put(element)
+          }
         })
         json.put("folder",true)
         json.put("foldername",dirpath)

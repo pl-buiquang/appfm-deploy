@@ -47,6 +47,7 @@ function update_env {
 function install_root {
   apt-get install -y libzmq3 libzmq3-dev
 
+  export CPPFLAGS="-I$CURDIR/lib/jdk1.8.0_51/include -I$CURDIR/lib/jdk1.8.0_51/include/linux"
   export PATH=$CURDIR/lib/jdk1.8.0_51/bin:$PATH
 
   cd $CURDIR/lib/jzmq/
@@ -67,7 +68,7 @@ function install_non_root {
   make
   make install
 
-  export CPPFLAGS=-I$PREFIX/include
+  export CPPFLAGS="-I$PREFIX/include -I$CURDIR/lib/jdk1.8.0_51/include -I$CURDIR/lib/jdk1.8.0_51/include/linux"
   export LDFLAGS=-L$PREFIX/lib
   export LD_LIBRARY_PATH=$PREFIX/lib
   export PATH=$CURDIR/lib/jdk1.8.0_51/bin:$PATH
@@ -101,6 +102,7 @@ source $CURDIR/scripts/env.sh
 
 echo "Compiling and packaging core server :"
 cd $CPM_HOME/core
+export SBT_OPTS="-Xmx2G"
 sbt assembly
 
 echo "Installation complete !"

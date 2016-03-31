@@ -2,8 +2,7 @@
 
 # The base path of the installation (the place where the cpm git repository was cloned)
 #export CPM_HOME=/vagrant 
-export CPM_HOME=/home/paul/projects/custom/cpm 
-
+#CPM_HOME
 #ZMQ_LIB
 
 # Paths of provided dependencies relative to the base path

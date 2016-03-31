@@ -3,7 +3,8 @@
 DEPENDENCIES=(libtool autoconf gcc g++ pkg-config)
 
 
-CURDIR=`dirname $0`
+CURDIR=$(cd `dirname $0` && pwd)
+
 
 SUDO=0
 if [ `whoami` == "root" ] ; then
@@ -34,13 +35,14 @@ function install_dependencies {
 }
 
 function update_env {
-  cat $CURDIR/scripts/env.dist.sh | sed -e "s/#ZMQ_LIB/export ZMQ_LIB=$1/" > $CURDIR/scripts/env.sh
+  SEDREPLACECURDIR=$(echo "$CURDIR" | sed -e "s/\//\\\\\//g")
+  cat $CURDIR/scripts/env.dist.sh | sed -e "s/#ZMQ_LIB/export ZMQ_LIB=$1/" | sed -e "s/#CPM_HOME/export CPM_HOME=$SEDREPLACECURDIR/" > $CURDIR/scripts/env.sh
 }
 
 function install_root {
-  apt-get install libzmq libzmq3 libzmq3-dev
+  apt-get install -y libzmq3 libzmq3-dev
 
-  cd $CURDIR/lib/jzmq/jzmq-jni
+  cd $CURDIR/lib/jzmq/
   ./autogen.sh
   ./configure
   make
@@ -64,7 +66,7 @@ function install_non_root {
   export PATH=$CURDIR/lib/jdk1.8.0_51/bin:$PATH
 
 
-  cd $CURDIR/lib/jzmq/jzmq-jni
+  cd $CURDIR/lib/jzmq/
   ./autogen.sh
   ./configure --prefix=$PREFIX
   make
@@ -73,7 +75,7 @@ function install_non_root {
 
 if [ $SUDO == 1 ] ; then
   install_dependencies
-  SEDREPLACE=echo "/usr/local/lib" | sed -e "s/\//\\\\\//g"
+  SEDREPLACE=$(echo "/usr/local/lib" | sed -e "s/\//\\\\\//g")
   install_root
   update_env $SEDREPLACE
 else 
@@ -81,7 +83,7 @@ else
   if [ $? -ne 0 ] ; then
     exit 1
   fi
-  SEDREPLACE=echo $PREFIX | sed -e "s/\//\\\\\//g"
+  SEDREPLACE=$(echo $PREFIX | sed -e "s/\//\\\\\//g")
   install_non_root
   update_env $SEDREPLACE
 fi

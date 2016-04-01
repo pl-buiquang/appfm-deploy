@@ -186,7 +186,7 @@ object CLInterpreter extends LazyLogging{
         } catch {case e:Throwable => """{"error" : """"+e.getMessage+"\"}"}
         case "get" => try{
           if(args.size > 1){
-            ProcessRunManager.getProcess(UUID.fromString(args(1))).serializeToJSON().toString
+            ProcessRunManager.getProcess(UUID.fromString(args(1))).serializeToJSON().toString(2)
 
           }else{
             "Missing pid"

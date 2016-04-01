@@ -63,7 +63,7 @@ object AbstractProcess extends LazyLogging{
     while(newport<1024 && portUsed.exists(newport.toString == _)){
       newport = Random.nextInt(65535)
     }
-    newport.toString
+    String.valueOf(newport)
   }
 
   def getStatus(process:Int)={
@@ -293,7 +293,14 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
   }
 
   def log(info:String) : Unit={
-    getMasterProcess().log += this.moduleval.namespace+" : "+info+"\n"
+    val parentNamespace = {
+      if(this.parentProcess.isDefined){
+        this.parentProcess.get.moduleval.namespace
+      }else{
+        ""
+      }
+    }
+    getMasterProcess().log += parentNamespace+"|"+this.moduleval.namespace+" : "+info+"\n"
   }
 
   def getLog():String={

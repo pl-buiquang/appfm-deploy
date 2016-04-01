@@ -61,7 +61,6 @@ function install_root {
 }
 
 function install_non_root {
-  PREFIX=$HOME/.local # $CURDIR/local
   mkdir -p $PREFIX
 
   cd $CURDIR/lib/src/zeromq-4.1.4
@@ -89,11 +88,12 @@ if [ $SUDO == 1 ] ; then
   install_root
   update_env $SEDREPLACE
 else 
+  PREFIX=$HOME/.local # $CURDIR/lib/local
   check_dependencies
   if [ $? -ne 0 ] ; then
     exit 1
   fi
-  SEDREPLACE=$(echo $PREFIX | sed -e "s/\//\\\\\//g")
+  SEDREPLACE=$(echo $PREFIX/lib | sed -e "s/\//\\\\\//g")
   install_non_root
   update_env $SEDREPLACE
 fi

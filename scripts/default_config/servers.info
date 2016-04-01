@@ -1,0 +1,7 @@
+[default]
+
+CPM_HOST : localhost
+CPM_PORT : 5555
+CPM_WS_HOST : localhost:8083
+
+

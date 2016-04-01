@@ -60,7 +60,7 @@ object AbstractProcess extends LazyLogging{
   def newPort() : String = {
     // TODO optimize
     var newport = Random.nextInt(65535)
-    while(newport<1024 && portUsed.exists(newport.toString == _)){
+    while(newport<1024 || portUsed.exists(newport.toString == _)){
       newport = Random.nextInt(65535)
     }
     String.valueOf(newport)
@@ -523,6 +523,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
       case e:Throwable => error = "error when running : "+e.getMessage; logger.error(e.getMessage); log(e.getMessage)
     }finally {
       socket.close();
+      AbstractProcess.portUsed = AbstractProcess.portUsed.filter(_ != processPort)
       exitRoutine(error)
     }
   }

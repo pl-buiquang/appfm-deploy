@@ -784,7 +784,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
     }else{
 
       val cmd = env.resolveValueToString(moduleval.inputs("CMD").asString())
-      val absolutecmd = cmd.replace("\n"," ").replace("\"","\\\"").replaceAll("^\\./",deffolder.getCanonicalPath+"/")
+      val absolutecmd = cmd.replace("\n"," ").replaceAll("^\\./",deffolder.getCanonicalPath+"/")
       val cmdtolaunch = "python "+ConfManager.get("cpm_home_dir")+"/"+ConfManager.get("process_shell_bin")+" false "+this.id.toString+" "+moduleval.namespace+" "+processPort+" "+runfolder.getCanonicalPath+" "+absolutecmd+""
       logger.info("Launchin cmd : "+cmdtolaunch)
       DockerManager.runOnlyOneProcessAtATime.synchronized {

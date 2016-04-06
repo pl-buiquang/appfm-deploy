@@ -5,10 +5,8 @@
 LSB_RELEASE=$(lsb_release -is)
 if [ $LSB_RELEASE == "Debian" ] ; then
   DEPENDENCIES=(libtool autoconf gcc g++ pkg-config libtool-bin make)
-  LIBZMQ="libzmq3 libzmq3-dev"
 else
   DEPENDENCIES=(libtool autoconf gcc g++ pkg-config make)
-  LIBZMQ="libzmq1 libzmq-dev"
 fi
     
 CURDIR=$(cd `dirname $0` && pwd)
@@ -47,7 +45,14 @@ function update_env {
 }
 
 function install_root {
-  apt-get install -y $LIBZMQ
+
+  cd $CURDIR/lib/src/zeromq-4.1.4
+  ./autogen.sh
+  ./configure --without-libsodium
+  make
+  make install
+
+
 
   export CPPFLAGS="-I$CURDIR/lib/jdk1.8.0_51/include -I$CURDIR/lib/jdk1.8.0_51/include/linux"
   export PATH=$CURDIR/lib/jdk1.8.0_51/bin:$PATH

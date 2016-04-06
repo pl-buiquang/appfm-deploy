@@ -82,8 +82,8 @@ DIST_COMMON = INSTALL NEWS README AUTHORS ChangeLog \
 	$(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/configure $(am__configure_deps) COPYING \
 	COPYING.LESSER config/compile config/config.guess \
-	config/config.sub config/install-sh config/missing \
-	config/ltmain.sh $(top_srcdir)/config/compile \
+	config/config.sub config/depcomp config/install-sh \
+	config/missing config/ltmain.sh $(top_srcdir)/config/compile \
 	$(top_srcdir)/config/config.guess \
 	$(top_srcdir)/config/config.sub \
 	$(top_srcdir)/config/install-sh $(top_srcdir)/config/ltmain.sh \
@@ -212,7 +212,7 @@ CC = gcc
 CCDEPMODE = depmode=gcc3
 CFLAGS = -g -O2
 CPP = gcc -E
-CPPFLAGS = -D_REENTRANT -D_THREAD_SAFE -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux  -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux
+CPPFLAGS = -D_REENTRANT -D_THREAD_SAFE -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux -I/usr/local/include  -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux
 CXX = g++
 CXXCPP = g++ -E
 CXXDEPMODE = depmode=gcc3
@@ -241,7 +241,7 @@ JAVAH = javah
 JAVAROOT = .
 JLTVER = 0:0:0
 LD = /usr/bin/ld -m elf_x86_64
-LDFLAGS =  -lzmq 
+LDFLAGS =  -L/usr/local/lib -lzmq 
 LIBOBJS = 
 LIBS = -lzmq 
 LIBTOOL = $(SHELL) $(top_builddir)/libtool
@@ -274,8 +274,8 @@ SET_MAKE =
 SHELL = /bin/sh
 STRIP = strip
 VERSION = 4.0.0
-ZeroMQ_CFLAGS = 
-ZeroMQ_LIBS = -lzmq 
+ZeroMQ_CFLAGS = -I/usr/local/include 
+ZeroMQ_LIBS = -L/usr/local/lib -lzmq 
 _ACJNI_JAVAC = /vagrant/lib/jdk1.8.0_51/bin/javac
 abs_builddir = /vagrant/lib/src/jzmq
 abs_srcdir = /vagrant/lib/src/jzmq

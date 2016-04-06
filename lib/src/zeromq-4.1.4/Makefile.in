@@ -120,10 +120,10 @@ DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/builds/redhat/zeromq.spec.in \
 	$(top_srcdir)/config/depcomp $(include_HEADERS) \
 	$(top_srcdir)/config/test-driver AUTHORS COPYING \
-	COPYING.LESSER INSTALL NEWS config/compile config/config.guess \
-	config/config.sub config/depcomp config/install-sh \
-	config/missing config/ltmain.sh $(top_srcdir)/config/compile \
-	$(top_srcdir)/config/config.guess \
+	COPYING.LESSER ChangeLog INSTALL NEWS config/compile \
+	config/config.guess config/config.sub config/depcomp \
+	config/install-sh config/missing config/ltmain.sh \
+	$(top_srcdir)/config/compile $(top_srcdir)/config/config.guess \
 	$(top_srcdir)/config/config.sub \
 	$(top_srcdir)/config/install-sh $(top_srcdir)/config/ltmain.sh \
 	$(top_srcdir)/config/missing

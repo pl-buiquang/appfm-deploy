@@ -6,10 +6,6 @@
   path = cli
   url = git2@versatile-world.net:~/cpm-cli.git
 
-[submodule "cpm-modules"]
-  path = modules
-  url = git2@versatile-world.net:~/cpm-modules.git
-
 [submodule "cpm-web-ui"]
   path = web
   url = git2@versatile-world.net:~/cpm-web-ui.git

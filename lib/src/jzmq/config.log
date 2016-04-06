@@ -72,8 +72,6 @@ configure:3042: $? = 0
 configure:3082: tardir=conftest.dir && eval tar --format=ustar -chf - "$tardir" >conftest.tar
 configure:3085: $? = 0
 configure:3089: tar -xf - <conftest.tar
-tar: conftest.dir/file: time stamp 2016-04-06 09:33:16 is 1.950236711 s in the future
-tar: conftest.dir: time stamp 2016-04-06 09:33:16 is 1.945098243 s in the future
 configure:3092: $? = 0
 configure:3094: cat conftest.dir/file
 GrepMe
@@ -517,17 +515,17 @@ configure:15616: $PKG_CONFIG --exists --print-errors "libzmq"
 configure:15619: $? = 0
 configure:15657: result: yes
 configure:15682: checking zmq.h usability
-configure:15682: g++ -c -g -O2 -D_REENTRANT -D_THREAD_SAFE -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux  conftest.cpp >&5
+configure:15682: g++ -c -g -O2 -D_REENTRANT -D_THREAD_SAFE -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux -I/usr/local/include  conftest.cpp >&5
 configure:15682: $? = 0
 configure:15682: result: yes
 configure:15682: checking zmq.h presence
-configure:15682: g++ -E -D_REENTRANT -D_THREAD_SAFE -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux  conftest.cpp
+configure:15682: g++ -E -D_REENTRANT -D_THREAD_SAFE -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux -I/usr/local/include  conftest.cpp
 configure:15682: $? = 0
 configure:15682: result: yes
 configure:15682: checking for zmq.h
 configure:15682: result: yes
 configure:15703: checking for zmq_init in -lzmq
-configure:15728: g++ -o conftest -g -O2 -D_REENTRANT -D_THREAD_SAFE -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux   -lzmq  conftest.cpp -lzmq   >&5
+configure:15728: g++ -o conftest -g -O2 -D_REENTRANT -D_THREAD_SAFE -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux -I/usr/local/include   -L/usr/local/lib -lzmq  conftest.cpp -lzmq   >&5
 configure:15728: $? = 0
 configure:15737: result: yes
 configure:15760: checking for javac
@@ -543,13 +541,13 @@ configure:15902: checking for javac
 configure:15920: found /vagrant/lib/jdk1.8.0_51/bin/javac
 configure:15933: result: /vagrant/lib/jdk1.8.0_51/bin/javac
 configure:16013: checking for an ANSI C-conforming const
-configure:16079: g++ -c -g -O2 -D_REENTRANT -D_THREAD_SAFE -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux  -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux conftest.cpp >&5
+configure:16079: g++ -c -g -O2 -D_REENTRANT -D_THREAD_SAFE -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux -I/usr/local/include  -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux conftest.cpp >&5
 configure:16079: $? = 0
 configure:16086: result: yes
 configure:16094: checking for size_t
-configure:16094: g++ -c -g -O2 -D_REENTRANT -D_THREAD_SAFE -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux  -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux conftest.cpp >&5
+configure:16094: g++ -c -g -O2 -D_REENTRANT -D_THREAD_SAFE -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux -I/usr/local/include  -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux conftest.cpp >&5
 configure:16094: $? = 0
-configure:16094: g++ -c -g -O2 -D_REENTRANT -D_THREAD_SAFE -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux  -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux conftest.cpp >&5
+configure:16094: g++ -c -g -O2 -D_REENTRANT -D_THREAD_SAFE -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux -I/usr/local/include  -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux conftest.cpp >&5
 conftest.cpp: In function 'int main()':
 conftest.cpp:59:20: error: expected primary-expression before ')' token
  if (sizeof ((size_t)))
@@ -643,6 +641,7 @@ config.status:1159: creating Makefile
 config.status:1159: creating src/main/c++/Makefile
 config.status:1159: creating src/main/perf/Makefile
 config.status:1159: creating src/main/c++/config.hpp
+config.status:1340: src/main/c++/config.hpp is unchanged
 config.status:1388: executing depfiles commands
 config.status:1388: executing libtool commands
 
@@ -768,8 +767,8 @@ lt_cv_sys_global_symbol_to_cdecl='sed -n -e '\''s/^T .* \(.*\)$/extern int \1();
 lt_cv_sys_max_cmd_len=1572864
 lt_cv_to_host_file_cmd=func_convert_file_noop
 lt_cv_to_tool_file_cmd=func_convert_file_noop
-pkg_cv_ZeroMQ_CFLAGS=
-pkg_cv_ZeroMQ_LIBS='-lzmq '
+pkg_cv_ZeroMQ_CFLAGS='-I/usr/local/include '
+pkg_cv_ZeroMQ_LIBS='-L/usr/local/lib -lzmq '
 
 ## ----------------- ##
 ## Output variables. ##
@@ -793,7 +792,7 @@ CC='gcc'
 CCDEPMODE='depmode=gcc3'
 CFLAGS='-g -O2'
 CPP='gcc -E'
-CPPFLAGS='-D_REENTRANT -D_THREAD_SAFE -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux  -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux'
+CPPFLAGS='-D_REENTRANT -D_THREAD_SAFE -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux -I/usr/local/include  -I/vagrant/lib/jdk1.8.0_51/include -I/vagrant/lib/jdk1.8.0_51/include/linux'
 CXX='g++'
 CXXCPP='g++ -E'
 CXXDEPMODE='depmode=gcc3'
@@ -823,7 +822,7 @@ JAVAH='javah'
 JAVAROOT='.'
 JLTVER='0:0:0'
 LD='/usr/bin/ld -m elf_x86_64'
-LDFLAGS=' -lzmq '
+LDFLAGS=' -L/usr/local/lib -lzmq '
 LIBOBJS=''
 LIBS='-lzmq '
 LIBTOOL='$(SHELL) $(top_builddir)/libtool'
@@ -856,8 +855,8 @@ SET_MAKE=''
 SHELL='/bin/bash'
 STRIP='strip'
 VERSION='4.0.0'
-ZeroMQ_CFLAGS=''
-ZeroMQ_LIBS='-lzmq '
+ZeroMQ_CFLAGS='-I/usr/local/include '
+ZeroMQ_LIBS='-L/usr/local/lib -lzmq '
 _ACJNI_JAVAC='/vagrant/lib/jdk1.8.0_51/bin/javac'
 ac_ct_AR='ar'
 ac_ct_CC='gcc'
@@ -939,21 +938,3 @@ target_alias=''
 #define LT_OBJDIR ".libs/"
 
 configure: exit 0
-
-## ---------------------- ##
-## Running config.status. ##
-## ---------------------- ##
-
-This file was extended by jzmq config.status 4.0.0, which was
-generated by GNU Autoconf 2.69.  Invocation command line was
-
-  CONFIG_FILES    = 
-  CONFIG_HEADERS  = 
-  CONFIG_LINKS    = 
-  CONFIG_COMMANDS = 
-  $ ./config.status src/main/c++/config.hpp
-
-on Debian-jessie-amd64-netboot
-
-config.status:1159: creating src/main/c++/config.hpp
-config.status:1340: src/main/c++/config.hpp is unchanged

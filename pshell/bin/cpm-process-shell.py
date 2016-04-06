@@ -47,7 +47,6 @@ errfile = open("/tmp/err"+pid,"w")
 
 processinfo.write(cmd+"\n")
 
-
 exitval = subprocess.call(cmd,shell=True,stdout=outfile,stderr=errfile,cwd=wd)
 
 

@@ -17,3 +17,5 @@ export CPM_CORE=$CPM_HOME/core
 # web server
 export CPM_WEB_HOME=$CPM_HOME/web
 export CPM_WEB_HTPASSWD=$CPM_WEB_HOME/private/.htpasswd
+
+export MONGO_HOME=$CPM_HOME/lib/mongodb

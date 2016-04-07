@@ -169,8 +169,6 @@ object ModuleManager extends LazyLogging{
         response.put("error","module doesn't exist")
         return response.toString()
       }
-    }else{
-
     }
 
     val module = modules(name)

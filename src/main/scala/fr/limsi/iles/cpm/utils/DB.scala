@@ -5,11 +5,11 @@ import com.mongodb.casbah.Imports._
  * Created by buiquang on 10/7/15.
  */
 object DB {
-  val dbhost = ConfManager.get("dbhost") match {
+  val dbhost = ConfManager.get("dbhost").toString match {
     case x:String=>x
     case _ => "localhost"
   }
-  val dbport = ConfManager.get("dbport") match {
+  val dbport = ConfManager.get("dbport").toString match {
     case x:String=>x.toInt
     case _ => 27017
   }

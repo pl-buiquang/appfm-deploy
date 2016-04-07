@@ -40,11 +40,7 @@ object ProcessCMDMessage{
 
 class ProcessCMDMessage(val id:UUID,val namespace:String,val processPort:String,val cmd:String,val dockerimagename:Option[String],val deffolder:File,val runfolder:File,val dockeropts:String,val unique:Boolean){
 
-  val socketsend = Server.context.socket(ZMQ.PUSH)
-  val socketexit = Server.context.socket(ZMQ.PUSH)
 
-  socketsend.connect("inproc://processmanageradd")
-  socketexit.connect("inproc://processmanagerremove")
 
   def format():String={
     val dockimg = if(dockerimagename.isDefined){
@@ -66,10 +62,14 @@ class ProcessCMDMessage(val id:UUID,val namespace:String,val processPort:String,
   val message = format()
 
   def send(): Unit ={
+    val socketsend = Server.context.socket(ZMQ.PUSH)
+    socketsend.connect("inproc://processmanageradd")
     socketsend.send(message)
   }
 
   def end():Unit={
+    val socketexit = Server.context.socket(ZMQ.PUSH)
+    socketexit.connect("inproc://processmanagerremove")
     socketexit.send(message)
   }
 

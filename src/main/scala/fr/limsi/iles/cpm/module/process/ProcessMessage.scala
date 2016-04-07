@@ -9,7 +9,7 @@ object ProcessMessage{
   implicit def parse(message:String) : ProcessMessage = {
     val components = message.split("\n")
     if(components.size>=3){
-      new ValidProcessMessage(components(0),components(1),components(2))
+      new ValidProcessMessage(components(0),components(1),components.slice(2,components.length).foldLeft("")((agg,line)=>{agg+"\n"+line}).trim)
     }else{
       new InvalidProcessMessage()
     }

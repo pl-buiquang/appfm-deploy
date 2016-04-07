@@ -8,7 +8,7 @@ import java.io.File
 
 import com.typesafe.scalalogging.{Logger, LazyLogging}
 import fr.limsi.iles.cpm.module.definition.ModuleManager
-import fr.limsi.iles.cpm.module.process.DockerManager
+import fr.limsi.iles.cpm.module.process.{ProcessManager, DockerManager}
 import fr.limsi.iles.cpm.module.value.MODVAL
 import fr.limsi.iles.cpm.server.{EventMessage, EventManager, Server, WebsocketServer}
 import fr.limsi.iles.cpm.utils.{Log, ConfManager}
@@ -73,6 +73,7 @@ object CPM extends App{
     Log("Listening on port : "+port)
     EventManager.start()
 
+    ProcessManager.start()
 
     Server.run(port)
 

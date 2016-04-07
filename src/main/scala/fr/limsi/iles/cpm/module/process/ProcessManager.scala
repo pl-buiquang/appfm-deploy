@@ -225,8 +225,8 @@ object ProcessManager extends Thread with LazyLogging {
                   }
                   logger.debug("Released lock abstractQueue")
                 }
-                logger.debug("running process "+process.moduleval.namespace)
                 if(process != null){
+                  logger.debug("running process "+process.moduleval.namespace)
                   process.run()
                 }
 

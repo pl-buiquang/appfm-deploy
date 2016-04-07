@@ -278,6 +278,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     newport
   }
   var log = ""
+  var detached = false
 
   var childrenProcess = List[UUID]()
 
@@ -440,13 +441,18 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     true
   }
 
-
-  def run(parentEnv:RunEnv,ns:String,parentPort:Option[String],detached:Boolean):UUID = {
-
+  def setRun(parentEnv:RunEnv,ns:String,parentPort:Option[String],detached:Boolean):UUID = {
     ProcessRunManager.list += (id -> this)
 
     this.originalenv = parentEnv.copy()
     this.parentPort = parentPort
+    this.parentEnv = parentEnv
+    this.detached = detached
+    resultnamespace = ns
+    this.id
+  }
+
+  def run():UUID={
     status match {
       case Running() => throw new Exception("Process already running")
       case Waiting() => status = Running()
@@ -454,13 +460,8 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     }
     logger.info("Executing "+moduleval.moduledef.name)
 
-    // save process to db
-    //this.saveStateToDB()
-
-    resultnamespace = ns
-    // init runenv from parent env
     try{
-      initRunEnv(parentEnv)
+      initRunEnv()
       postInit()
     }catch{
       case e:Throwable => logger.error(e.getMessage); exitRoutine("error when initiation execution environment : "+e.getMessage); return id
@@ -483,6 +484,17 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
       runSupervisor()
     }
     id
+  }
+
+  def run(parentEnv:RunEnv,ns:String,parentPort:Option[String],detached:Boolean):UUID = {
+
+    setRun(parentEnv,ns,parentPort,detached)
+
+    // save process to db
+    //this.saveStateToDB()
+    run()
+
+
   }
 
 
@@ -529,14 +541,12 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     }
   }
 
-  protected def initRunEnv(parentRunEnv:RunEnv) = {
+  protected def initRunEnv() = {
 
     logger.debug("Initializing environement for "+moduleval.moduledef.name)
     logger.debug("Parent env contains : ")
-    parentRunEnv.debugPrint()
+    parentEnv.debugPrint()
 
-    // set parent env reference
-    parentEnv = parentRunEnv
 
 
 
@@ -652,7 +662,8 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
       runningModules += (module.namespace -> process)
       //childrenProcess ::= process.id
       //this.saveStateToDB()
-      process.run(env,moduleval.namespace,Some(processPort),true)
+      process.setRun(env,moduleval.namespace,Some(processPort),true)
+      ProcessManager.addToQueue(process)
     }else{
       throw new Exception("couldn't continue execution env doesn't provide necessary inputs..")
     }
@@ -740,7 +751,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
   def this(moduleval:CMDVal,parentProcess:Option[AbstractProcess]) = this(moduleval,parentProcess,UUID.randomUUID())
   var stdoutval : VAL = VAL(None,None)
   var stderrval : VAL = VAL(None,None)
-  var run = ""
+  var launched = ""
   var processCMDMessage : ProcessCMDMessage = null
 
   override def step(): Unit = {
@@ -802,7 +813,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
     processCMDMessage.send()
 
     // tag to prevent running more than once the process
-    run = "true"
+    launched = "true"
 
   }
 
@@ -854,15 +865,15 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
   }
 
   override protected[this] def endCondition(): Boolean = {
-    run != ""
+    launched != ""
   }
 
   override protected[this] def attrserialize(): (Map[String, String], Map[String, String]) = {
-    (Map[String,String](),Map[String,String]("cmdprocrun"->run))
+    (Map[String,String](),Map[String,String]("cmdprocrun"->launched))
   }
 
   override protected[this] def attrdeserialize(mixedattrs: Map[String, String]): Unit = {
-    run = mixedattrs("cmdprocrun")
+    launched = mixedattrs("cmdprocrun")
   }
 }
 
@@ -1004,7 +1015,8 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
       list ::= process
       values += ("process" -> list)*/
       values += ("pcount" -> (1+values("pcount").asInstanceOf[Int]))
-      process.run(newenv,moduleval.namespace,Some(processPort),true)
+      process.setRun(newenv,moduleval.namespace,Some(processPort),true)
+      ProcessManager.addToQueue(process)
     })
 
     offset = to
@@ -1052,7 +1064,8 @@ class IFProcess(override val moduleval:IFVal,override val parentProcess:Option[A
     /*var list = values("process").asInstanceOf[List[AbstractProcess]]
     list ::= process
     values += ("process" -> list)*/
-    process.run(env,moduleval.namespace,Some(processPort),true)
+    process.setRun(env,moduleval.namespace,Some(processPort),true)
+    ProcessManager.addToQueue(process)
   }
 
   override protected[this] def step(): Unit = {

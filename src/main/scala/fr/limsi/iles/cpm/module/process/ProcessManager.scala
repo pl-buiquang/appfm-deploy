@@ -131,7 +131,14 @@ object ProcessManager extends Thread with LazyLogging {
   var runningProcess = 0
   val nonDockerExecutorsService = Executors.newFixedThreadPool(maxProcess)
   var containersmap = mutable.Map[String,String]()
+  var abstractProcessQueue:mutable.Queue[AbstractProcess] = mutable.Queue[AbstractProcess]()
 
+
+  def addToQueue(process:AbstractProcess)={
+    abstractProcessQueue.synchronized{
+      abstractProcessQueue.enqueue(process)
+    }
+  }
 
   override def run()={
 
@@ -183,6 +190,9 @@ object ProcessManager extends Thread with LazyLogging {
               if(processQueue.length>0) {
                 val processCmd = processQueue.dequeue()
                 new ExecutableProcessCMDMessage(processCmd).execute()
+              }else{
+                val process = abstractProcessQueue.dequeue()
+                process.run()
               }
             }
           }

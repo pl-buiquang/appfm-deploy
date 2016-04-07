@@ -154,8 +154,7 @@ object ProcessManager extends Thread with LazyLogging {
   override def run()={
 
     // listen to new incomming process
-    val executorService = Executors.newSingleThreadExecutor()
-    val incomingProcess = executorService.execute(new Runnable {
+    val incomingProcess = new Thread(new Runnable {
       override def run(): Unit = {
         val socket = Server.context.socket(ZMQ.PULL)
 
@@ -183,10 +182,10 @@ object ProcessManager extends Thread with LazyLogging {
         }
       }
     })
-    executorService.shutdown();
+    incomingProcess.start();
 
-    val executorService2 = Executors.newSingleThreadExecutor()
-    val endedProcess = executorService2.execute(new Runnable {
+
+    val endedProcess = new Thread(new Runnable {
       override def run(): Unit = {
         val socket = Server.context.socket(ZMQ.PULL)
 
@@ -235,7 +234,7 @@ object ProcessManager extends Thread with LazyLogging {
         }
       }
     })
-    executorService2.shutdown();
+    endedProcess.start()
 
   }
 

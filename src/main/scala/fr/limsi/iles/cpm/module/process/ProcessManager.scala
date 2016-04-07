@@ -220,11 +220,15 @@ object ProcessManager extends Thread with LazyLogging {
                 var process : AbstractProcess = null;
                 abstractProcessQueue.synchronized {
                   logger.debug("Acquired lock abstractQueue")
-                  process = abstractProcessQueue.dequeue()
+                  if(abstractProcessQueue.length>0){
+                    process = abstractProcessQueue.dequeue()
+                  }
                   logger.debug("Released lock abstractQueue")
                 }
                 logger.debug("running process "+process.moduleval.namespace)
-                process.run()
+                if(process != null){
+                  process.run()
+                }
 
               }
             }

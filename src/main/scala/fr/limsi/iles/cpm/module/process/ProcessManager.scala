@@ -65,12 +65,14 @@ class ProcessCMDMessage(val id:UUID,val namespace:String,val processPort:String,
     val socketsend = Server.context.socket(ZMQ.PUSH)
     socketsend.connect("inproc://processmanageradd")
     socketsend.send(message)
+    socketsend.close()
   }
 
   def end():Unit={
     val socketexit = Server.context.socket(ZMQ.PUSH)
     socketexit.connect("inproc://processmanagerremove")
     socketexit.send(message)
+    socketexit.close()
   }
 
 }

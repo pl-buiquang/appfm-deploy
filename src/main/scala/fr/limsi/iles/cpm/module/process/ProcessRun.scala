@@ -735,7 +735,7 @@ class AnonymousModuleProcess(override val moduleval:ModuleVal,override val paren
       parentEnv.setVars(env.getVars().filter(elt => {
 
         moduleval.moduledef.exec.foldLeft(false)((agg,modval) => {
-          agg || elt._1.startsWith(modval.namespace)
+          agg || elt._1.startsWith(modval.namespace+".") // dot added to be sure that it is this very module and not another begiging with the same name
         })
 
       }).foldLeft(Map[String,AbstractParameterVal]())((map,elt)=>{map + (moduleval.namespace+"."+elt._1->elt._2)}))

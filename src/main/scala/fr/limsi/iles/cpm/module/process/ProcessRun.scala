@@ -790,6 +790,9 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
       val containername = DockerManager.serviceExec(this.id,moduleval.namespace,"localhost",processPort,env.resolveValueToString(moduleval.inputs("CMD").asString()),deffolder,dockerimagename,runfolder,env.resolveValueToString(moduleval.inputs("DOCKER_OPTS").asString()),unique)
       container = Some(containername)
     }else{
+      while (DockerManager.getNbProcessRunning() >= DockerManager.maxProcess){
+        Thread.sleep(1000)
+      }
 
       val cmd = env.resolveValueToString(moduleval.inputs("CMD").asString())
       val absolutecmd = cmd.replace("\n"," ").replaceAll("^\\./",deffolder.getCanonicalPath+"/")

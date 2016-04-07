@@ -227,7 +227,8 @@ class MasterProcessShell(process:AbstractProcess,detached:Boolean,ns:String,env:
         }
       }
 
-    process.run(env,ns,Some(processPort),detached)
+    process.setRun(env,ns,Some(processPort),detached)
+    ProcessManager.addToQueue(process)
     var finished = false
     var error = "0"
 

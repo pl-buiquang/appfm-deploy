@@ -148,11 +148,13 @@ object ProcessRunManager extends LazyLogging{
     //val runid = process.run(env,"",None,async)
     process.saveStateToDB()
     val mps = new MasterProcessShell(process,async,"",env)
-    mps.run()
+
 
     if(async){
+      ProcessManager.addMasterToQueue(mps)
       uuid.toString
     }else{
+      mps.run()
       val runid = VAL(None,None)
       runid.fromYaml(uuid.toString)
       env.setVar("_RUN_ID",runid)

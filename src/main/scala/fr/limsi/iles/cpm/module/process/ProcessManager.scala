@@ -137,19 +137,32 @@ object ProcessManager extends Thread with LazyLogging {
   val nonDockerExecutorsService = Executors.newFixedThreadPool(maxProcess)
   var containersmap = mutable.Map[String,String]()
   var abstractProcessQueue:mutable.Queue[AbstractProcess] = mutable.Queue[AbstractProcess]()
+  var masterProcessQueue:mutable.Queue[MasterProcessShell] = mutable.Queue[MasterProcessShell]()
 
+  def addMasterToQueue(process:MasterProcessShell):Boolean={
+    ProcessManager.processQueue.synchronized{
+      logger.debug("Acquired lock processQueue")
+      if (runningProcess<=maxProcess){
+        process.run()
+        true
+      }else{
+        masterProcessQueue.enqueue(process)
+        false
+      }
+    }
+  }
 
-  def addToQueue(process:AbstractProcess)={
+  def addToQueue(process:AbstractProcess):Boolean={
     logger.debug("Waiting for lock processQueue")
     ProcessManager.processQueue.synchronized{
       logger.debug("Acquired lock processQueue")
       if (runningProcess<=maxProcess){
         process.run()
+        true
       }else{
         abstractProcessQueue.enqueue(process)
+        false
       }
-      logger.debug("aprocess queue lenght is "+abstractProcessQueue.length)
-      logger.debug("Released lock processQueue")
     }
   }
 
@@ -217,21 +230,14 @@ object ProcessManager extends Thread with LazyLogging {
                 logger.debug("process queue lenght is "+processQueue.length)
                 new ExecutableProcessCMDMessage(processCmd).execute()
                 logger.debug("nb running process is now : "+runningProcess)
-              }else{
+              }else if(abstractProcessQueue.length>0){
                 logger.debug("Waiting for lock abstractQueue")
-                var process : AbstractProcess = null;
-                abstractProcessQueue.synchronized {
-                  logger.debug("Acquired lock abstractQueue")
-                  if(abstractProcessQueue.length>0){
-                    process = abstractProcessQueue.dequeue()
-                  }
-                  logger.debug("Released lock abstractQueue")
-                }
-                if(process != null){
-                  logger.debug("running process "+process.moduleval.namespace)
-                  process.run()
-                }
-
+                val process = abstractProcessQueue.dequeue()
+                logger.debug("running process "+process.moduleval.namespace)
+                process.run()
+              }else if(masterProcessQueue.length>0){
+                val process = masterProcessQueue.dequeue()
+                process.run()
               }
             }
             logger.debug("Released lock processQueue")

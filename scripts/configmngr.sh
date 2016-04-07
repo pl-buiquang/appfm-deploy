@@ -10,9 +10,9 @@ importconf() {
   fi
   cp $DEFAULT_USER_CONF/conf.yml $DIR/../core/src/main/resources/conf.yml
   cp $DEFAULT_USER_CONF/env.sh $DIR/env.sh
-  cp $DEFAULT_USER_CONF/start.sh $DIR/
   cp $DEFAULT_USER_CONF/settings.php $DIR/../web/settings.php
   cp $DEFAULT_USER_CONF/.htaccess $DIR/../web/.htaccess
+  cp $DEFAULT_USER_CONF/servers.info $DIR/../web/servers.conf
 }
 
 exportconf() {
@@ -24,9 +24,9 @@ exportconf() {
   fi
   cp $DIR/../core/src/main/resources/conf.yml $DEFAULT_USER_CONF/
   cp $DIR/env.sh $DEFAULT_USER_CONF/
-  cp $DIR/start.sh $DEFAULT_USER_CONF/
   cp $DIR/../web/settings.php $DEFAULT_USER_CONF/
   cp $DIR/../web/.htaccess $DEFAULT_USER_CONF/
+  cp $DIR/../web/servers.info $DEFAULT_USER_CONF/
 }
 
 case "$1" in

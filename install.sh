@@ -52,7 +52,7 @@ function install_root {
   make
   make install
 
-
+  ldconfig
 
   export CPPFLAGS="-I$CURDIR/lib/jdk1.8.0_51/include -I$CURDIR/lib/jdk1.8.0_51/include/linux"
   export PATH=$CURDIR/lib/jdk1.8.0_51/bin:$PATH
@@ -63,6 +63,7 @@ function install_root {
   make
   make install
 
+  ldconfig
 }
 
 function install_non_root {

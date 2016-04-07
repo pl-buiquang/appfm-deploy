@@ -913,12 +913,8 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     //logger.debug("Process env contains : ")
     env.debugPrint()
 
-    val namespace = resultnamespace match {
-      case "" => ""
-      case _ => resultnamespace+"."
-    }
 
-    val prefix = namespace+"_MAP."
+    val prefix = "_MAP."
     val prefixlength = prefix.length
     val args = env.getVars()
     //val args = getResult().getVars()
@@ -955,6 +951,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     val toProcessFiles = values("dir").asInstanceOf[java.io.File].listFiles(values("filter").asInstanceOf[FilenameFilter])
     val resEnv = new RunEnv(Map[String,AbstractParameterVal]())
     var i = 0;
+
     //val newenv = values("tmpenv").asInstanceOf[RunEnv]
     toProcessFiles.foreach(file => {
       val newenv = env
@@ -965,7 +962,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
       val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
 
-      val moduleval = new ModuleVal(resultnamespace+"_MAP."+(offset+i).toString,module,Some(Utils.scalaMap2JavaMap(newenv.getVars().mapValues(paramval => {
+      val moduleval = new ModuleVal("_MAP."+(offset+i).toString,module,Some(Utils.scalaMap2JavaMap(newenv.getVars().mapValues(paramval => {
         paramval.toYaml()
       }))))
       i+=1
@@ -974,7 +971,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
       moduleval.moduledef.exec.foreach(modval => {
         val resolvebaseenv = AbstractProcess.initEnvFrom(newenv,modval)
         modval.moduledef.outputs.foreach(output => {
-          resEnv.setVar(resultnamespace+"_MAP."+(offset+i).toString+"."+moduleval.namespace+output._1,resolvebaseenv.resolveValue(output._2.value.get))
+          resEnv.setVar("_MAP."+(offset+i).toString+"."+moduleval.namespace+output._1,resolvebaseenv.resolveValue(output._2.value.get))
         })
       })
 
@@ -1004,7 +1001,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
       val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
       //logger.debug("anonymous created")
-      val moduleval = new ModuleVal(resultnamespace+"_MAP."+(offset+i).toString,module,Some(Utils.scalaMap2JavaMap(newenv.getVars().mapValues(paramval => {
+      val moduleval = new ModuleVal("_MAP."+(offset+i).toString,module,Some(Utils.scalaMap2JavaMap(newenv.getVars().mapValues(paramval => {
         paramval.toYaml()
       }))))
       i+=1
@@ -1054,7 +1051,7 @@ class IFProcess(override val moduleval:IFVal,override val parentProcess:Option[A
 
     val module = new AnonymousDef(modlist,context,parentInputsDef)
 
-    val moduleval = new ModuleVal(resultnamespace,module,Some(Utils.scalaMap2JavaMap(env.getVars().mapValues(paramval => {
+    val moduleval = new ModuleVal("_IF",module,Some(Utils.scalaMap2JavaMap(env.getVars().mapValues(paramval => {
       paramval.toYaml()
     }))))
 
@@ -1088,6 +1085,23 @@ class IFProcess(override val moduleval:IFVal,override val parentProcess:Option[A
   }
 
   override protected[this] def updateParentEnv(): Unit = {
+
+    val prefix = "_IF."
+    val prefixlength = prefix.length
+    val args = env.getVars()
+    //val args = getResult().getVars()
+    parentEnv.setVars(args.filter(elt => {
+      elt._1.startsWith("_IF")
+    }).groupBy[String](el=>{
+      val modnamestartindex = el._1.substring(4).indexOf(".")
+      prefix+el._1.substring(4+modnamestartindex+1)//.substring(0,modnameendindex)
+    }).transform((key,content) => {
+      val newel = AbstractModuleParameter.createVal(content.head._2._mytype+"*",content.head._2.format,content.head._2.schema).asInstanceOf[LIST[AbstractParameterVal]]
+      content.foldLeft(newel)((agg,elt) => {
+        agg.list ::= elt._2
+        agg
+      })
+    }))
 
   }
 

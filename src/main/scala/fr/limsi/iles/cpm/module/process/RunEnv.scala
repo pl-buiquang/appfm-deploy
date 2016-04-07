@@ -85,7 +85,7 @@ class RunEnv(private var args:Map[String,AbstractParameterVal]) extends LazyLogg
 
   def debugPrint() : Unit = {
     args.foreach(elt => {
-      logger.debug(elt._1+" of type "+elt._2.getClass.toGenericString+" with value "+elt._2.asString())
+      //logger.debug(elt._1+" of type "+elt._2.getClass.toGenericString+" with value "+elt._2.asString())
     })
   }
 

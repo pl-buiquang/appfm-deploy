@@ -455,7 +455,7 @@ object ModuleManager extends LazyLogging{
   private def initModule(moduleConfFile:File):Option[String]={
     try{
       val modulename = moduleConfFile.getName.substring(0,moduleConfFile.getName.lastIndexOf('.'))
-      logger.debug("Initiating module "+modulename)
+      //logger.debug("Initiating module "+modulename)
 
       if(ModuleDef.builtinmodules.contains(modulename)){
         modules += (modulename -> ModuleDef.builtinmodules(modulename));

@@ -282,7 +282,7 @@ object MAPVal extends LazyLogging{
     val implicitvars = List("_","_RUN_DIR","_DEF_DIR","_CUR_MOD","_MOD_CONTEXT")
     modulelist.foreach(moduleval => {
       moduleval.inputs.foreach(input => {
-        logger.debug("looking inner variable "+input._1+" of type "+input._2._mytype)
+        //logger.debug("looking inner variable "+input._1+" of type "+input._2._mytype)
         if (input._2._mytype.startsWith("MODVAL")){
           val submodules = LIST[MODVAL](None,None)
           submodules.fromYaml(input._2.toYaml())
@@ -298,7 +298,7 @@ object MAPVal extends LazyLogging{
       })
       moduleval.moduledef.outputs.foreach(output => {
         innervariables += (moduleval.namespace+"."+output._1 -> output._2)
-        logger.debug("added "+moduleval.namespace+"."+output._1)
+        //logger.debug("added "+moduleval.namespace+"."+output._1)
       })
     })
     outervariables

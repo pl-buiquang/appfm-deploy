@@ -49,7 +49,7 @@ object ProcessRunManager extends LazyLogging{
 
   def deleteResultDir(process:AbstractProcess)={
     val dirpath = process.env.getVars()("_RUN_DIR").asString()
-    logger.debug("deleting dir "+dirpath)
+    //logger.debug("deleting dir "+dirpath)
     val dirfile = new java.io.File(dirpath)
     if(dirfile.getParentFile.list().length==1){
       Utils.deleteDirectory(dirfile.getParentFile)
@@ -166,7 +166,7 @@ object ProcessRunManager extends LazyLogging{
   def createRunResultDir(resultdirpath:String,uuid:UUID,custom:Boolean) = {
     val resultdir = new java.io.File(resultdirpath)
     if(!resultdir.exists()){
-      logger.debug("result dir does not exist, atempting to create it")
+      //logger.debug("result dir does not exist, atempting to create it")
       if(!resultdir.mkdirs()){
         throw new Exception("cannot create result dir")
       }
@@ -186,7 +186,7 @@ object ProcessRunManager extends LazyLogging{
         resultdirpath
       }
     }
-    logger.debug("created result dir")
+    //logger.debug("created result dir")
     runresultdirpath
   }
 

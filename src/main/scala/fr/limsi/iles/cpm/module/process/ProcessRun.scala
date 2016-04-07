@@ -471,7 +471,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
 
     if(detached){
-      logger.debug("Launching detached supervisor")
+      //logger.debug("Launching detached supervisor")
       val executorService = Executors.newSingleThreadExecutor()
       val process = executorService.execute(new Runnable {
         override def run(): Unit = {
@@ -543,8 +543,8 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
   protected def initRunEnv() = {
 
-    logger.debug("Initializing environement for "+moduleval.moduledef.name)
-    logger.debug("Parent env contains : ")
+    //logger.debug("Initializing environement for "+moduleval.moduledef.name)
+    //logger.debug("Parent env contains : ")
     parentEnv.debugPrint()
 
 
@@ -552,7 +552,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
 
     env = AbstractProcess.initEnvFrom(parentEnv,moduleval)
-    logger.debug("Child env contains : ")
+    //logger.debug("Child env contains : ")
     env.debugPrint()
   }
 
@@ -574,7 +574,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
     var catchUpdateParentEnvErrorMessage = error
 
-    logger.debug("Setting results to parent env")
+    //logger.debug("Setting results to parent env")
     // set outputs value to env
     try{
       updateParentEnv()
@@ -591,12 +591,12 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
     socket match {
       case Some(sock) => {
-        logger.debug("Sending completion signal")
+        //logger.debug("Sending completion signal")
         sock.send(new ValidProcessMessage(moduleval.namespace,"FINISHED",catchUpdateParentEnvErrorMessage))
         sock.close()
       }
       case None => {
-        logger.info("Finished executing "+moduleval.moduledef.name)
+        //logger.info("Finished executing "+moduleval.moduledef.name)
       }
     }
 
@@ -625,7 +625,7 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
     message match {
       case ValidProcessMessage(sender,status,exitval) => status match {
         case "FINISHED" => {
-          logger.debug(sender + " just finished")
+          //logger.debug(sender + " just finished")
           // TODO message should contain new env data?
           // anyway update env here could be good since there is no need to lock...
           if(exitval!="0"){
@@ -646,10 +646,10 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
    *
    */
   override def step() = {
-    logger.debug("Trying to run next submodule for module "+moduleval.moduledef.name)
+    //logger.debug("Trying to run next submodule for module "+moduleval.moduledef.name)
     val module = moduleval.moduledef.exec(completedModules.size)
     if(module.isExecutable(env)){
-      logger.debug("Launching "+module.moduledef.name)
+      //logger.debug("Launching "+module.moduledef.name)
       val process = module.toProcess(Some(this))
       if(module.moduledef.name=="_MAP"){
         process.asInstanceOf[MAPProcess].parentInputsDef = moduleval.moduledef.inputs
@@ -696,12 +696,12 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
   }
 
   override def updateParentEnv() = {
-    logger.debug("Process env contains : ")
+    //logger.debug("Process env contains : ")
     env.debugPrint()
     moduleval.moduledef.outputs.foreach(output=>{
-      logger.debug("Looking to resolve : "+output._2.value.get.asString())
+      //logger.debug("Looking to resolve : "+output._2.value.get.asString())
       val x = output._2.createVal()
-      logger.debug("Found :"+env.resolveValueToYaml(output._2.value.get.asString()))
+      //logger.debug("Found :"+env.resolveValueToYaml(output._2.value.get.asString()))
 
       x.fromYaml(env.resolveValueToYaml(output._2.value.get.asString())) // changed toYaml to asString (for list bug...)
       val namespace = moduleval.namespace match {
@@ -710,7 +710,7 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
       }
       parentEnv.setVar(namespace+output._1,x)
     });
-    logger.debug("New parent env contains : ")
+    //logger.debug("New parent env contains : ")
     parentEnv.debugPrint()
   }
 
@@ -726,11 +726,11 @@ class AnonymousModuleProcess(override val moduleval:ModuleVal,override val paren
   def this(moduleval:ModuleVal,parentProcess:Option[AbstractProcess]) = this(moduleval,parentProcess,UUID.randomUUID())
 
   override def updateParentEnv()= {
-    logger.debug("Process env contains : ")
+    //logger.debug("Process env contains : ")
     env.debugPrint()
     if(true || !moduleval.namespace.startsWith("_MAP")){
       moduleval.inputs.foreach(elt => {
-        logger.debug(elt._1+" with value "+elt._2.asString())
+        //logger.debug(elt._1+" with value "+elt._2.asString())
       })
       parentEnv.setVars(env.getVars().filter(elt => {
 
@@ -741,7 +741,7 @@ class AnonymousModuleProcess(override val moduleval:ModuleVal,override val paren
       }).foldLeft(Map[String,AbstractParameterVal]())((map,elt)=>{map + (moduleval.namespace+"."+elt._1->elt._2)}))
 
     }
-    logger.debug("New parent env contains : ")
+    //logger.debug("New parent env contains : ")
     parentEnv.debugPrint()
   }
 }
@@ -755,7 +755,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
   var processCMDMessage : ProcessCMDMessage = null
 
   override def step(): Unit = {
-    logger.debug("Launching CMD "+env.resolveValueToString(moduleval.inputs("CMD").asString()))
+    //logger.debug("Launching CMD "+env.resolveValueToString(moduleval.inputs("CMD").asString()))
     var stderr = ""
     var stdout = ""
     val defdir = env.getRawVar("_DEF_DIR").get.asString()
@@ -852,7 +852,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
     message match {
       case ValidProcessMessage(sender,status,exitval) => status match {
         case "FINISHED" => {
-          logger.debug(sender + " just finished")
+          //logger.debug(sender + " just finished")
           processCMDMessage.end()
           if(exitval!="0"){
             throw new Exception(sender+" failed with exit value "+exitval)
@@ -910,7 +910,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
 
   override protected[this] def updateParentEnv(): Unit = {
-    logger.debug("Process env contains : ")
+    //logger.debug("Process env contains : ")
     env.debugPrint()
 
     val namespace = resultnamespace match {
@@ -936,7 +936,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
       })
     }))
 
-    logger.debug("New parent env contains : ")
+    //logger.debug("New parent env contains : ")
     parentEnv.debugPrint()
   }
 
@@ -1003,7 +1003,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
       newenv.setVar("_", x)
 
       val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
-      logger.debug("anonymous created")
+      //logger.debug("anonymous created")
       val moduleval = new ModuleVal(resultnamespace+"_MAP."+(offset+i).toString,module,Some(Utils.scalaMap2JavaMap(newenv.getVars().mapValues(paramval => {
         paramval.toYaml()
       }))))

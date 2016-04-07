@@ -6,13 +6,13 @@ import java.util.UUID
 import java.util.concurrent.Executors
 
 import com.typesafe.scalalogging.LazyLogging
-import fr.limsi.iles.cpm.module.value.CMDVal
+
 import fr.limsi.iles.cpm.server.Server
 import fr.limsi.iles.cpm.utils.ConfManager
 import org.zeromq.ZMQ
 
 import scala.collection.mutable
-import scala.sys.process.{Process, ProcessLogger}
+import scala.sys.process.{Process}
 
 
 object ProcessCMDMessage{
@@ -76,7 +76,7 @@ class ProcessCMDMessage(val id:UUID,val namespace:String,val processPort:String,
 }
 
 
-class ExecutableProcessCMDMessage(processcmdmessage:ProcessCMDMessage){
+class ExecutableProcessCMDMessage(processcmdmessage:ProcessCMDMessage) extends LazyLogging{
   def execute()={
     ProcessManager.runningProcess += 1
     // if non docker , create new thread else run docker
@@ -112,8 +112,11 @@ class ExecutableProcessCMDMessage(processcmdmessage:ProcessCMDMessage){
     }
 
     if(containername.isDefined){
+      logger.debug("Waiting for lock containerMap")
       ProcessManager.containersmap.synchronized{
+        logger.debug("Acquired lock containerMap")
         ProcessManager.containersmap += (processcmdmessage.id.toString -> containername.get)
+        logger.debug("Released lock containerMap")
       }
     }
 
@@ -135,8 +138,16 @@ object ProcessManager extends Thread with LazyLogging {
 
 
   def addToQueue(process:AbstractProcess)={
-    abstractProcessQueue.synchronized{
-      abstractProcessQueue.enqueue(process)
+    logger.debug("Waiting for lock processQueue")
+    ProcessManager.processQueue.synchronized{
+      logger.debug("Acquired lock processQueue")
+      if (runningProcess<=maxProcess){
+        process.run()
+      }else{
+        abstractProcessQueue.enqueue(process)
+      }
+      logger.debug("aprocess queue lenght is "+abstractProcessQueue.length)
+      logger.debug("Released lock processQueue")
     }
   }
 
@@ -152,13 +163,21 @@ object ProcessManager extends Thread with LazyLogging {
 
         while (true){
           val processmessage :ProcessCMDMessage= socket.recvStr(Charset.defaultCharset())
-
+          logger.debug("receiving process cmd : "+processmessage.cmd)
+          logger.debug("Waiting for lock processQueue")
           ProcessManager.processQueue.synchronized{
+            logger.debug("Acquired lock processQueue")
+            logger.debug("nb running process is : "+runningProcess)
             if(runningProcess <=maxProcess){
+              logger.debug("executing now")
               new ExecutableProcessCMDMessage(processmessage).execute();
+              logger.debug("nb running process is now : "+runningProcess)
             }else{
+              logger.debug("enqueing")
               ProcessManager.processQueue.enqueue(processmessage)
+              logger.debug("process queue lenght is "+processQueue.length)
             }
+            logger.debug("Released lock processQueue")
           }
 
         }
@@ -175,26 +194,42 @@ object ProcessManager extends Thread with LazyLogging {
 
         while (true){
           val exitedProcess:ProcessCMDMessage = socket.recvStr(Charset.defaultCharset())
-
+          logger.debug("receiving process cmd : "+exitedProcess.cmd)
+          logger.debug("Waiting for lock processQueue")
           ProcessManager.processQueue.synchronized{
+            logger.debug("Acquired lock processQueue")
             runningProcess -= 1
-
+            logger.debug("nb running process is now : "+runningProcess)
+            logger.debug("Waiting for lock containerMap")
             ProcessManager.containersmap.synchronized{
+              logger.debug("Acquired lock containerMap")
               if(ProcessManager.containersmap.keySet.exists(_==exitedProcess.id.toString)){
                 DockerManager.updateServiceStatus(ProcessManager.containersmap.get(exitedProcess.id.toString),exitedProcess.dockerimagename,false)
                 ProcessManager.containersmap -= exitedProcess.id.toString
               }
+              logger.debug("Released lock containerMap")
             }
 
             if(runningProcess<=maxProcess){
               if(processQueue.length>0) {
                 val processCmd = processQueue.dequeue()
+                logger.debug("process queue lenght is "+processQueue.length)
                 new ExecutableProcessCMDMessage(processCmd).execute()
+                logger.debug("nb running process is now : "+runningProcess)
               }else{
-                val process = abstractProcessQueue.dequeue()
+                logger.debug("Waiting for lock abstractQueue")
+                var process : AbstractProcess = null;
+                abstractProcessQueue.synchronized {
+                  logger.debug("Acquired lock abstractQueue")
+                  process = abstractProcessQueue.dequeue()
+                  logger.debug("Released lock abstractQueue")
+                }
+                logger.debug("running process "+process.moduleval.namespace)
                 process.run()
+
               }
             }
+            logger.debug("Released lock processQueue")
           }
 
         }

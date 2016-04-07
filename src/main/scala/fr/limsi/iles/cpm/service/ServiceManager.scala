@@ -46,7 +46,7 @@ object ServiceManager extends LazyLogging{
   def initService(confFile:java.io.File):Boolean={
     try{
       val servicename = confFile.getName.substring(0,confFile.getName.lastIndexOf('.'))
-      logger.debug("Initiating module "+servicename)
+      //logger.debug("Initiating module "+servicename)
 
 
 

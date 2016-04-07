@@ -357,7 +357,7 @@ object AnonymousDef extends LazyLogging{
           val variables = input._2.extractVariables()
 
           variables.foreach(variable => {
-            logger.debug("search variable "+variable+" in innervariables")
+            //logger.debug("search variable "+variable+" in innervariables")
             if(!innervariables.contains(variable) && !implicitvars.contains(variable)){
               val value = if(variables.length == 1 && !input._2.isExpression()){
                 moduleval.moduledef.inputs(variable)
@@ -382,7 +382,7 @@ object AnonymousDef extends LazyLogging{
       })
       moduleval.moduledef.outputs.foreach(output => {
         innervariables += (moduleval.namespace+"."+output._1 -> output._2)
-        logger.debug("added "+moduleval.namespace+"."+output._1)
+        //logger.debug("added "+moduleval.namespace+"."+output._1)
       })
     })
     (innervariables,outervariables)

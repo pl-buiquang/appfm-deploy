@@ -937,7 +937,6 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
   }
 
   override protected [this] def update(message:ProcessMessage)={
-    values += ("chunksize" -> 1)
     val n : Int= values("completed").asInstanceOf[Int]
     values += ("completed" -> (n+1))
   }

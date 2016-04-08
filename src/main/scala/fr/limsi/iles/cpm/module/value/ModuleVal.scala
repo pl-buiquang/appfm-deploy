@@ -53,7 +53,7 @@ abstract class AbstractModuleVal(val moduledef:ModuleDef,val conf:Option[java.ut
     })
   }
   def toProcess(parentProcess:Option[AbstractProcess]):AbstractProcess
-
+  def getNbChildren():Int
 }
 
 
@@ -188,6 +188,12 @@ case class ModuleVal(override val namespace:String,override val moduledef:Module
   override def needsDocker(): Boolean = {
     this.moduledef.needsDocker()
   }
+
+  override def getNbChildren(): Int = {
+    this.moduledef.exec.foldLeft(0)((agg,modval)=>{
+      agg+modval.getNbChildren()
+    })
+  }
 }
 
 
@@ -212,6 +218,8 @@ case class CMDVal(override val namespace:String,override val conf:Option[java.ut
       case _ =>  false
     }
   }
+
+  override def getNbChildren(): Int = 1
 }
 
 
@@ -272,6 +280,8 @@ case class IFVal(override val namespace:String,override val conf:Option[java.uti
       valence || modval.needsDocker()
     })
   }
+
+  override def getNbChildren(): Int = 1 // this is a anonymous module
 }
 
 object MAPVal extends LazyLogging{
@@ -363,5 +373,7 @@ case class MAPVal(override val namespace:String,override val conf:Option[java.ut
       valence || modval.needsDocker()
     })
   }
+
+  override def getNbChildren(): Int = 1
 }
 

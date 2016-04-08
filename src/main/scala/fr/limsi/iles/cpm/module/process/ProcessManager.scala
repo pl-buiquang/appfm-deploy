@@ -26,7 +26,8 @@ object ProcessCMDMessage{
       new File(frames("DEF")),
       new File(frames("RUN")),
       frames("OPT"),
-      frames("UNIQ").toBoolean
+      frames("UNIQ").toBoolean,
+      frames("STATUS")
     )
   }
 
@@ -38,9 +39,7 @@ object ProcessCMDMessage{
   }
 }
 
-class ProcessCMDMessage(val id:UUID,val namespace:String,val processPort:String,val cmd:String,val dockerimagename:Option[String],val deffolder:File,val runfolder:File,val dockeropts:String,val unique:Boolean){
-
-
+class ProcessCMDMessage(val id:UUID,val namespace:String,val processPort:String,val cmd:String,val dockerimagename:Option[String],val deffolder:File,val runfolder:File,val dockeropts:String,val unique:Boolean,val status:String){
 
   def format():String={
     val dockimg = if(dockerimagename.isDefined){
@@ -63,15 +62,15 @@ class ProcessCMDMessage(val id:UUID,val namespace:String,val processPort:String,
 
   def send(): Unit ={
     val socketsend = Server.context.socket(ZMQ.PUSH)
-    socketsend.connect("inproc://processmanageradd")
-    socketsend.send(message)
+    socketsend.connect("inproc://processmanager")
+    socketsend.send("==STATUS==STARTED==END_STATUS=="+message)
     socketsend.close()
   }
 
   def end():Unit={
     val socketexit = Server.context.socket(ZMQ.PUSH)
-    socketexit.connect("inproc://processmanagerremove")
-    socketexit.send(message)
+    socketexit.connect("inproc://processmanager")
+    socketexit.send("==STATUS==ENDED==END_STATUS=="+message)
     socketexit.close()
   }
 
@@ -169,15 +168,15 @@ object ProcessManager extends Thread with LazyLogging {
   override def run()={
 
     // listen to new incomming process
-    val incomingProcess = new Thread(new Runnable {
-      override def run(): Unit = {
-        val socket = Server.context.socket(ZMQ.PULL)
+      val socket = Server.context.socket(ZMQ.PULL)
 
-        socket.bind("inproc://processmanageradd")
+      socket.bind("inproc://processmanager")
 
-        while (true){
-          val processmessage :ProcessCMDMessage= socket.recvStr(Charset.defaultCharset())
-          logger.debug("receiving process cmd : "+processmessage.cmd)
+      while (true){
+        val processmessage :ProcessCMDMessage= socket.recvStr(Charset.defaultCharset())
+        logger.debug("receiving process cmd : "+processmessage.cmd)
+
+        if(processmessage.status=="STARTED") {
           logger.debug("Waiting for lock processQueue")
           ProcessManager.processQueue.synchronized{
             logger.debug("Acquired lock processQueue")
@@ -193,22 +192,7 @@ object ProcessManager extends Thread with LazyLogging {
             }
             logger.debug("Released lock processQueue")
           }
-
-        }
-      }
-    })
-    incomingProcess.start();
-
-
-    val endedProcess = new Thread(new Runnable {
-      override def run(): Unit = {
-        val socket = Server.context.socket(ZMQ.PULL)
-
-        socket.bind("inproc://processmanagerremove")
-
-        while (true){
-          val exitedProcess:ProcessCMDMessage = socket.recvStr(Charset.defaultCharset())
-          logger.debug("receiving process cmd : "+exitedProcess.cmd)
+        }else if(processmessage.status=="ENDED") {
           logger.debug("Waiting for lock processQueue")
           ProcessManager.processQueue.synchronized{
             logger.debug("Acquired lock processQueue")
@@ -217,9 +201,9 @@ object ProcessManager extends Thread with LazyLogging {
             logger.debug("Waiting for lock containerMap")
             ProcessManager.containersmap.synchronized{
               logger.debug("Acquired lock containerMap")
-              if(ProcessManager.containersmap.keySet.exists(_==exitedProcess.id.toString)){
-                DockerManager.updateServiceStatus(ProcessManager.containersmap.get(exitedProcess.id.toString),exitedProcess.dockerimagename,false)
-                ProcessManager.containersmap -= exitedProcess.id.toString
+              if(ProcessManager.containersmap.keySet.exists(_==processmessage.id.toString)){
+                DockerManager.updateServiceStatus(ProcessManager.containersmap.get(processmessage.id.toString),processmessage.dockerimagename,false)
+                ProcessManager.containersmap -= processmessage.id.toString
               }
               logger.debug("Released lock containerMap")
             }
@@ -242,13 +226,15 @@ object ProcessManager extends Thread with LazyLogging {
             }
             logger.debug("Released lock processQueue")
           }
-
+        }
+        else {
+          logger.warn("Unknown process status! ("+processmessage.status+")")
         }
       }
-    })
-    endedProcess.start()
 
-  }
+
+    }
+
 
 
 

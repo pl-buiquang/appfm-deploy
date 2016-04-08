@@ -13,7 +13,7 @@ import fr.limsi.iles.cpm.module.definition.{ModuleManager, AnonymousDef, ModuleD
 import fr.limsi.iles.cpm.module.parameter.AbstractModuleParameter
 import fr.limsi.iles.cpm.module.value.{DIR, VAL, AbstractParameterVal}
 import fr.limsi.iles.cpm.module.value._
-import fr.limsi.iles.cpm.server.Server
+import fr.limsi.iles.cpm.server.{EventMessage, EventManager, Server}
 import fr.limsi.iles.cpm.utils.{YamlElt, DB, Utils, ConfManager}
 import org.json.JSONObject
 import org.slf4j.LoggerFactory
@@ -51,6 +51,24 @@ case class Exited(exitcode:String) extends ProcessStatus {
   }
 }
 case class Waiting() extends ProcessStatus
+
+sealed class DetailedProcessStatusTree(val pname:String){
+  override def toString() = toString("")
+  def toString(implicit indent:String=""):String={
+    this match {
+      case DetailedProcessStatusNode(name,tree)=>{
+        indent+name+" : "+tree.foldLeft("")((agg,node)=>{
+          agg+"\n"+node.toString(indent+"  ")
+        })
+      }
+      case DetailedProcessStatusLeaf(name,info)=>{
+        indent + name + " : " + info
+      }
+    }
+  }
+}
+case class DetailedProcessStatusNode(override val pname:String,val tree:List[DetailedProcessStatusTree]) extends DetailedProcessStatusTree(pname:String)
+case class DetailedProcessStatusLeaf(override val pname:String,val info:String) extends DetailedProcessStatusTree(pname:String)
 
 
 object AbstractProcess extends LazyLogging{
@@ -279,6 +297,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
   }
   var log = ""
   var detached = false
+  var progress = 0.0
 
   var childrenProcess = List[UUID]()
 
@@ -318,6 +337,19 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
       case Some(process) => process.getMasterProcess()
     }
   }
+
+  /**
+    * todo
+    */
+  def signalProgressUpdate():Unit={
+    val mp = getMasterProcess()
+    val status = mp.getDetailedStatus().toString()
+    EventManager.emit(new EventMessage("process-update",mp.id.toString,status))
+  }
+
+  def getDetailedStatus():DetailedProcessStatusTree
+
+
 
 
 
@@ -559,6 +591,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
   private[this] def exitRoutine(): Unit = exitRoutine("0")
 
   private[this] def exitRoutine(error:String): Unit = {
+    progress=1.0
     logger.info("Finished processing for module "+moduleval.moduledef.name+", connecting to parent socket")
     val socket = parentPort match {
       case Some(port) => {
@@ -632,6 +665,7 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
             throw new Exception(sender+" failed with exit value "+exitval)
           }
           completedModules += (sender -> runningModules(sender))
+          signalProgressUpdate()
         }
         case s : String => logger.warn("WTF? : "+s)
       }
@@ -720,6 +754,28 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
 
   override protected[this] def attrdeserialize(mixedattrs: Map[String, String]): Unit = {
   }
+
+  override def getDetailedStatus(): DetailedProcessStatusTree = {
+    DetailedProcessStatusNode(moduleval.namespace,moduleval.moduledef.exec.foldRight(List[DetailedProcessStatusTree]())((moduleval,list)=>{
+      DetailedProcessStatusLeaf(moduleval.namespace,"waiting") :: list
+    }).map(node=>{
+      if(runningModules.keySet.exists(_==node.pname)){
+        runningModules(node.pname).status match {
+          case Running() => {
+            runningModules(node.pname).getDetailedStatus()
+          }
+          case Exited(exitcode)=>{
+            runningModules(node.pname).getDetailedStatus()
+          }
+          case _ => {
+            node
+          }
+        }
+      }else{
+        node
+      }
+    }))
+  }
 }
 
 class AnonymousModuleProcess(override val moduleval:ModuleVal,override val parentProcess:Option[AbstractProcess],override val id:UUID)  extends ModuleProcess(moduleval,parentProcess,id){
@@ -807,7 +863,8 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
       deffolder,
       runfolder,
       env.resolveValueToString(moduleval.inputs("DOCKER_OPTS").asString()),
-      unique
+      unique,
+      "STARTED"
     )
 
     processCMDMessage.send()
@@ -875,6 +932,10 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
   override protected[this] def attrdeserialize(mixedattrs: Map[String, String]): Unit = {
     launched = mixedattrs("cmdprocrun")
   }
+
+  override def getDetailedStatus(): DetailedProcessStatusTree = {
+    DetailedProcessStatusLeaf(moduleval.namespace,String.valueOf(progress))
+  }
 }
 
 
@@ -888,7 +949,6 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
   var context : List[AbstractModuleVal] = List[AbstractModuleVal]()
 
   override def postInit():Unit={
-    values += ("dir" -> new java.io.File(moduleval.getInput("IN",env).asString()))
     values += ("chunksize" -> Integer.valueOf(ConfManager.get("maxproc").toString))
     val modvals = moduleval.inputs("RUN").asInstanceOf[LIST[MODVAL]]
     values += ("modules" -> AbstractParameterVal.paramToScalaListModval(modvals))
@@ -897,14 +957,16 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     values += ("completed" -> 0)
     //values += ("tmpenv"->env.copy())
     val filterregex = moduleval.getInput("REGEX",env).asString();
-    values += ("filter"->new FilenameFilter {
+    values += ("filteredDir" -> new java.io.File(moduleval.getInput("IN",env).asString()).listFiles(new FilenameFilter {
       override def accept(dir: io.File, name: JSFunction): Boolean = {
         filterregex.r.findFirstIn(name) match {
           case None => false
           case Some(x:String) => true
         }
       }
-    })
+    }))
+    val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
+    values += ("module"->module)
   }
 
 
@@ -937,18 +999,19 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
   }
 
   override protected [this] def update(message:ProcessMessage)={
-    values += ("chunksize" -> 1)
     val n : Int= values("completed").asInstanceOf[Int]
     values += ("completed" -> (n+1))
+    progress = (n+1).asInstanceOf[Double]/values("filteredDir").asInstanceOf[Array[java.io.File]].length
+    signalProgressUpdate()
   }
 
   override protected[this] def endCondition():Boolean = {
-    offset>=values("dir").asInstanceOf[java.io.File].listFiles(values("filter").asInstanceOf[FilenameFilter]).length &&
+    offset>=values("filteredDir").asInstanceOf[Array[java.io.File]].length &&
       values("completed").asInstanceOf[Int] == values("pcount").asInstanceOf[Int] //(values("process").asInstanceOf[List[AbstractProcess]]).length
   }
 
   def getResult() = {
-    val toProcessFiles = values("dir").asInstanceOf[java.io.File].listFiles(values("filter").asInstanceOf[FilenameFilter])
+    val toProcessFiles = values("filteredDir").asInstanceOf[Array[java.io.File]]
     val resEnv = new RunEnv(Map[String,AbstractParameterVal]())
     var i = 0;
 
@@ -982,13 +1045,13 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
 
   override protected[this] def step()={
-    val to = if(offset+values("chunksize").asInstanceOf[Int]>=values("dir").asInstanceOf[java.io.File].listFiles(values("filter").asInstanceOf[FilenameFilter]).length){
-      values("dir").asInstanceOf[java.io.File].listFiles(values("filter").asInstanceOf[FilenameFilter]).length
+    val to = if(offset+values("chunksize").asInstanceOf[Int]>=values("filteredDir").asInstanceOf[Array[java.io.File]].length){
+      values("filteredDir").asInstanceOf[Array[java.io.File]].length
     }else{
       offset + values("chunksize").asInstanceOf[Int]
     }
 
-    val toProcessFiles = values("dir").asInstanceOf[java.io.File].listFiles(values("filter").asInstanceOf[FilenameFilter]).slice(offset,to)
+    val toProcessFiles = values("filteredDir").asInstanceOf[Array[java.io.File]].slice(offset,to)
 
     var i = 0;
     //val newenv = values("tmpenv").asInstanceOf[RunEnv]
@@ -998,8 +1061,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
       val x = FILE(dirinfo.format,dirinfo.schema)
       x.fromYaml(file.getCanonicalPath)
       newenv.setVar("_", x)
-
-      val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
+      val module = values("module").asInstanceOf[AnonymousDef]
       //logger.debug("anonymous created")
       val moduleval = new ModuleVal("_MAP."+(offset+i).toString,module,Some(Utils.scalaMap2JavaMap(newenv.getVars().mapValues(paramval => {
         paramval.toYaml()
@@ -1035,6 +1097,10 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
   }
 
+  override def getDetailedStatus(): DetailedProcessStatusTree = {
+    DetailedProcessStatusLeaf(moduleval.namespace,String.valueOf(progress))
+  }
+
 }
 
 
@@ -1044,6 +1110,7 @@ class IFProcess(override val moduleval:IFVal,override val parentProcess:Option[A
   var done = false
   var parentInputsDef : Map[String,AbstractModuleParameter] = Map[String,AbstractModuleParameter]()
   var context : List[AbstractModuleVal] = List[AbstractModuleVal]()
+  var launchedMod : AbstractProcess = null
 
   def executeSubmodules(pipeline:String) = {
     val modules = this.moduleval.inputs(pipeline).asInstanceOf[LIST[MODVAL]]
@@ -1056,6 +1123,7 @@ class IFProcess(override val moduleval:IFVal,override val parentProcess:Option[A
     }))))
 
     val process = new AnonymousModuleProcess(moduleval,Some(this))
+    launchedMod = process
     //childrenProcess ::= process.id
     //this.saveStateToDB()
     /*var list = values("process").asInstanceOf[List[AbstractProcess]]
@@ -1112,12 +1180,18 @@ class IFProcess(override val moduleval:IFVal,override val parentProcess:Option[A
   override protected[this] def endCondition(): Boolean = {
     done
   }
+
+  override def getDetailedStatus(): DetailedProcessStatusTree = {
+    if(launchedMod!=null){
+      launchedMod.getDetailedStatus()
+    }else{
+      DetailedProcessStatusLeaf(moduleval.namespace,"waiting")
+    }
+
+  }
 }
 
 
 
-class FILTERProcess(){
-
-}
 
 

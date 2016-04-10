@@ -9,3 +9,4 @@ tmp/**
 appfm.log
 *.pid
 scripts/env.sh
+*.log

@@ -5,9 +5,9 @@ libjzmq_la-Socket.lo: Socket.cpp /usr/include/stdc-predef.h \
  /usr/include/x86_64-linux-gnu/gnu/stubs.h \
  /usr/include/x86_64-linux-gnu/gnu/stubs-64.h /usr/include/string.h \
  /usr/lib/gcc/x86_64-linux-gnu/4.9/include/stddef.h \
- /usr/include/xlocale.h /usr/include/zmq.h /usr/include/errno.h \
- /usr/include/x86_64-linux-gnu/bits/errno.h /usr/include/linux/errno.h \
- /usr/include/x86_64-linux-gnu/asm/errno.h \
+ /usr/include/xlocale.h /home/paul/.local/include/zmq.h \
+ /usr/include/errno.h /usr/include/x86_64-linux-gnu/bits/errno.h \
+ /usr/include/linux/errno.h /usr/include/x86_64-linux-gnu/asm/errno.h \
  /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
  /usr/include/stdio.h /usr/include/x86_64-linux-gnu/bits/types.h \
  /usr/include/x86_64-linux-gnu/bits/typesizes.h /usr/include/libio.h \
@@ -18,8 +18,10 @@ libjzmq_la-Socket.lo: Socket.cpp /usr/include/stdc-predef.h \
  /usr/include/x86_64-linux-gnu/bits/stdio.h \
  /usr/lib/gcc/x86_64-linux-gnu/4.9/include/stdint.h /usr/include/stdint.h \
  /usr/include/x86_64-linux-gnu/bits/wchar.h jzmq.hpp config.hpp \
- /usr/include/inttypes.h util.hpp /vagrant/lib/jdk1.8.0_51/include/jni.h \
- /vagrant/lib/jdk1.8.0_51/include/linux/jni_md.h org_zeromq_ZMQ_Socket.h
+ /usr/include/inttypes.h util.hpp \
+ /home/paul/projects/custom/cpm/lib/jdk1.8.0_51/include/jni.h \
+ /home/paul/projects/custom/cpm/lib/jdk1.8.0_51/include/linux/jni_md.h \
+ org_zeromq_ZMQ_Socket.h
 
 /usr/include/stdc-predef.h:
 
@@ -41,7 +43,7 @@ libjzmq_la-Socket.lo: Socket.cpp /usr/include/stdc-predef.h \
 
 /usr/include/xlocale.h:
 
-/usr/include/zmq.h:
+/home/paul/.local/include/zmq.h:
 
 /usr/include/errno.h:
 
@@ -89,8 +91,8 @@ config.hpp:
 
 util.hpp:
 
-/vagrant/lib/jdk1.8.0_51/include/jni.h:
+/home/paul/projects/custom/cpm/lib/jdk1.8.0_51/include/jni.h:
 
-/vagrant/lib/jdk1.8.0_51/include/linux/jni_md.h:
+/home/paul/projects/custom/cpm/lib/jdk1.8.0_51/include/linux/jni_md.h:
 
 org_zeromq_ZMQ_Socket.h:

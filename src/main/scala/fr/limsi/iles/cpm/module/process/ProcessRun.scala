@@ -75,13 +75,17 @@ object AbstractProcess extends LazyLogging{
   var runningProcesses = Map[Int,AbstractProcess]()
   var portUsed = Array[String]()
 
-  def newPort() : String = {
+  def newSockAddr(implicit local:Boolean=true) : String = {
     // TODO optimize
     var newport = Random.nextInt(65535)
     while(newport<1024 || portUsed.exists(newport.toString == _)){
       newport = Random.nextInt(65535)
     }
-    String.valueOf(newport)
+    if(local){
+      "inproc://appfm-process"+String.valueOf(newport)
+    }else{
+      "tcp://*:" +String.valueOf(newport)
+    }
   }
 
   def getStatus(process:Int)={
@@ -290,11 +294,8 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
   var env : RunEnv = null
   val moduleval : AbstractModuleVal
   var parentPort : Option[String] = None
-  var processPort = {
-    val newport = AbstractProcess.newPort()
-    AbstractProcess.portUsed = AbstractProcess.portUsed :+ newport
-    newport
-  }
+  var processSockAddr :String = null
+  val localSock = true
   var log = ""
   var detached = false
   var progress = 0.0
@@ -388,7 +389,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     )
     var changingfields = List(
       "parentport" -> parentPort.getOrElse("NONE"),
-      "processport" -> processPort,
+      "processport" -> processSockAddr,
       "status" -> status.toString(),
       "children" -> childrenProcess.foldLeft("")((agg:String,el:UUID)=>{
         if(agg!="")
@@ -536,18 +537,20 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
   private def runSupervisor() = {
     val socket = Server.context.socket(ZMQ.PULL)
     var connected = 10
-    while(connected!=0)
-    try {
-      socket.bind("tcp://*:" + processPort)
-      connected = 0
-    }catch {
-      case e:Throwable => {
-        processPort = AbstractProcess.newPort()
-        connected -= 1
-        logger.info("Couldn't connect at port "+processPort+" retrying (try : "+(10-connected)+")")
+    while(connected!=0){
+      try {
+        processSockAddr = AbstractProcess.newSockAddr(localSock)
+        socket.bind(processSockAddr)
+        AbstractProcess.portUsed = AbstractProcess.portUsed :+ processSockAddr
+        connected = 0
+      }catch {
+        case e:Throwable => {
+          connected -= 1
+          logger.info("Couldn't connect at port "+processSockAddr+" retrying (try : "+(10-connected)+")")
+        }
       }
     }
-      logger.info("New supervisor at port " + processPort + " for module " + moduleval.moduledef.name)
+      logger.info("New supervisor at port " + processSockAddr + " for module " + moduleval.moduledef.name)
 
     var error = "0"
     try{
@@ -568,7 +571,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
       case e:Throwable => error = "error when running : "+e.getMessage; logger.error(e.getMessage); log(e.getMessage)
     }finally {
       socket.close();
-      AbstractProcess.portUsed = AbstractProcess.portUsed.filter(_ != processPort)
+      AbstractProcess.portUsed = AbstractProcess.portUsed.filter(_ != processSockAddr)
       exitRoutine(error)
     }
   }
@@ -594,9 +597,9 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     progress=1.0
     logger.info("Finished processing for module "+moduleval.moduledef.name+", connecting to parent socket")
     val socket = parentPort match {
-      case Some(port) => {
+      case Some(addr) => {
         val socket = Server.context.socket(ZMQ.PUSH)
-        socket.connect("tcp://localhost:"+port)
+        socket.connect(addr.replace("*","localhost"))
         Some(socket)
       }
       case None => {
@@ -696,7 +699,7 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
       runningModules += (module.namespace -> process)
       //childrenProcess ::= process.id
       //this.saveStateToDB()
-      process.setRun(env,moduleval.namespace,Some(processPort),true)
+      process.setRun(env,moduleval.namespace,Some(processSockAddr),true)
       ProcessManager.addToQueue(process)
     }else{
       throw new Exception("couldn't continue execution env doesn't provide necessary inputs..")
@@ -805,6 +808,7 @@ class AnonymousModuleProcess(override val moduleval:ModuleVal,override val paren
 
 class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option[AbstractProcess],override val id:UUID) extends AbstractProcess(parentProcess,id){
   def this(moduleval:CMDVal,parentProcess:Option[AbstractProcess]) = this(moduleval,parentProcess,UUID.randomUUID())
+  override val localSock = false
   var stdoutval : VAL = VAL(None,None)
   var stderrval : VAL = VAL(None,None)
   var launched = ""
@@ -857,7 +861,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
     processCMDMessage = new ProcessCMDMessage(
       this.id,
       moduleval.namespace,
-      processPort,
+      processSockAddr,
       cmd,
       image,
       deffolder,
@@ -877,8 +881,13 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
   override protected[this] def updateParentEnv(): Unit = {
 
     try{
-      stdoutval.rawValue = Source.fromFile("/tmp/out"+this.id.toString).getLines().foldLeft("")(_+"\n"+_).trim
-      stderrval.rawValue = Source.fromFile("/tmp/err"+this.id.toString).getLines().foldLeft("")(_+"\n"+_).trim
+      val stdoutfile = Source.fromFile("/tmp/out"+this.id.toString)
+      val stderrfile = Source.fromFile("/tmp/err"+this.id.toString)
+      stdoutval.rawValue = stdoutfile.getLines().foldLeft("")(_+"\n"+_).trim
+      stderrval.rawValue = stderrfile.getLines().foldLeft("")(_+"\n"+_).trim
+
+      stdoutfile.close()
+      stderrfile.close()
 
 
       //stdoutval.rawValue = Source.fromFile("/tmp/out"+this.id.toString).getLines.mkString
@@ -1074,7 +1083,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
       list ::= process
       values += ("process" -> list)*/
       values += ("pcount" -> (1+values("pcount").asInstanceOf[Int]))
-      process.setRun(newenv,moduleval.namespace,Some(processPort),true)
+      process.setRun(newenv,moduleval.namespace,Some(processSockAddr),true)
       ProcessManager.addToQueue(process)
     })
 
@@ -1129,7 +1138,7 @@ class IFProcess(override val moduleval:IFVal,override val parentProcess:Option[A
     /*var list = values("process").asInstanceOf[List[AbstractProcess]]
     list ::= process
     values += ("process" -> list)*/
-    process.setRun(env,moduleval.namespace,Some(processPort),true)
+    process.setRun(env,moduleval.namespace,Some(processSockAddr),true)
     ProcessManager.addToQueue(process)
   }
 

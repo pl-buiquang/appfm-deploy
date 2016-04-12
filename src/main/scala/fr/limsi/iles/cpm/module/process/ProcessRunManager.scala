@@ -217,19 +217,20 @@ class MasterProcessShell(process:AbstractProcess,detached:Boolean,ns:String,env:
   def runSupervisor()={
     val socket = Server.context.socket(ZMQ.PULL)
     var connected = 10
-    var processPort = AbstractProcess.newPort()
+    var processSockAdrss = ""
     while(connected!=0)
       try {
-        socket.bind("tcp://*:" + processPort)
+        processSockAdrss = AbstractProcess.newSockAddr(false)
+        socket.bind(processSockAdrss)
+        AbstractProcess.portUsed = AbstractProcess.portUsed :+ processSockAdrss
         connected = 0
       }catch {
         case e:Throwable => {
-          processPort = AbstractProcess.newPort()
           connected -= 1
         }
       }
 
-    process.run(env,ns,Some(processPort),detached)
+    process.run(env,ns,Some(processSockAdrss),detached)
     var finished = false
     var error = "0"
 
@@ -253,7 +254,7 @@ class MasterProcessShell(process:AbstractProcess,detached:Boolean,ns:String,env:
 
     process.saveStateToDB()
 
-
+    AbstractProcess.portUsed = AbstractProcess.portUsed.filter(_ != processSockAdrss)
     socket.close();
   }
 }

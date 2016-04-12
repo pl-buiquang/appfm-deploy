@@ -26,6 +26,7 @@ object ModuleManager extends LazyLogging{
   var modules : Map[String,ModuleDef]= Map[String,ModuleDef]()
   private var modulestree :ModNode = ModNode("/",List[ModTree]())
   val modulesCollection = DB.get("modules")
+  private var modulesStatus : Map[String,String] = Map[String,String]()
 
   /**
    * Check every modules found in the listed directory supposely containing modules definition/implementation/resources
@@ -78,7 +79,7 @@ object ModuleManager extends LazyLogging{
             m.exec = ModuleDef.initRun(confMap,m.inputs)
         })
       }catch{
-        case e:Throwable => discarded = curmod; e.printStackTrace(); logger.error("error when initiation exec configuration for module "+curmod+". This module will therefore be discarded");
+        case e:Throwable => discarded = curmod; e.printStackTrace(); logger.error("error when initiation exec configuration for module "+curmod+" : "+e.getMessage+" \nThis module will therefore be discarded");
       }
 
     }
@@ -109,6 +110,7 @@ object ModuleManager extends LazyLogging{
     val normalizeddata = data.replace("\t","  ")
     var response = new JSONObject()
     if(modules.contains(name)){
+      modulesStatus += (Utils.ensureTrailingSlash(folderpath)+name+".module" -> "Another module with same name exists!")
       response.put("error","name already exist")
       return response.toString()
     }
@@ -324,18 +326,17 @@ object ModuleManager extends LazyLogging{
         json
       }
       case ModLeaf(name,filepath) => {
+        var json = new JSONObject()
+        json.put("modulename",name)
+        json.put("sourcepath",filepath)
+        json.put("source",Source.fromFile(filepath).getLines.foldLeft("")((agg,line)=>agg+"\n"+line))
         if(modules.contains(name)){
-          var json = new JSONObject()
-          json.put("modulename",name)
-          json.put("sourcepath",filepath)
           json.put("module",new JSONObject(modules(name).serialize()(true)))
-          json.put("source",Source.fromFile(modules(name).confFilePath).getLines.foldLeft("")((agg,line)=>agg+"\n"+line))
-        }else{
-          var json = new JSONObject()
-          json.put("modulename",name)
-          json.put("sourcepath",filepath)
-          json.put("source",Source.fromFile(filepath).getLines.foldLeft("")((agg,line)=>agg+"\n"+line))
         }
+        if(modulesStatus.contains(filepath)){
+          json.put("error",modulesStatus(filepath))
+        }
+        json
       }
     }
   }
@@ -434,7 +435,7 @@ object ModuleManager extends LazyLogging{
       modules.get(modulename) match {
         case Some(m:ModuleDef) => {
           if(checkifexist){
-            throw new Exception("Module already exist, defined in "+moduleConfFile.getParent)
+            throw new Exception("Module already exist, defined in "+m.confFilePath)
           }else{
             modules = modules.updated(modulename,module)
             Some(modulename)
@@ -444,7 +445,13 @@ object ModuleManager extends LazyLogging{
       }
 
     }catch{
-      case e: Throwable => e.printStackTrace(); logger.error("Wrong module defintion in "+moduleConfFile.getCanonicalPath+"\n"+e.getMessage+"\n This module will not be registered."); foundModule
+      case e: Throwable => {
+        modulesStatus += (moduleConfFile.getCanonicalPath -> e.getMessage)
+        e.printStackTrace();
+        logger.error("Wrong module defintion in "+moduleConfFile.getCanonicalPath+"\n"+e.getMessage+"\n This module will not be registered.");
+        foundModule
+      }
+
     }
   }
 

@@ -14,6 +14,7 @@ maxproc : 20
 # modules directory
 modules_dir :
   - /vagrant/modules
+  - /people/buiquang/scratch/labiche_modules
 
 default_module_dir : /vagrant/modules
 

@@ -100,3 +100,6 @@ class EventMessage(val msgtype:String,val target:String,val more:String){
     EventMessage.toString(this)
   }
 }
+
+// @todo to ease creating error message (auto fetching method/classname)
+//class EventErrorMessage(more:String) extends EventMessage("error",Thread.currentThread().getStackTrace)

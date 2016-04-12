@@ -17,7 +17,6 @@ object Server extends LazyLogging{
   // zmq context initialization (global to whole application instance)
   val context = ZMQ.context(1)
 
-
   // run the core server
   def run(port : String) {
     // TODO  Replace all this with proper load balancer
@@ -40,6 +39,7 @@ object Server extends LazyLogging{
     }
 
     EventManager.emit(new EventMessage("kernel-started","","with "+nthreads+" client threads at port "+port))
+
 
     ZMQ.proxy(frontend,backend,null)
 

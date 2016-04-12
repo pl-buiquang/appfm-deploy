@@ -1012,6 +1012,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
   override protected [this] def update(message:ProcessMessage)={
     val n : Int= values("completed").asInstanceOf[Int]
+    values += ("chunksize" -> 1)
     values += ("completed" -> (n+1))
     progress = (n+1).asInstanceOf[Double]/values("filteredDir").asInstanceOf[Array[java.io.File]].length
   }

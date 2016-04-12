@@ -668,7 +668,6 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
             throw new Exception(sender+" failed with exit value "+exitval)
           }
           completedModules += (sender -> runningModules(sender))
-          signalProgressUpdate()
         }
         case s : String => logger.warn("WTF? : "+s)
       }
@@ -1015,7 +1014,6 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     val n : Int= values("completed").asInstanceOf[Int]
     values += ("completed" -> (n+1))
     progress = (n+1).asInstanceOf[Double]/values("filteredDir").asInstanceOf[Array[java.io.File]].length
-    signalProgressUpdate()
   }
 
   override protected[this] def endCondition():Boolean = {

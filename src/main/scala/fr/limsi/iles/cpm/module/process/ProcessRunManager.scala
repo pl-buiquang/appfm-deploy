@@ -48,13 +48,16 @@ object ProcessRunManager extends LazyLogging{
   }
 
   def deleteResultDir(process:AbstractProcess)={
-    val dirpath = process.env.getVars()("_RUN_DIR").asString()
-    //logger.debug("deleting dir "+dirpath)
-    val dirfile = new java.io.File(dirpath)
-    if(dirfile.getParentFile.list().length==1){
-      Utils.deleteDirectory(dirfile.getParentFile)
-    }else{
-      Utils.deleteDirectory(dirfile)
+    val env = process.env.getVars()
+    if(env.keySet.exists(_=="_RUN_DIR")){
+      val dirpath = env("_RUN_DIR").asString()
+      //logger.debug("deleting dir "+dirpath)
+      val dirfile = new java.io.File(dirpath)
+      if(dirfile.getParentFile.list().length==1){
+        Utils.deleteDirectory(dirfile.getParentFile)
+      }else{
+        Utils.deleteDirectory(dirfile)
+      }
     }
   }
 
@@ -231,6 +234,7 @@ class MasterProcessShell(process:AbstractProcess,detached:Boolean,ns:String,env:
       }
 
     process.run(env,ns,Some(processSockAdrss),detached)
+    process.saveStateToDB()
     var finished = false
     var error = "0"
 

@@ -23,6 +23,7 @@ object ProcessRunManager extends LazyLogging{
 
   // the mongodb process collection
   val processCollection = DB.get("process")
+  val executorService = Executors.newCachedThreadPool()
 
   @volatile var list : Map[UUID,AbstractProcess] = Map[UUID,AbstractProcess]()
 
@@ -201,14 +202,13 @@ class MasterProcessShell(process:AbstractProcess,detached:Boolean,ns:String,env:
   def run() = {
     EventManager.emit(new EventMessage("process-started",process.id.toString,process.moduleval.moduledef.name))
     if(detached){
-      val executorService = Executors.newSingleThreadExecutor()
-      val process = executorService.execute(new Runnable {
+      val process = ProcessRunManager.executorService.execute(new Runnable {
         override def run(): Unit = {
           runSupervisor()
         }
       })
       // TODO new thread stuff etc.
-      executorService.shutdown();
+      ProcessRunManager.executorService.shutdown();
     }else{
       runSupervisor()
     }

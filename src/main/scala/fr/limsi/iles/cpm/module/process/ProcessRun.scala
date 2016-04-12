@@ -505,14 +505,14 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
     if(detached){
       //logger.debug("Launching detached supervisor")
-      val executorService = Executors.newSingleThreadExecutor()
-      val process = executorService.execute(new Runnable {
+
+      val process = ProcessRunManager.executorService.execute(new Runnable {
         override def run(): Unit = {
           runSupervisor()
         }
       })
       // TODO new thread stuff etc.
-      executorService.shutdown();
+      ProcessRunManager.executorService.shutdown();
     }else{
       runSupervisor()
     }

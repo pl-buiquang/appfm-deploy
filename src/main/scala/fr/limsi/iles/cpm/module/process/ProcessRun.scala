@@ -858,10 +858,14 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
       None
     }
 
+    val port = {
+      val items = processSockAddr.split(":")
+      items.takeRight(1)(0)
+    }
     processCMDMessage = new ProcessCMDMessage(
       this.id,
       moduleval.namespace,
-      processSockAddr,
+      port,
       cmd,
       image,
       deffolder,

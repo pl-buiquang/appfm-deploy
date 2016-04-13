@@ -108,7 +108,7 @@ object AbstractModuleVal extends LazyLogging{
             case "_IF" => {
               IFVal(runitemname,Some(inputs))
             }
-            case _ => throw new Exception("unknown run module item")
+            case _ => throw new Exception("unknown run module item "+runitemname)
           }
         }
       }

@@ -69,9 +69,11 @@ object ModuleManager extends LazyLogging{
       discarded = ""
       firstRun = false
       var curmod = ""
+      var curmodconfpath = ""
       try{
         modules.values.filter(module => {!ModuleDef.builtinmodules.contains(module.name)}).foreach(m => {
           curmod = m.name
+          curmodconfpath = m.confFilePath
           val yaml = new Yaml()
           val wd = (new File(m.confFilePath)).getParent
           val ios = new FileInputStream(m.confFilePath)
@@ -79,7 +81,13 @@ object ModuleManager extends LazyLogging{
             m.exec = ModuleDef.initRun(confMap,m.inputs)
         })
       }catch{
-        case e:Throwable => discarded = curmod; e.printStackTrace(); logger.error("error when initiation exec configuration for module "+curmod+" : "+e.getMessage+" \nThis module will therefore be discarded");
+
+        case e:Throwable => {
+          discarded = curmod;
+          e.printStackTrace();
+          modulesStatus += (curmodconfpath -> e.getMessage)
+          logger.error("error when initiation exec configuration for module "+curmod+" : "+e.getMessage+" \nThis module will therefore be discarded");
+        }
       }
 
     }

@@ -354,8 +354,8 @@ case class MODVAL(override val format:Option[String],override val schema:Option[
   }
 
   override def toYaml()(implicit serialization:Boolean = false): String = {
-    moduleval.namespace+" :\n  "+moduleval.inputs.foldLeft("")((prev,elt) => {
-      prev + "  "+elt._1+" : "+Utils.addOffset("    ",elt._2.toYaml()(serialization))+"\n"
+    moduleval.namespace+" :\n"+moduleval.inputs.foldLeft("")((prev,elt) => {
+      prev + "  "+elt._1+" : "+Utils.addOffset("  ",elt._2.toYaml()(serialization))+"\n"
     })
   }
 }

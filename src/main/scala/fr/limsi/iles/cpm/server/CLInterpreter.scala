@@ -201,7 +201,10 @@ object CLInterpreter extends LazyLogging{
         }catch {case e:Throwable => """{"error" : """"+e.getMessage+"\"}"}
         case "status" => try{
           if(args.size > 1){
-            ProcessRunManager.getProcess(UUID.fromString(args(1))).getStatus(true)
+            //ProcessRunManager.getProcess(UUID.fromString(args(1))).getStatus(true)
+            val process = ProcessRunManager.getProcess(UUID.fromString(args(1)))
+            val mp = process.getMasterProcess()
+            mp.getDetailedStatus().toString()
           }else{
             "Missing pid"
           }

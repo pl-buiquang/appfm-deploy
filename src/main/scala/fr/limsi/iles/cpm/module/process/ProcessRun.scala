@@ -148,6 +148,7 @@ object AbstractProcess extends LazyLogging{
     x.env = env
     x.parentEnv = parentEnv
     x.log=log
+    x.progress = java.lang.Double.valueOf(obj.getOrDefault("progess","0.0").toString)
     x
   }
 
@@ -348,6 +349,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     EventManager.emit(new EventMessage("process-update",mp.id.toString,status))
   }
 
+
   def getDetailedStatus():DetailedProcessStatusTree
 
 
@@ -411,7 +413,8 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
         }
       },
       "completeddate" -> {if(completedDate!=null){completedDate.toString}else{""}},
-      "log" -> log
+      "log" -> log,
+      "progress" -> String.valueOf(progress)
       //"tags" =>
     )
     (staticfields,changingfields)
@@ -443,12 +446,13 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     changingfields :::= customattrs._2.toList
 
     val obj = if(update) {
-      $set(changingfields(0),changingfields(1),changingfields(2),changingfields(3),changingfields(4),changingfields(5),changingfields(6),changingfields(7),changingfields(8))
+      $set(changingfields(0),changingfields(1),changingfields(2),changingfields(3),changingfields(4),changingfields(5),changingfields(6),changingfields(7),changingfields(8),changingfields(9))
     }else{
       MongoDBObject(staticfields++changingfields)
     }
     obj
   }
+
 
   def getStatus(recursive:Boolean):String={
     if(recursive){
@@ -512,7 +516,6 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
         }
       })
       // TODO new thread stuff etc.
-      ProcessRunManager.executorService.shutdown();
     }else{
       runSupervisor()
     }

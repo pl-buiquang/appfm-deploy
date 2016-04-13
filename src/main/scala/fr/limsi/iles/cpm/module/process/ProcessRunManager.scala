@@ -208,7 +208,6 @@ class MasterProcessShell(process:AbstractProcess,detached:Boolean,ns:String,env:
         }
       })
       // TODO new thread stuff etc.
-      ProcessRunManager.executorService.shutdown();
     }else{
       runSupervisor()
     }

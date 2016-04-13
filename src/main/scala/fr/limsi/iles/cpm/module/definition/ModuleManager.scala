@@ -231,7 +231,7 @@ object ModuleManager extends LazyLogging{
       response.put("success",name)
     }else{
       if(response.has("error")){
-        modulesStatus += (conffile.getCanonicalPath -> response.get("error"))
+        modulesStatus += (conffile.getCanonicalPath -> response.getString("error"))
       }
     }
 

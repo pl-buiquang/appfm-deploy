@@ -119,9 +119,9 @@ class ModuleDef(
         (output._2.value match {case Some(thing)=>yamloffset+yamloffset+"value : "+Utils.addOffset(yamloffset+yamloffset,thing.toYaml())+"\n";case None=>""})
     }) + "\n" +
     exec.foldLeft("exec : ")((agg,modval)=>{
-      agg + "\n"+yamloffset+"- "+modval.namespace+" : \n"+yamloffset+yamloffset+yamloffset+"input : "+
+      agg + "\n"+yamloffset+"- "+modval.namespace+" : \n"+yamloffset+yamloffset+
         modval.inputs.foldLeft("")((agg2,inputval)=>{
-          agg2 + "\n" + yamloffset+yamloffset+yamloffset+yamloffset+inputval._1+" : "+Utils.addOffset(yamloffset+yamloffset+yamloffset+yamloffset,inputval._2.toYaml())
+          agg2 + yamloffset+yamloffset+yamloffset+inputval._1+" : "+Utils.addOffset(yamloffset+yamloffset+yamloffset,inputval._2.toYaml()) + "\n"
         })
     })
     if(tojson){

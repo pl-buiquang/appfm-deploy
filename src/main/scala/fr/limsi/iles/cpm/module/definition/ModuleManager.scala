@@ -225,7 +225,14 @@ object ModuleManager extends LazyLogging{
 
     if(updatesuccess){
       EventManager.emit(new EventMessage("module-updated",name,normalizeddata))
+      if(modulesStatus.contains(conffile.getCanonicalPath)){
+        modulesStatus -= conffile.getCanonicalPath
+      }
       response.put("success",name)
+    }else{
+      if(response.has("error")){
+        modulesStatus += (conffile.getCanonicalPath -> response.get("error"))
+      }
     }
 
     response.toString()

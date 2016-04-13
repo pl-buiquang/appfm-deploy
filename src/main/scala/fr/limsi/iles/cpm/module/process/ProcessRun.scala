@@ -345,7 +345,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     */
   def signalProgressUpdate():Unit={
     val mp = getMasterProcess()
-    val status = mp.getDetailedStatus().toString()
+    val status = mp.moduleval.moduledef.name+mp.getDetailedStatus().toString()
     EventManager.emit(new EventMessage("process-update",mp.id.toString,status))
   }
 
@@ -852,7 +852,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
 
 
     val unique = (env.resolveValueToString(moduleval.inputs("CONTAINED").toYaml()) == "true")
-    val cmd = env.resolveValueToString(moduleval.inputs("CMD").asString())
+    val cmd = env.resolveValueToString(moduleval.inputs("CMD").asString()).replace("\\$","$")
 
     val image = if(dockerimagename!=""){
       Some(dockerimagename)

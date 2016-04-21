@@ -52,7 +52,7 @@ case class Exited(exitcode:String) extends ProcessStatus {
 }
 case class Waiting() extends ProcessStatus
 
-sealed class DetailedProcessStatusTree(val pname:String){
+sealed abstract class DetailedProcessStatusTree(val pname:String){
   override def toString() = toString("")
   def toString(implicit indent:String=""):String={
     this match {
@@ -911,7 +911,9 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
       Utils.deleteFile("/tmp/err"+this.id.toString)
       Utils.deleteFile("/tmp/pinfo"+this.id.toString)
 
-      log(stderrval.rawValue)
+      if(stderrval.rawValue.trim!=""){
+        log(stderrval.rawValue)
+      }
     }catch{
       case e:Throwable => logger.error("Error when fetching default stdout and stderr of cmd process!")
     }
@@ -1040,7 +1042,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
       val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
 
-      val moduleval = new ModuleVal("_MAP."+(offset+i).toString,module,Some(Utils.scalaMap2JavaMap(newenv.getVars().mapValues(paramval => {
+      val moduleval = new ModuleVal("_MAP."+getNamespace(offset+i),module,Some(Utils.scalaMap2JavaMap(newenv.getVars().mapValues(paramval => {
         paramval.toYaml()
       }))))
       i+=1
@@ -1071,14 +1073,14 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     var i = 0;
     //val newenv = values("tmpenv").asInstanceOf[RunEnv]
     toProcessFiles.foreach(file => {
-      val newenv = env
+      val newenv = env.copy()
       val dirinfo = this.moduleval.getInput("IN",env)
       val x = FILE(dirinfo.format,dirinfo.schema)
       x.fromYaml(file.getCanonicalPath)
       newenv.setVar("_", x)
       val module = values("module").asInstanceOf[AnonymousDef]
       //logger.debug("anonymous created")
-      val moduleval = new ModuleVal("_MAP."+(offset+i).toString,module,Some(Utils.scalaMap2JavaMap(newenv.getVars().mapValues(paramval => {
+      val moduleval = new ModuleVal("_MAP."+getNamespace(offset+i),module,Some(Utils.scalaMap2JavaMap(newenv.getVars().mapValues(paramval => {
         paramval.toYaml()
       }))))
       i+=1
@@ -1094,6 +1096,16 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     })
 
     offset = to
+  }
+
+  def getNamespace(offset:Int):String={
+    val d0 = offset/1000000
+    val r0 = offset%1000000
+    val d1 = r0/10000
+    val r1 = r0%10000
+    val d2 = r1/100
+    val r2 = r1%100
+    d0+"/"+d1+"/"+d2+"/"+r2
   }
 
   override protected[this] def attrserialize(): (Map[String, String], Map[String, String]) = {

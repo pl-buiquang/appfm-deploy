@@ -344,7 +344,9 @@ object ModuleManager extends LazyLogging{
         var json = new JSONObject()
         json.put("modulename",name)
         json.put("sourcepath",filepath)
-        json.put("source",Source.fromFile(filepath).getLines.foldLeft("")((agg,line)=>agg+"\n"+line))
+        val bs = Source.fromFile(filepath)
+        json.put("source",bs.getLines.foldLeft("")((agg,line)=>agg+"\n"+line))
+        bs.close()
         if(modules.contains(name)){
           json.put("module",new JSONObject(modules(name).serialize()(true)))
         }

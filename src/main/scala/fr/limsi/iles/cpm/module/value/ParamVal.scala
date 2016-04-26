@@ -189,7 +189,9 @@ case class FILE(override val format:Option[String],override val schema:Option[St
     attrName match {
       case "content" => {
         val file = new java.io.File(rawValue)
-        val content = Source.fromFile(file.getCanonicalPath).getLines.mkString
+        val bs = Source.fromFile(file.getCanonicalPath)
+        val content = bs.getLines.mkString
+        bs.close()
         val x = new VAL(format,schema)
         x.rawValue = content
         x

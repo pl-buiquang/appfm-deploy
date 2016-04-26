@@ -6,7 +6,7 @@ import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.definition.AnonymousDef._
 import fr.limsi.iles.cpm.module.definition._
 import fr.limsi.iles.cpm.module.parameter._
-import fr.limsi.iles.cpm.module.process._
+import fr.limsi.iles.cpm.process._
 import fr.limsi.iles.cpm.utils.{YamlList, YamlMap, YamlElt}
 
 /**

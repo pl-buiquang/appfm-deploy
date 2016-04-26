@@ -12,7 +12,7 @@ import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.CPM
 import fr.limsi.iles.cpm.corpus.CorpusManager
 import fr.limsi.iles.cpm.module.definition.{ModuleDef, ModuleManager}
-import fr.limsi.iles.cpm.module.process.{Exited, ProcessRunManager}
+import fr.limsi.iles.cpm.process.{Exited, ProcessRunManager}
 import fr.limsi.iles.cpm.module.value.AbstractModuleVal
 import fr.limsi.iles.cpm.service.ServiceManager
 import fr.limsi.iles.cpm.utils.{YamlElt, Log, Utils, ConfManager}
@@ -324,7 +324,9 @@ object CLInterpreter extends LazyLogging{
           if(data.isDefined){
             ProcessRunManager.newRun(args(1),data.get,synced)
           }else{
-            val confdata = Source.fromFile(args(2)).getLines.foldLeft("")((agg,line)=>agg+"\n"+line)
+            val bs = Source.fromFile(args(2))
+            val confdata = bs.getLines.foldLeft("")((agg,line)=>agg+"\n"+line)
+            bs.close()
             ProcessRunManager.newRun(args(1),confdata,synced)
           }
         }
@@ -333,9 +335,13 @@ object CLInterpreter extends LazyLogging{
           if(ModuleManager.modules.contains(args(1))){
             val module = ModuleManager.modules(args(1))
             json.put("module",new JSONObject(module.serialize()(true)))
-            json.put("source",Source.fromFile(module.confFilePath).getLines.foldLeft("")((agg,line)=>agg+"\n"+line))
+            val bs = Source.fromFile(module.confFilePath)
+            json.put("source",bs.getLines.foldLeft("")((agg,line)=>agg+"\n"+line))
+            bs.close()
           }else{
-            json.put("source",Source.fromFile(args(1)).getLines.foldLeft("")((agg,line)=>agg+"\n"+line))
+            val bs = Source.fromFile(args(1))
+            json.put("source",bs.getLines.foldLeft("")((agg,line)=>agg+"\n"+line))
+            bs.close()
           }
           json.toString(2)
         }
@@ -399,7 +405,9 @@ object CLInterpreter extends LazyLogging{
             if(!Utils.checkValidPath(args(1))){
               return cliError("Not allowed to retrieve this file ! ("+args(1)+"). Fetchable files must be within corpus or result directories.")
             }
-            val lines = Source.fromFile(args(1)).getLines()
+            val bs = Source.fromFile(args(1))
+            val lines = bs.getLines()
+            bs.close()
             if (lines.hasNext){
               lines.foldLeft("")((agg,line)=>agg+"\n"+line).substring(1)
             }else{

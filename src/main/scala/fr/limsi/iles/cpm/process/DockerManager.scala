@@ -1,4 +1,4 @@
-package fr.limsi.iles.cpm.module.process
+package fr.limsi.iles.cpm.process
 
 import java.io.{File, PrintWriter}
 import java.util.UUID

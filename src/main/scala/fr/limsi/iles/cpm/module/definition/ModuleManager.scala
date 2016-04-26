@@ -140,7 +140,8 @@ object ModuleManager extends LazyLogging{
             }
           }
           case None => {
-            response.put("error","invalid configuration")
+            val errormessage = modulesStatus.getOrElse(Utils.ensureTrailingSlash(folderpath)+name+".module","unknown error")
+            response.put("error","invalid configuration : "+errormessage)
           }
         }
       }

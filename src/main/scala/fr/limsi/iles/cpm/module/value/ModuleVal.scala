@@ -108,6 +108,9 @@ object AbstractModuleVal extends LazyLogging{
             case "_IF" => {
               IFVal(runitemname,Some(inputs))
             }
+            case "_WALKMAP" => {
+              WALKMAPVal(runitemname,Some(inputs))
+            }
             case _ => throw new Exception("unknown run module item "+runitemname)
           }
         }
@@ -377,3 +380,62 @@ case class MAPVal(override val namespace:String,override val conf:Option[java.ut
   override def getNbChildren(): Int = 1
 }
 
+case class WALKMAPVal(override val namespace:String,override val conf:Option[java.util.Map[String,Any]]) extends AbstractModuleVal(WALKMAPDef,conf){
+  override def needsDocker(): Boolean = {
+
+    AbstractParameterVal.paramToScalaListModval(inputs("RUN").asInstanceOf[LIST[MODVAL]]).foldLeft(false)((valence, modval) => {
+      valence || modval.needsDocker()
+    })
+  }
+
+  override def isExecutable(env: RunEnv): Boolean = {
+    inputs.foldLeft(true)((result,input) => {
+      val vars = if(input._1 == "RUN"){
+        var outervariables = MAPVal.extractVarsFromModuleVals(input._2.asInstanceOf[LIST[MODVAL]],Map[String,AbstractModuleParameter]())
+        /*Array[String]()
+      var innervariables = Map[String,AbstractModuleParameter]()
+      val modulelist = AbstractParameterVal.paramToScalaListModval(input._2.asInstanceOf[LIST[MODVAL]])
+      val implicitvars = List("_","_RUN_DIR","_DEF_DIR","_CUR_MOD","_MOD_CONTEXT")
+      modulelist.foreach(moduleval => {
+        moduleval.inputs.foreach(input => {
+          logger.debug("looking inner variable "+input._1+" of type "+input._2._mytype)
+          if (input._2._mytype.startsWith("MODVAL")){
+            val submodules = LIST[MODVAL](None,None)
+            submodules.fromYaml(input._2.toYaml())
+            outervariables = outervariables ++ MAPVal.extractVarsFromModuleVals(submodules,innervariables)
+          }else{
+            val variables = input._2.extractVariables()
+            variables.foreach(variable => {
+              if(!innervariables.contains(variable) && !implicitvars.contains(variable)){
+                outervariables = outervariables :+ variable
+              }
+            })
+          }
+        })
+        moduleval.moduledef.outputs.foreach(output => {
+          innervariables += (moduleval.namespace+"."+output._1 -> output._2)
+          logger.debug("added "+moduleval.namespace+"."+output._1)
+        })
+      })*/
+        outervariables
+      }else{
+        input._2.extractVariables()
+      }
+      var exist = true
+      vars.foreach(varname => {
+        logger.info("Looking for "+varname)
+        val varexist = env.getVars().exists(varname == _._1)
+        exist = exist && varexist
+        if(varexist) logger.info("found") else logger.info("not found")
+      })
+      exist && result
+    })
+
+  }
+
+  override def toProcess(parentProcess: Option[AbstractProcess]): AbstractProcess = {
+    new WALKMAPProcess(new WALKMAPVal(namespace,conf),parentProcess)
+  }
+
+  override def getNbChildren(): Int = 1
+}

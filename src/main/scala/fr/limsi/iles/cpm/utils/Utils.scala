@@ -1,10 +1,8 @@
 package fr.limsi.iles.cpm.utils
 
 import java.io.{FilenameFilter, File, FileFilter}
-import java.nio.file.DirectoryStream.Filter
-import java.nio.file.{Path, FileSystems, Files}
+
 import java.text.SimpleDateFormat
-import java.util
 import java.util.function.{BiConsumer, Consumer}
 
 import com.typesafe.scalalogging.LazyLogging
@@ -35,6 +33,58 @@ object Log {
 }
 
 object Utils extends LazyLogging{
+
+  def getNamespace(offset:Int):String={
+    val d0 = offset/1000000
+    val r0 = offset%1000000
+    val d1 = r0/10000
+    val r1 = r0%10000
+    val d2 = r1/100
+    val r2 = r1%100
+    d0+"/"+d1+"/"+d2+"/"+r2
+  }
+
+  class FileWalker(dir:java.io.File) {
+
+    private var source = dir.listFiles().toList
+
+    def hasMore:Boolean={
+      source.nonEmpty
+    }
+
+    def curCount = {
+      source.length
+    }
+
+    def take(n:Int=1,regex:String="*"):List[File]={
+      {for (i <- 1 to n) yield take(regex)}.seq.foldRight(List[File]())((item,agg)=>{
+        if(item != null)
+          item :: agg
+        else
+          agg
+      })
+    }
+
+    def take() :File = take(".*")
+
+    def take(regex:String):File={
+      if(source.nonEmpty){
+        if(source.head.isFile){
+          val file = source.head
+          source = source.tail
+          file
+        }else{
+          source = source.head.listFiles().toList ++ source.tail
+          take(regex)
+        }
+
+      }else{
+        logger.warn("no more element in to walk")
+        null
+      }
+
+    }
+  }
 
   def checkValidPath(path:String):Boolean={
     val resdir = ConfManager.get("default_result_dir").toString

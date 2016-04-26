@@ -408,7 +408,7 @@ object CLInterpreter extends LazyLogging{
             val bs = Source.fromFile(args(1))
             val lines = bs.getLines()
             bs.close()
-            if (lines.hasNext){
+            if (lines.nonEmpty){
               lines.foldLeft("")((agg,line)=>agg+"\n"+line).substring(1)
             }else{
               ""

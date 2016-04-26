@@ -14,6 +14,7 @@ import fr.limsi.iles.cpm.module.parameter.AbstractModuleParameter
 import fr.limsi.iles.cpm.module.value.{DIR, VAL, AbstractParameterVal}
 import fr.limsi.iles.cpm.module.value._
 import fr.limsi.iles.cpm.server.{EventMessage, EventManager, Server}
+import fr.limsi.iles.cpm.utils.Utils.FileWalker
 import fr.limsi.iles.cpm.utils.{YamlElt, DB, Utils, ConfManager}
 import org.json.JSONObject
 import org.slf4j.LoggerFactory
@@ -1046,7 +1047,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
       val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
 
-      val moduleval = new ModuleVal("_MAP."+getNamespace(offset+i),module,Some(Utils.scalaMap2JavaMap(newenv.getVars().mapValues(paramval => {
+      val moduleval = new ModuleVal("_MAP."+Utils.getNamespace(offset+i),module,Some(Utils.scalaMap2JavaMap(newenv.getVars().mapValues(paramval => {
         paramval.toYaml()
       }))))
       i+=1
@@ -1075,6 +1076,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     val toProcessFiles = values("filteredDir").asInstanceOf[Array[java.io.File]].slice(offset,to)
 
     var i = 0;
+
     //val newenv = values("tmpenv").asInstanceOf[RunEnv]
     toProcessFiles.foreach(file => {
       val newenv = env.copy()
@@ -1084,7 +1086,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
       newenv.setVar("_", x)
       val module = values("module").asInstanceOf[AnonymousDef]
       //logger.debug("anonymous created")
-      val moduleval = new ModuleVal("_MAP."+getNamespace(offset+i),module,Some(Utils.scalaMap2JavaMap(newenv.getVars().mapValues(paramval => {
+      val moduleval = new ModuleVal("_MAP."+Utils.getNamespace(offset+i),module,Some(Utils.scalaMap2JavaMap(newenv.getVars().mapValues(paramval => {
         paramval.toYaml()
       }))))
       i+=1
@@ -1102,15 +1104,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     offset = to
   }
 
-  def getNamespace(offset:Int):String={
-    val d0 = offset/1000000
-    val r0 = offset%1000000
-    val d1 = r0/10000
-    val r1 = r0%10000
-    val d2 = r1/100
-    val r2 = r1%100
-    d0+"/"+d1+"/"+d2+"/"+r2
-  }
+
 
   override protected[this] def attrserialize(): (Map[String, String], Map[String, String]) = {
     (Map[String,String](),Map[String,String]())
@@ -1134,6 +1128,105 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
 }
 
+class WALKMAPProcess(override val moduleval:WALKMAPVal,override val parentProcess:Option[AbstractProcess],override val id:UUID) extends AbstractProcess(parentProcess,id) {
+  def this(moduleval:WALKMAPVal,parentProcess:Option[AbstractProcess]) = this(moduleval,parentProcess,UUID.randomUUID())
+
+  var values = Map[String,Any]()
+
+  var offset = 0
+  var parentInputsDef : Map[String,AbstractModuleParameter] = Map[String,AbstractModuleParameter]()
+  var context : List[AbstractModuleVal] = List[AbstractModuleVal]()
+
+  override def getDetailedStatus(): DetailedProcessStatusTree = {
+    DetailedProcessStatusLeaf(moduleval.namespace,String.valueOf(progress))
+  }
+
+  override def postInit():Unit={
+    values += ("chunksize" -> Integer.valueOf(ConfManager.get("maxproc").toString))
+    val modvals = moduleval.inputs("RUN").asInstanceOf[LIST[MODVAL]]
+    values += ("modules" -> AbstractParameterVal.paramToScalaListModval(modvals))
+    values += ("process" -> List[AbstractProcess]())
+    values += ("pcount"->0)
+    values += ("completed" -> 0)
+    //values += ("tmpenv"->env.copy())
+    values += ("regex" -> moduleval.getInput("REGEX",env).asString())
+    values += ("walker" -> new FileWalker(new java.io.File(moduleval.getInput("IN",env).asString())))
+    val module = new AnonymousDef(values("modules").asInstanceOf[List[AbstractModuleVal]],context,parentInputsDef)
+    values += ("module"->module)
+  }
+
+  override protected[this] def update(message: ProcessMessage): Unit = {
+    val n : Int= values("completed").asInstanceOf[Int]
+    values += ("chunksize" -> 1)
+    values += ("completed" -> (n+1))
+    val walker = values("walker").asInstanceOf[Utils.FileWalker]
+    progress = (n+1).asInstanceOf[Double]/(values("pcount").asInstanceOf[Int]+walker.curCount)
+  }
+
+  override protected[this] def attrserialize(): (Map[String, String], Map[String, String]) = (Map[String,String](),Map[String,String]())
+
+  override protected[this] def updateParentEnv(): Unit = {
+    val prefix = "_WALKMAP."
+    val prefixlength = prefix.length
+    val args = env.getVars()
+    //val args = getResult().getVars()
+    parentEnv.setVars(args.filter(elt => {
+      elt._1.startsWith(prefix)
+    }).groupBy[String](el=>{
+      val modnamestartindex = el._1.substring(prefixlength).indexOf(".")
+      val modnameendindex = el._1.substring(prefixlength+modnamestartindex+1).indexOf(".")
+      prefix+el._1.substring(5+modnamestartindex+1)//.substring(0,modnameendindex)
+    }).transform((key,content) => {
+      val newel = AbstractModuleParameter.createVal(content.head._2._mytype+"*",content.head._2.format,content.head._2.schema).asInstanceOf[LIST[AbstractParameterVal]]
+      content.foldLeft(newel)((agg,elt) => {
+        agg.list ::= elt._2
+        agg
+      })
+    }))
+  }
+
+  override protected[this] def attrdeserialize(mixedattrs: Map[String, String]): Unit = {}
+
+  override protected[this] def endCondition(): Boolean = {
+    val walker = values("walker").asInstanceOf[Utils.FileWalker]
+    !walker.hasMore && values("completed").asInstanceOf[Int] == values("pcount").asInstanceOf[Int]
+  }
+
+  override protected[this] def step(): Unit = {
+    val n = values("chunksize").asInstanceOf[Int]
+
+    val walker = values("walker").asInstanceOf[Utils.FileWalker]
+
+    var i = 0;
+
+    val test = new java.io.File(moduleval.getInput("IN",env).asString())
+
+    walker.take(n,values("regex").toString).foreach(file => {
+      val newenv = env.copy()
+      val dirinfo = this.moduleval.getInput("IN",env)
+      val x = FILE(dirinfo.format,dirinfo.schema)
+      x.fromYaml(file.getCanonicalPath)
+      newenv.setVar("_", x)
+      val module = values("module").asInstanceOf[AnonymousDef]
+      //logger.debug("anonymous created")
+      val moduleval = new ModuleVal("_WALKMAP."+Utils.getNamespace(offset+i),module,Some(Utils.scalaMap2JavaMap(newenv.getVars().mapValues(paramval => {
+        paramval.toYaml()
+      }))))
+      i+=1
+      val process = new AnonymousModuleProcess(moduleval,Some(this))
+      //childrenProcess ::= process.id
+      //this.saveStateToDB()
+      /*var list = values("process").asInstanceOf[List[AbstractProcess]]
+      list ::= process
+      values += ("process" -> list)*/
+      values += ("pcount" -> (1+values("pcount").asInstanceOf[Int]))
+      process.setRun(newenv,moduleval.namespace,Some(processSockAddr),true)
+      ProcessManager.addToQueue(process)
+    })
+
+    offset = offset + i
+  }
+}
 
 class IFProcess(override val moduleval:IFVal,override val parentProcess:Option[AbstractProcess],override val id:UUID) extends AbstractProcess(parentProcess,id){
   def this(moduleval:IFVal,parentProcess:Option[AbstractProcess]) = this(moduleval,parentProcess,UUID.randomUUID())

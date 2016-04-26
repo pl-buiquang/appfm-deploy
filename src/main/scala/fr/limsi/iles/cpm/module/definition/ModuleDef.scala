@@ -281,6 +281,23 @@ object ModuleDef extends LazyLogging{
     x
   }
 
+  def initWALKMAPInputs()={
+    var x = Map[String,AbstractModuleParameter]()
+    x += ("IN"->new ModuleParameter[DIR]("DIR",None,None,None))
+    x += ("RUN"->new ModuleParameter[LIST[MODVAL]]("MODVAL+",None,None,None))
+
+    val regex = VAL(None,None)
+    regex.fromYaml(".*")
+    x += ("REGEX"->new ModuleParameter[VAL]("VAL",None,None,None,Some(regex)))
+    x
+  }
+
+  def initWALKMAPOutputs()={
+    var x = Map[String,AbstractModuleParameter]()
+    x += ("OUT"->new ModuleParameter[LIST[DIR]]("DIR+",None,None,None))
+    x
+  }
+
   def initIFInputs()={
     var x = Map[String,AbstractModuleParameter]()
     x += ("COND"->new ModuleParameter[VAL]("VAL",None,None,None))
@@ -330,7 +347,7 @@ object ModuleDef extends LazyLogging{
     }
   }
 
-  val builtinmodules :Map[String,ModuleDef] = Map("_CMD"->CMDDef,"_MAP"->MAPDef,"_IF"->IFDef)//,"_FILTER","_ANONYMOUS")
+  val builtinmodules :Map[String,ModuleDef] = Map("_CMD"->CMDDef,"_MAP"->MAPDef,"_IF"->IFDef,"_WALKMAP"->WALKMAPDef)//,"_FILTER","_ANONYMOUS")
 
 }
 
@@ -423,6 +440,9 @@ object MAPDef extends ModuleDef(ConfManager.get("default_module_dir")+"/default/
 
 }
 
+object WALKMAPDef extends ModuleDef(ConfManager.get("default_module_dir")+"/default/_WALKMAP.module","_WALKMAP","Built-in module that map each file within a directory to modules that process a single file",ModuleDef.initWALKMAPInputs(),ModuleDef.initWALKMAPOutputs(),Map[String,String](),List[AbstractModuleVal]()) {
+
+}
 
 
 

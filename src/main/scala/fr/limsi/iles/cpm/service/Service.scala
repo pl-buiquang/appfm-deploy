@@ -2,7 +2,7 @@ package fr.limsi.iles.cpm.service
 
 
 import fr.limsi.iles.cpm.module.parameter.AbstractModuleParameter
-import fr.limsi.iles.cpm.module.process.{DockerManager, RunEnv}
+import fr.limsi.iles.cpm.process.{DockerManager, RunEnv}
 import fr.limsi.iles.cpm.module.value.{FILE, AbstractModuleVal, AbstractParameterVal}
 import fr.limsi.iles.cpm.utils.ConfManager
 import scala.sys.process._

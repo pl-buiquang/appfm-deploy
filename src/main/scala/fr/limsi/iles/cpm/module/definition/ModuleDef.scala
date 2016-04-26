@@ -8,7 +8,7 @@ import com.mongodb.DBObject
 import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.definition.ModuleManager._
 import fr.limsi.iles.cpm.module.parameter._
-import fr.limsi.iles.cpm.module.process._
+import fr.limsi.iles.cpm.process._
 import fr.limsi.iles.cpm.module.value._
 import fr.limsi.iles.cpm.utils._
 import org.yaml.snakeyaml.Yaml

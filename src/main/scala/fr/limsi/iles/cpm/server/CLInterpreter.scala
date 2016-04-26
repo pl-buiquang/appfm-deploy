@@ -12,7 +12,7 @@ import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.CPM
 import fr.limsi.iles.cpm.corpus.CorpusManager
 import fr.limsi.iles.cpm.module.definition.{ModuleDef, ModuleManager}
-import fr.limsi.iles.cpm.module.process.{Exited, ProcessRunManager}
+import fr.limsi.iles.cpm.process.{Exited, ProcessRunManager}
 import fr.limsi.iles.cpm.module.value.AbstractModuleVal
 import fr.limsi.iles.cpm.service.ServiceManager
 import fr.limsi.iles.cpm.utils.{YamlElt, Log, Utils, ConfManager}

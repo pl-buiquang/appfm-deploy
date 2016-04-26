@@ -314,6 +314,10 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
     }
   }
 
+  /**
+   * @todo missing full parent path for embed modules (anonymous for eg.)
+   * @param info
+   */
   def log(info:String) : Unit={
     val parentNamespace = {
       if(this.parentProcess.isDefined){

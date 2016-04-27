@@ -702,6 +702,20 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
           context ::= elt._2.moduleval
         })
         process.asInstanceOf[MAPProcess].context = context
+      }else if(module.moduledef.name=="_IF"){
+        process.asInstanceOf[IFProcess].parentInputsDef = moduleval.moduledef.inputs
+        var context = List[AbstractModuleVal]()
+        runningModules.foreach(elt => {
+          context ::= elt._2.moduleval
+        })
+        process.asInstanceOf[IFProcess].context = context
+      }else if(module.moduledef.name=="_WALKMAP"){
+        process.asInstanceOf[WALKMAPProcess].parentInputsDef = moduleval.moduledef.inputs
+        var context = List[AbstractModuleVal]()
+        runningModules.foreach(elt => {
+          context ::= elt._2.moduleval
+        })
+        process.asInstanceOf[WALKMAPProcess].context = context
       }
       runningModules += (module.namespace -> process)
       //childrenProcess ::= process.id

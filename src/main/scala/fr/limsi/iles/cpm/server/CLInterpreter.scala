@@ -407,12 +407,13 @@ object CLInterpreter extends LazyLogging{
             }
             val bs = Source.fromFile(args(1))
             val lines = bs.getLines()
-            bs.close()
-            if (lines.nonEmpty){
+            val output = if (lines.nonEmpty){
               lines.foldLeft("")((agg,line)=>agg+"\n"+line).substring(1)
             }else{
               ""
             }
+            bs.close()
+            output
           }else{
             cliError("Missing file")
           }

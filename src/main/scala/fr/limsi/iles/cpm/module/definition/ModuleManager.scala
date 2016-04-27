@@ -122,7 +122,6 @@ object ModuleManager extends LazyLogging{
       response.put("error","name already exist")
       return response.toString()
     }
-
     YamlElt.fromJava(normalizeddata) match {
       case YamlMap(map)=>{
         val conffile = new java.io.File(folderpath+"/"+name+".module")
@@ -181,7 +180,6 @@ object ModuleManager extends LazyLogging{
         return response.toString()
       }
     }
-
     val module = modules(name)
     val conffile = new java.io.File(module.confFilePath)
     var updatesuccess = false

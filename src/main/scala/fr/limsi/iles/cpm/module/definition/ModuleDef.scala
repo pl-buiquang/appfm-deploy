@@ -380,14 +380,26 @@ object AnonymousDef extends LazyLogging{
                 moduleval.moduledef.inputs(variable)
               }else{
                 context.find(contextualmoduleval => {
-                  contextualmoduleval.moduledef.outputs.contains(variable)
+                  val localvar = if(variable.startsWith(contextualmoduleval.namespace)){
+                    variable.substring(contextualmoduleval.namespace.length+1)
+                  }else{
+                    variable
+                  }
+                  contextualmoduleval.moduledef.outputs.contains(localvar)
                 }) match {
-                  case Some(contextualmoduleval) => contextualmoduleval.moduledef.outputs(variable)
+                  case Some(contextualmoduleval) => {
+                    val localvar = if(variable.startsWith(contextualmoduleval.namespace)){
+                      variable.substring(contextualmoduleval.namespace.length+1)
+                    }else{
+                      variable
+                    }
+                    contextualmoduleval.moduledef.outputs(localvar)
+                  }
                   case None => {
                     if(env.contains(variable)){
                       env(variable)
                     }else{
-                      new ModuleParameter[VAL](variable,None,None,None,None)
+                      new ModuleParameter[VAL]("VAL",None,None,None,None)
                     }
                   }
                 }

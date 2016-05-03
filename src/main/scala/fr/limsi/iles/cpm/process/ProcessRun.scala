@@ -369,6 +369,10 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
   protected[this] def attrserialize():(Map[String,String],Map[String,String])
   protected[this] def attrdeserialize(mixedattrs:Map[String,String]):Unit
 
+  def getRunDir():java.io.File={
+    new java.io.File(env.getRawVar("_RUN_DIR").get.asString())
+  }
+
   /**
    * Note : if changing (add or remove) mutable fields, you need to change the content of serializeToMongoObject method...
    * @return a tuple containing immutable and mutable map fields to be serialized

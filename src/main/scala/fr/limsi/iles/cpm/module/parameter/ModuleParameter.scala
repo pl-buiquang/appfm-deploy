@@ -4,10 +4,7 @@ package fr.limsi.iles.cpm.module.parameter
 import fr.limsi.iles.cpm.module.definition.ModuleDef
 import fr.limsi.iles.cpm.module.value._
 import fr.limsi.iles.cpm.utils.{YamlElt, YamlList, YamlMap, YamlString}
-
-
-
-
+import org.json.JSONObject
 
 
 abstract class AbstractModuleParameter{
@@ -31,6 +28,24 @@ abstract class AbstractModuleParameter{
       case Some(paramval)=>paramval
       case None=>createVal()
     }
+  }
+
+  def toJson:JSONObject ={
+    val json = new JSONObject()
+    if(format.isDefined){
+      json.put("format",format.get)
+    }
+    if(schema.isDefined){
+      json.put("schema",schema.get)
+    }
+    if(desc.isDefined){
+      json.put("desc",desc.get)
+    }
+    json.put("type",paramType)
+    if(value.isDefined){
+      json.put("value",value.get.toString())
+    }
+    json
   }
 
   override def toString():String={

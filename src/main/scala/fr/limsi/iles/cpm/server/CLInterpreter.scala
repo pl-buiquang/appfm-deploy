@@ -43,6 +43,8 @@ object CLInterpreter extends LazyLogging{
           interpretProcessCommands(args.slice(1,args.length))
         case "module" =>
           interpretModuleCommands(args.slice(1,args.length),data)
+        case "service" =>
+          interpretServiceCommands(args.slice(1,args.length),data)
         case "exec" =>
           interpretExecCommands(args.slice(1,args.length))
         case "reload" => {
@@ -391,6 +393,83 @@ object CLInterpreter extends LazyLogging{
     }
   }
 
+  def interpretServiceCommands(args:Array[String],data:Option[String]):String={
+    try{
+      args(0) match{
+        case "ls"=>{
+          ServiceManager.toString
+        }
+        case "start"=>{
+          if(args.size > 1){
+            ServiceManager.services.get(args(1)) match {
+              case Some(service)=>{
+                val json = new JSONObject()
+                if(service.start()){
+                  json.put("success",true)
+                  json.toString(2)
+                }else{
+                  jsonError("couldn't start service")
+                }
+              }
+              case None => jsonError("unknwon service")
+            }
+          }else{
+            jsonError("missing argument")
+          }
+        }
+        case "stop"=>{
+          if(args.size > 1){
+            ServiceManager.services.get(args(1)) match {
+              case Some(service)=>{
+                val json = new JSONObject()
+                if(service.stop()){
+                  json.put("success",true)
+                  json.toString(2)
+                }else{
+                  jsonError("couldn't stop service")
+                }
+              }
+              case None => jsonError("unknwon service")
+            }
+          }else{
+            jsonError("missing argument")
+          }
+        }
+        case "status"=>{
+          if(args.size > 1){
+            ServiceManager.services.get(args(1)) match {
+              case Some(service)=>{
+                val json = new JSONObject()
+                json.put("status",service.isRunning())
+                json.toString()
+              }
+              case None => jsonError("unknwon service")
+            }
+          }else{
+            jsonError("missing argument")
+          }
+        }
+        case "info"=>{
+          if(args.size > 1){
+            ServiceManager.services.get(args(1)) match {
+              case Some(service)=>{
+                service.toJson.toString(2)
+              }
+              case None => jsonError("unknwon service")
+            }
+          }else{
+            jsonError("missing argument")
+          }
+        }
+        case _ =>{
+          jsonError("unknown command")
+        }
+      }
+    }catch {
+      case e:Throwable => jsonError(e.getMessage)
+    }
+  }
+
   def interpretFileSystemCommands(args:Array[String],data:Option[String]):String = {
     if(args.size==0){
       return cliError("Missing argument")
@@ -455,6 +534,12 @@ object CLInterpreter extends LazyLogging{
    */
   def cliError(message:String):String={
     "__APPFM_ERROR_B__"+message+"__APPFM_ERROR_E__"
+  }
+
+  def jsonError(message:String):String={
+    val json = new JSONObject()
+    json.put("error",message)
+    json.toString(2)
   }
 
   /**

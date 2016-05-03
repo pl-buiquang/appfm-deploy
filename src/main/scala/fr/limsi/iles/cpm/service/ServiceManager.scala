@@ -6,6 +6,7 @@ import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.definition.ModuleDef
 import fr.limsi.iles.cpm.module.parameter.AbstractModuleParameter
 import fr.limsi.iles.cpm.module.value.AbstractParameterVal
+import org.json.JSONArray
 import org.yaml.snakeyaml.Yaml
 
 /**
@@ -15,12 +16,19 @@ object ServiceManager extends LazyLogging{
 
   var services : Map[String,Service]= Map[String,Service]()
 
+  override def toString : String={
+    services.foldLeft(new JSONArray())((agg, service)=>{
+      agg.put(service._2.toJson)
+    }).toString(2)
+  }
+
   def initService(serviceName:String,confMap:java.util.Map[String,Any],confFile:java.io.File)(implicit checkifexist:Boolean=true):Boolean={
     try{
       val service = new Service(confFile.getCanonicalPath,
         ModuleDef.initName(serviceName,confMap),
         ModuleDef.initDesc(confMap),
         ModuleDef.initOutputs(confMap),
+        null,
         null
       );
       // check if module name already exist
@@ -30,12 +38,12 @@ object ServiceManager extends LazyLogging{
           if(checkifexist){
             throw new Exception("Service already exist, defined in "+m.definitionPath)
           }else{
-            service.exec = confMap.get("run").asInstanceOf[java.util.Map[String,String]]
+            service.startcmd = confMap.get("start").asInstanceOf[java.util.Map[String,String]]
             services = services.updated(serviceName,service)
           }
           true
         }
-        case None => service.exec = confMap.get("run").asInstanceOf[java.util.Map[String,String]]; services += (serviceName-> service); false
+        case None => service.startcmd = confMap.get("start").asInstanceOf[java.util.Map[String,String]]; services += (serviceName-> service); false
       }
 
     }catch{

@@ -227,13 +227,14 @@ object AbstractProcess extends LazyLogging{
         if(ready){
           logger.info("Found")
           val newval = input._2.newEmpty()
-          if(moduleval.moduledef.name == "_CMD"){
-            newval.fromYaml(parentRunEnv.resolveValueToString(input._2.toYaml()))
+          val yamlval = if(moduleval.moduledef.name == "_CMD"){
+            parentRunEnv.resolveValueToString(input._2.toYaml())
           }else{
-            newval.fromYaml(parentRunEnv.resolveValueToYaml(input._2.toYaml()))
+            parentRunEnv.resolveValueToYaml(input._2.toYaml())
           }
+          newval.fromYaml(yamlval)
           newargs += (input._1 -> newval)
-
+          moduleval.inputs(input._1).fromYaml(yamlval) // because 
 
         }else{
           logger.info("Not found...")

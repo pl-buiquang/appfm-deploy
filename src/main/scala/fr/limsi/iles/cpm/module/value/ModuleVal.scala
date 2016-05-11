@@ -22,7 +22,7 @@ abstract class AbstractModuleVal(val moduledef:ModuleDef,val conf:Option[java.ut
 
   def getInput(paramName:String,env:RunEnv)={
     inputs(paramName) match {
-      case x:AbstractParameterVal => env.resolveValue(x)
+      //case x:AbstractParameterVal => env.resolveValue(x)
       case _ => env.getRawVar(paramName).getOrElse("") match {
         case x:AbstractParameterVal => x
         case _ => throw new Exception("couldn't resolve any value for this input ("+paramName+")")

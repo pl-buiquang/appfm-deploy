@@ -210,19 +210,18 @@ object AbstractProcess extends LazyLogging{
         val variables = input._2.extractVariables()
         var ready = true
         variables.filter(arg => {
-          !donotoverride.contains(arg)
+          !donotoverride.contains(arg) && arg!="_"
         }).foreach(variable => {
           if(parentRunEnv.getRawVar(variable).isEmpty){
             ready = false
           }else{
-            val value = if(moduleval.moduledef.inputs.contains(variable)){
+            /*val value = if(moduleval.moduledef.inputs.contains(variable)){
               moduleval.moduledef.inputs(variable).createVal()
             }else{
               parentRunEnv.getRawVar(variable).get.newEmpty()
             }
             value.fromYaml(parentRunEnv.getRawVar(variable).get.asString())
-            newargs += (variable -> value)
-            //newargs += (variable -> parentRunEnv.getRawVar(variable).get)
+            newargs += (variable -> value)*/
           }
         })
         if(ready){
@@ -990,14 +989,17 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
   override def postInit():Unit={
     values += ("chunksize" -> Integer.valueOf(ConfManager.get("maxproc").toString))
-    val modvals = moduleval.inputs("RUN").asInstanceOf[LIST[MODVAL]]
+    //val modvals = moduleval.inputs("RUN").asInstanceOf[LIST[MODVAL]]
+    val modvals = env.getRawVar("RUN").get.asInstanceOf[LIST[MODVAL]]
     values += ("modules" -> AbstractParameterVal.paramToScalaListModval(modvals))
     values += ("process" -> List[AbstractProcess]())
     values += ("pcount"->0)
     values += ("completed" -> 0)
     //values += ("tmpenv"->env.copy())
-    val filterregex = moduleval.getInput("REGEX",env).asString();
-    values += ("filteredDir" -> new java.io.File(moduleval.getInput("IN",env).asString()).listFiles(new FilenameFilter {
+    //val filterregex = moduleval.getInput("REGEX",env).asString();
+    val filterregex = env.getRawVar("REGEX").get.asString();
+    //values += ("filteredDir" -> new java.io.File(moduleval.getInput("IN",env).asString()).listFiles(new FilenameFilter {
+    values += ("filteredDir" -> new java.io.File(env.getRawVar("IN").get.asString()).listFiles(new FilenameFilter {
       override def accept(dir: io.File, name: JSFunction): Boolean = {
         filterregex.r.findFirstIn(name) match {
           case None => false

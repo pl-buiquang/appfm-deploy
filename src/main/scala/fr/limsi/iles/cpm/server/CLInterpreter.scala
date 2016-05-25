@@ -1,6 +1,6 @@
 package fr.limsi.iles.cpm.server
 
-import java.io.FileInputStream
+import java.io.{PrintWriter, FileInputStream}
 import java.net.URLEncoder
 import java.time.format.DateTimeFormatter
 import java.util.UUID
@@ -513,7 +513,7 @@ object CLInterpreter extends LazyLogging{
         case _ => cliError("Invalid argument")
       }
     }catch {
-      case e:Throwable => cliError(e.getMessage)
+      case e:Throwable =>  e.printStackTrace(); cliError(e.getMessage)
     }
   }
 

@@ -31,7 +31,7 @@ dbname : cpmdb
 #misc
 process_shell_bin : pshell/bin/cpm-process-shell.py
 process-shell-home : pshell
-
+shell_exec_bin : pshell/bin/simple-exec.py
 
 
 

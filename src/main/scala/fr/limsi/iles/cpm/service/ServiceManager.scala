@@ -6,6 +6,7 @@ import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.module.definition.ModuleDef
 import fr.limsi.iles.cpm.module.parameter.AbstractModuleParameter
 import fr.limsi.iles.cpm.module.value.AbstractParameterVal
+import fr.limsi.iles.cpm.utils.YamlElt
 import org.json.JSONArray
 import org.yaml.snakeyaml.Yaml
 
@@ -22,9 +23,25 @@ object ServiceManager extends LazyLogging{
     }).toString(2)
   }
 
+  def initServiceCmds(service:Service,confMap:java.util.Map[String,Any])={
+    service.startcmd = Service.initCMD(YamlElt.fromJava(confMap.get("start")),service.name+"-start")
+    confMap.get("stop") match {
+      case null => {
+        service.stopcmd = None
+        if(!service.startcmd.needsDocker()){
+          throw new Exception("Non docker service must have a stop command")
+        }
+      }
+      case _ => {
+        service.stopcmd = Some(Service.initCMD(YamlElt.fromJava(confMap.get("stop")),service.name+"-stop"))
+      }
+    }
+    service
+  }
+
   def initService(serviceName:String,confMap:java.util.Map[String,Any],confFile:java.io.File)(implicit checkifexist:Boolean=true):Boolean={
     try{
-      val service = new Service(confFile.getCanonicalPath,
+      var service = new Service(confFile.getCanonicalPath,
         ModuleDef.initName(serviceName,confMap),
         ModuleDef.initDesc(confMap),
         ModuleDef.initOutputs(confMap),
@@ -38,12 +55,12 @@ object ServiceManager extends LazyLogging{
           if(checkifexist){
             throw new Exception("Service already exist, defined in "+m.definitionPath)
           }else{
-            service.startcmd = confMap.get("start").asInstanceOf[java.util.Map[String,String]]
+            service = initServiceCmds(service,confMap)
             services = services.updated(serviceName,service)
           }
           true
         }
-        case None => service.startcmd = confMap.get("start").asInstanceOf[java.util.Map[String,String]]; services += (serviceName-> service); false
+        case None => initServiceCmds(service,confMap); services += (serviceName-> service); false
       }
 
     }catch{

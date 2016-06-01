@@ -4,7 +4,9 @@ import java.io.{File, PrintWriter}
 import java.util.UUID
 
 import com.typesafe.scalalogging.LazyLogging
+import fr.limsi.iles.cpm.service.ServiceManager
 import fr.limsi.iles.cpm.utils.ConfManager
+
 import scala.sys.process._
 
 /**
@@ -293,6 +295,11 @@ object DockerManager extends LazyLogging{
         ("docker kill "+containername._1)!
       })
 
+    })
+    ServiceManager.services.foreach(servicename => {
+      if(servicename._2.isRunning()){
+        servicename._2.stop()
+      }
     })
     "docker ps -a -q -f status=exited" #| "xargs docker rm -v" ! ;
     true

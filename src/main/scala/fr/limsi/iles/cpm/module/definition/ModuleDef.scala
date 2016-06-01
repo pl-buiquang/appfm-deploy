@@ -10,6 +10,7 @@ import fr.limsi.iles.cpm.module.definition.ModuleManager._
 import fr.limsi.iles.cpm.module.parameter._
 import fr.limsi.iles.cpm.process._
 import fr.limsi.iles.cpm.module.value._
+import fr.limsi.iles.cpm.service.Service
 import fr.limsi.iles.cpm.utils._
 import org.yaml.snakeyaml.Yaml
 import org.json._
@@ -224,9 +225,12 @@ object ModuleDef extends LazyLogging{
   }
 
   def initRun(confMap:java.util.Map[String,Any],inputs:Map[String,AbstractModuleParameter]) = {
-    var listmodules = Array[String]()
+    parseExecField(YamlElt.fromJava(confMap.get("exec")),inputs)
+  }
+
+  def parseExecField(yamlElt:YamlElt,inputs:Map[String,AbstractModuleParameter])={
     var run = List[AbstractModuleVal]()
-    YamlElt.fromJava(confMap.get("exec"))  match{
+    yamlElt  match{
       case YamlList(modulevals) => {
         modulevals.forEach(new Consumer[Any] {
           override def accept(t: Any): Unit = {
@@ -237,6 +241,7 @@ object ModuleDef extends LazyLogging{
       case _ => throw new Exception("Module does not provide run information!")
     }
     run.reverse
+
   }
 
   def initCMDInputs()={

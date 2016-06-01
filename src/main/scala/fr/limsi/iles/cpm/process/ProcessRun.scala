@@ -234,7 +234,7 @@ object AbstractProcess extends LazyLogging{
           }
           newval.fromYaml(yamlval)
           newargs += (input._1 -> newval)
-          moduleval.inputs(input._1).fromYaml(yamlval) // because 
+          moduleval.inputs(input._1).fromYaml(yamlval) // because
 
         }else{
           logger.info("Not found...")
@@ -839,6 +839,33 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
   var launched = ""
   var processCMDMessage : ProcessCMDMessage = null
 
+
+
+
+  def getDockerImage(defdir:String)={
+    env.resolveValueToString(moduleval.inputs("DOCKERFILE").toYaml()) match {
+      case x :String => {
+        if(x!="false"){
+          // replace @ by "_at_" (docker doesn't accept @ char)
+          val dockerfile = new java.io.File(defdir+"/"+x)
+          val dockerfilename = if (dockerfile.exists()){
+            dockerfile.getName
+          }else{
+            "Dockerfile"
+          }
+          val name = DockerManager.nameToDockerName(env.getRawVar("_MOD_CONTEXT").get.asString()+"-"+moduleval.namespace+"-"+dockerfilename) // _MOD_CONTEXT should always be the module defintion that holds this command
+          if(!DockerManager.exist(name)){
+            DockerManager.build(name,defdir+"/"+dockerfilename)
+          }
+          name
+        }else{
+          ""
+        }
+      }
+      case _ =>  ""
+    }
+  }
+
   override def step(): Unit = {
     //logger.debug("Launching CMD "+env.resolveValueToString(moduleval.inputs("CMD").asString()))
     var stderr = ""
@@ -849,29 +876,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
     val runfolder = new java.io.File(wd)
 
 
-    val dockerimagename = {
-      env.resolveValueToString(moduleval.inputs("DOCKERFILE").toYaml()) match {
-        case x :String => {
-          if(x!="false"){
-            // replace @ by "_at_" (docker doesn't accept @ char)
-            val dockerfile = new java.io.File(defdir+"/"+x)
-            val dockerfilename = if (dockerfile.exists()){
-              dockerfile.getName
-            }else{
-              "Dockerfile"
-            }
-            val name = DockerManager.nameToDockerName(env.getRawVar("_MOD_CONTEXT").get.asString()+"-"+moduleval.namespace+"-"+dockerfilename) // _MOD_CONTEXT should always be the module defintion that holds this command
-            if(!DockerManager.exist(name)){
-              DockerManager.build(name,defdir+"/"+dockerfilename)
-            }
-            name
-          }else{
-            ""
-          }
-        }
-        case _ =>  ""
-      }
-    }
+    val dockerimagename = getDockerImage(defdir)
 
 
     val unique = (env.resolveValueToString(moduleval.inputs("CONTAINED").toYaml()) == "true")

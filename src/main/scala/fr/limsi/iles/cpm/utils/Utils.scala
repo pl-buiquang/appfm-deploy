@@ -1,15 +1,16 @@
 package fr.limsi.iles.cpm.utils
 
-import java.io.{FilenameFilter, File, FileFilter}
-
+import java.io.{File, FileFilter, FilenameFilter}
+import java.net.InetAddress
 import java.text.SimpleDateFormat
 import java.util.function.{BiConsumer, Consumer}
 
 import com.typesafe.scalalogging.LazyLogging
 import org.slf4j.LoggerFactory
 import org.yaml.snakeyaml.Yaml
-
 import org.json._
+
+import scala.sys.process.Process
 
 /**
  * Created by buiquang on 9/22/15.
@@ -28,6 +29,17 @@ object Log {
       error += el.toString + "\n"
     })
     log.error("Stack trace : \n"+error)
+  }
+
+  def get(page:Int)={
+    val logpath = if(sys.env.isDefinedAt("CPM_HOME")){
+      sys.env("CPM_HOME")
+    }else{
+      ConfManager.get("cpm_home_dir").toString
+    }
+    val hostname = InetAddress.getLocalHost().getHostName()
+    val logname = logpath+"/"+hostname+"-appfm.log"
+    "AppFM Core Log (full log available at "+logname+"): \n"+(Process("tail -n 100 "+logname)!!)
   }
 
 }

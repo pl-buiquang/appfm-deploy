@@ -6,6 +6,7 @@ import fr.limsi.iles.cpm.module.parameter.AbstractModuleParameter
 import fr.limsi.iles.cpm.process.{CMDProcess, DockerManager, RunEnv}
 import fr.limsi.iles.cpm.module.value._
 import fr.limsi.iles.cpm.process.DockerManager._
+import fr.limsi.iles.cpm.server.{EventManager, EventMessage}
 import fr.limsi.iles.cpm.utils.{ConfManager, YamlElt, YamlMap}
 import org.json.JSONObject
 
@@ -24,6 +25,7 @@ class Service(val definitionPath:String,
 
   private var _isRunning : Boolean = false
   private var runningContainer : Option[String] = None
+  private var _lock = new Object()
 
   def getDefDir = {
     (new java.io.File(definitionPath)).getParent
@@ -47,57 +49,63 @@ class Service(val definitionPath:String,
   }
 
   def start():Boolean={
-    val env = initEnv
-    if(startcmd.needsDocker()){
-      val defdir = getDefDir
-      val imagename = startcmd.inputs("DOCKERFILE").toYaml() match {
-        case x :String => {
-          if(x!="false"){
-            // replace @ by "_at_" (docker doesn't accept @ char)
-            val dockerfile = new java.io.File(defdir+"/"+x)
-            val dockerfilename = if (dockerfile.exists()){
-              dockerfile.getName
+    _lock.synchronized{
+      val env = initEnv
+      if(startcmd.needsDocker()){
+        val defdir = getDefDir
+        val imagename = startcmd.inputs("DOCKERFILE").toYaml() match {
+          case x :String => {
+            if(x!="false"){
+              // replace @ by "_at_" (docker doesn't accept @ char)
+              val dockerfile = new java.io.File(defdir+"/"+x)
+              val dockerfilename = if (dockerfile.exists()){
+                dockerfile.getName
+              }else{
+                "Dockerfile"
+              }
+              val name = DockerManager.nameToDockerName("service-"+this.name+"-"+dockerfilename) // _MOD_CONTEXT should always be the module defintion that holds this command
+              if(!DockerManager.exist(name)){
+                DockerManager.build(name,defdir+"/"+dockerfilename)
+              }
+              name
             }else{
-              "Dockerfile"
+              ""
             }
-            val name = DockerManager.nameToDockerName("service-"+this.name+"-"+dockerfilename) // _MOD_CONTEXT should always be the module defintion that holds this command
-            if(!DockerManager.exist(name)){
-              DockerManager.build(name,defdir+"/"+dockerfilename)
-            }
-            name
-          }else{
-            ""
           }
+          case _ =>  ""
         }
-        case _ =>  ""
+        val mount = "-v " + defdir + ":" + defdir
+        val dockercmd = "docker run "+ env.resolveValueToString(startcmd.inputs("DOCKER_OPTS").asString()) +" "+ mount  + " -td " + imagename
+        Thread.sleep(2000)
+        logger.info("sleeping for 2secondes. TODO !! Fix delay needed for possible dockerized server initialization time... :(")
+        //logger.debug(dockerimage)
+        logger.info(dockercmd)
+        val containername = dockercmd.!!.trim()
+        runningContainer = Some(containername)
+      }else{
+        runNonDocker(env.resolveValueToString(stopcmd.get.inputs("CMD").asString()))
       }
-      val mount = "-v " + defdir + ":" + defdir
-      val dockercmd = "docker run "+ env.resolveValueToString(startcmd.inputs("DOCKER_OPTS").asString()) +" "+ mount  + " -td " + imagename
-      Thread.sleep(2000)
-      logger.info("sleeping for 2secondes. TODO !! Fix delay needed for possible dockerized server initialization time... :(")
-      //logger.debug(dockerimage)
-      logger.info(dockercmd)
-      val containername = dockercmd.!!.trim()
-      runningContainer = Some(containername)
-    }else{
-      runNonDocker(env.resolveValueToString(stopcmd.get.inputs("CMD").asString()))
+      EventManager.emit(new EventMessage("service-started",this.name,""))
+      _isRunning = true
     }
-    _isRunning = true
     true
   }
 
   def stop():Boolean={
-    val env = initEnv
-    if(startcmd.needsDocker()){
-      if(runningContainer.isDefined){
-        DockerManager.removeService(runningContainer.get)
+    _lock.synchronized{
+      val env = initEnv
+      if(startcmd.needsDocker()){
+        if(runningContainer.isDefined){
+          DockerManager.removeService(runningContainer.get)
+        }
       }
+      if(stopcmd.isDefined){
+        runNonDocker(env.resolveValueToString(stopcmd.get.inputs("CMD").asString()))
+      }
+      _isRunning = false
+      EventManager.emit(new EventMessage("service-stopped",this.name,""))
+      true
     }
-    if(stopcmd.isDefined){
-      runNonDocker(env.resolveValueToString(stopcmd.get.inputs("CMD").asString()))
-    }
-    _isRunning = false
-    true
   }
 
   private def runNonDocker(cmd:String) = {
@@ -109,7 +117,9 @@ class Service(val definitionPath:String,
   }
 
   def isRunning():Boolean={
-    _isRunning
+    _lock.synchronized{
+      _isRunning
+    }
   }
 
   def toJson : JSONObject = {

@@ -10,7 +10,7 @@ import fr.limsi.iles.cpm.module.definition.ModuleManager._
 import fr.limsi.iles.cpm.module.parameter._
 import fr.limsi.iles.cpm.process._
 import fr.limsi.iles.cpm.module.value._
-import fr.limsi.iles.cpm.service.Service
+import fr.limsi.iles.cpm.service.{Service, ServiceManager}
 import fr.limsi.iles.cpm.utils._
 import org.yaml.snakeyaml.Yaml
 import org.json._
@@ -39,7 +39,8 @@ class ModuleDef(
    val inputs:Map[String,AbstractModuleParameter],
    val outputs:Map[String,AbstractModuleParameter],
    val log:Map[String,String],
-   var exec:List[AbstractModuleVal]
+   var exec:List[AbstractModuleVal],
+   var require:List[Service]=Nil
  ){
 
   def needsDocker():Boolean = {
@@ -101,8 +102,16 @@ class ModuleDef(
 
   def serialize()(implicit tojson:Boolean=false) : String= {
     val yamloffset = "  "
+    val requirementfield = {if(require.isEmpty){
+      ""
+    }else{
+      require.foldLeft("require : ")((agg,service)=>{
+        agg + "\n"+yamloffset+"- "+service.name
+      }) + "\n"
+    }}
     val yamlstring = "name : "+name + "\n" +
       (if(desc!="")"desc : >\n"+yamloffset+desc + "\n" else "")+
+    requirementfield +
     inputs.foldLeft("input : ")((agg,input)=>{
       agg + "\n"+yamloffset+input._1+" : "+"\n"+
         (input._2.desc match {case Some(thing)=>yamloffset+yamloffset+"desc : "+thing+"\n"; case None => ""})+
@@ -158,6 +167,7 @@ object ModuleDef extends LazyLogging{
     );
 
     module.exec = ModuleDef.initRun(confMap,module.inputs)
+    module.require = ModuleDef.initRequirement(confMap)
     module
   }
 
@@ -181,6 +191,28 @@ object ModuleDef extends LazyLogging{
       logger.warn("Couldn't find module description. A little description is really encouraged.");
       ""
     }
+  }
+
+  def initRequirement(confMap:java.util.Map[String,Any]):List[Service]={
+    var requirements = List[Service]()
+    if(confMap.containsKey("require")){
+      YamlElt.fromJava(confMap.get("require")) match {
+        case YamlList(list) => {
+          list.forEach(new Consumer[Any] {
+            override def accept(t: Any): Unit = {
+              val servicename = t.toString.trim
+              if(ServiceManager.services.isDefinedAt(servicename)){
+                requirements = ServiceManager.services(servicename) :: requirements
+              }else{
+                throw new Exception("Service required doesn't exist!")
+              }
+            }
+          })
+        }
+        case _ => throw new Exception("Require field is not valid (must be a list of service names)")
+      }
+    }
+    requirements
   }
 
   def initInputs(confMap:java.util.Map[String,Any]) = {

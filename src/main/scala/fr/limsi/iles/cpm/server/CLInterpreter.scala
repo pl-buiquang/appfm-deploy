@@ -54,6 +54,7 @@ object CLInterpreter extends LazyLogging{
         case "status"=>{
           "Active (more details about configuration and state to come)"
         }
+        case "log"=> interpretLogCommand(args.slice(1,args.length))
         case "settings"=>{
           var moreargs = Array[String]()
           if(args.length>=1){
@@ -79,6 +80,19 @@ object CLInterpreter extends LazyLogging{
       }
     }catch{
       case e:Throwable => logger.error(e.getMessage()) ; "Command error. More details in Core Log"
+    }
+  }
+
+  def interpretLogCommand(args:Seq[String])={
+    try{
+      val page : Int = if(args.length != 0){
+        args(0).toInt
+      }else{
+        0
+      }
+      Log.get(page)
+    }catch{
+      case e:Throwable => cliError("Unexpected error happened ! ("+e.getMessage+")")
     }
   }
 
@@ -478,13 +492,14 @@ object CLInterpreter extends LazyLogging{
       args(0) match{
         case "get" => {
           if(args.size>1){
-            if (!(new java.io.File(args(1))).exists()){
+            val filename = args.tail.mkString(" ")
+            if (!(new java.io.File(filename)).exists()){
               return cliError("File doesn't exist!")
             }
-            if(!Utils.checkValidPath(args(1))){
-              return cliError("Not allowed to retrieve this file ! ("+args(1)+"). Fetchable files must be within corpus or result directories.")
+            if(!Utils.checkValidPath(filename)){
+              return cliError("Not allowed to retrieve this file ! ("+filename+"). Fetchable files must be within corpus or result directories.")
             }
-            val bs = Source.fromFile(args(1))
+            val bs = Source.fromFile(filename)
             val lines = bs.getLines()
             val output = if (lines.nonEmpty){
               lines.foldLeft("")((agg,line)=>agg+"\n"+line).substring(1)

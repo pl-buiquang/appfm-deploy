@@ -78,7 +78,8 @@ object ModuleManager extends LazyLogging{
           val wd = (new File(m.confFilePath)).getParent
           val ios = new FileInputStream(m.confFilePath)
           val confMap = yaml.load(ios).asInstanceOf[java.util.Map[String,Any]]
-            m.exec = ModuleDef.initRun(confMap,m.inputs)
+          m.exec = ModuleDef.initRun(confMap,m.inputs)
+          m.require = ModuleDef.initRequirement(confMap)
         })
       }catch{
 
@@ -134,6 +135,7 @@ object ModuleManager extends LazyLogging{
               bw.close()
               val module = modules(name)
               module.exec = ModuleDef.initRun(map,module.inputs)
+              module.require = ModuleDef.initRequirement(map)
             }catch{
               case e:Throwable => modules -= name; response.put("error","message : "+e.getMessage); response.put("cause",e.getStackTrace.toString)
             }
@@ -191,6 +193,7 @@ object ModuleManager extends LazyLogging{
             try{
               val updatedmodule = modules(name)
               updatedmodule.exec = ModuleDef.initRun(map,updatedmodule.inputs)
+              updatedmodule.require = ModuleDef.initRequirement(map)
               execisok = true
             }catch{
               case e:Throwable => response.put("error","message : "+e.getMessage);

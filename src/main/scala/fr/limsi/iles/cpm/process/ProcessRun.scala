@@ -9,13 +9,14 @@ import com.mongodb.BasicDBObject
 import com.mongodb.casbah.commons.MongoDBObject
 import com.mongodb.casbah.Imports._
 import com.typesafe.scalalogging.LazyLogging
-import fr.limsi.iles.cpm.module.definition.{ModuleManager, AnonymousDef, ModuleDef}
+import fr.limsi.iles.cpm.module.definition.{AnonymousDef, ModuleDef, ModuleManager}
 import fr.limsi.iles.cpm.module.parameter.AbstractModuleParameter
-import fr.limsi.iles.cpm.module.value.{DIR, VAL, AbstractParameterVal}
+import fr.limsi.iles.cpm.module.value.{AbstractParameterVal, DIR, VAL}
 import fr.limsi.iles.cpm.module.value._
-import fr.limsi.iles.cpm.server.{EventMessage, EventManager, Server}
+import fr.limsi.iles.cpm.server.{EventManager, EventMessage, Server}
+import fr.limsi.iles.cpm.service.ServiceManager
 import fr.limsi.iles.cpm.utils.Utils.FileWalker
-import fr.limsi.iles.cpm.utils.{YamlElt, DB, Utils, ConfManager}
+import fr.limsi.iles.cpm.utils.{ConfManager, DB, Utils, YamlElt}
 import org.json.JSONObject
 import org.slf4j.LoggerFactory
 import org.yaml.snakeyaml.Yaml
@@ -157,6 +158,8 @@ object AbstractProcess extends LazyLogging{
 
     // new env vars container
     var newargs = Map[String,AbstractParameterVal]()
+
+    newargs ++= ServiceManager.ensureActive(moduleval.moduledef.require)
 
     // create new subdirectory run dir and set path to env vars
     val runresultdir = DIR(None,None)
@@ -905,6 +908,7 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
       "STARTED"
     )
 
+    logger.info("sending command to be executed : "+cmd+"\n")
     processCMDMessage.send()
 
     // tag to prevent running more than once the process

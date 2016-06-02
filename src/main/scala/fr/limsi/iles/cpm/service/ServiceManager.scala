@@ -84,6 +84,19 @@ object ServiceManager extends LazyLogging{
     }
   }
 
+  def ensureActive(serviceslist:List[Service]):Map[String,AbstractParameterVal]={
+    serviceslist.foldLeft(Map[String,AbstractParameterVal]())((exported,service)=>{
+      exported ++ {
+        if(!service.isRunning()){
+          service.start()
+        }
+        service.outputs.foldLeft(Map[String,AbstractParameterVal]())((serviceoutputs,output)=>{
+          serviceoutputs + (service.name+"."+output._1 -> output._2.toAbstractParameterVal())
+        })
+      }
+    })
+  }
+
   def exportedVariables():Map[String,AbstractParameterVal]={
     services.foldLeft(Map[String,AbstractParameterVal]())((exported,service)=>{
       exported ++ {

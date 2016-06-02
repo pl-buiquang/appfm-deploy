@@ -83,7 +83,7 @@ class Service(val definitionPath:String,
         val containername = dockercmd.!!.trim()
         runningContainer = Some(containername)
       }else{
-        runNonDocker(env.resolveValueToString(stopcmd.get.inputs("CMD").asString()))
+        runNonDocker(env.resolveValueToString(startcmd.inputs("CMD").asString()))
       }
       EventManager.emit(new EventMessage("service-started",this.name,""))
       _isRunning = true
@@ -113,7 +113,8 @@ class Service(val definitionPath:String,
     val absolutecmd = cmd.replace("\n"," ").replaceAll("^\\./",getDefDir+"/")
     val cmdtolaunch = "python "+ConfManager.get("cpm_home_dir")+"/"+ConfManager.get("shell_exec_bin")+" "+absolutecmd
 
-    Process(cmdtolaunch,new java.io.File(getDefDir)) !
+    val retvalue = Process(cmdtolaunch,new java.io.File(getDefDir)).!!
+    logger.info("service "+this.name+" started ("+retvalue+")")
   }
 
   def isRunning():Boolean={

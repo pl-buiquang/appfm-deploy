@@ -39,8 +39,13 @@ object ProcessRunManager extends LazyLogging{
       case Some(thing) => {
         val processdbobject = thing.asInstanceOf[BasicDBObject]
         processCollection.remove(processdbobject)
-        val process = AbstractProcess.fromMongoDBObject(processdbobject)
+        val process = if(list.contains(uuid)){
+          list(uuid)
+        }else{
+          AbstractProcess.fromMongoDBObject(processdbobject)
+        }
         deleteResultDir(process)
+        process.kill()
         EventManager.emit(new EventMessage("process-deleted",process.id.toString,process.moduleval.moduledef.name))
         "ok"
       }
@@ -76,7 +81,7 @@ object ProcessRunManager extends LazyLogging{
   }
 
 
-  def newRun(modulename:String,confdata:String,async:Boolean) :String = {
+  def newRun(modulename:String,confdata:String,async:Boolean,user:String="_DEFAULT") :String = {
     /*
     val it = processCollection.find()
     while(it.hasNext){
@@ -131,6 +136,7 @@ object ProcessRunManager extends LazyLogging{
     // create process object
     val process = module.toProcess(None)
     val uuid = process.id
+    process.owner = user
 
     // creating base run result dir
     val runresultdir = createRunResultDir(resultdirpath,uuid,customresultdir)

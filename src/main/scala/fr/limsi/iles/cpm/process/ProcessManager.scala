@@ -40,7 +40,7 @@ object ProcessCMDMessage{
 }
 
 class ProcessCMDMessage(val id:UUID,val namespace:String,val processPort:String,val cmd:String,val dockerimagename:Option[String],val deffolder:File,val runfolder:File,val dockeropts:String,val unique:Boolean,val status:String){
-
+  var process : Option[Process] = None
   def format():String={
     val dockimg = if(dockerimagename.isDefined){
       "==IMAGE=="+dockerimagename.get+"==END_IMAGE=="
@@ -81,6 +81,7 @@ class ExecutableProcessCMDMessage(processcmdmessage:ProcessCMDMessage) extends L
   def execute()={
     ProcessManager.runningProcess += 1
     // if non docker , create new thread else run docker
+    var process :Process = null
     val containername = if(processcmdmessage.dockerimagename.isDefined){
       val containerName = DockerManager.serviceExec(
         processcmdmessage.id,
@@ -96,14 +97,18 @@ class ExecutableProcessCMDMessage(processcmdmessage:ProcessCMDMessage) extends L
 
       Some(containerName)
     }else{
+      val absolutecmd = processcmdmessage.cmd.replace("\n"," ").replaceAll("^\\./",processcmdmessage.deffolder.getCanonicalPath+"/")
+      val cmdtolaunch = "python "+ConfManager.get("cpm_home_dir")+"/"+ConfManager.get("process_shell_bin")+" false "+
+        processcmdmessage.id.toString+" "+processcmdmessage.namespace+" "+processcmdmessage.processPort+" "+processcmdmessage.runfolder.getCanonicalPath+" "+absolutecmd+""
+
+      process = Process(cmdtolaunch,processcmdmessage.runfolder).run()
 
       ProcessManager.nonDockerExecutorsService.execute(new Runnable {
         override def run(): Unit = {
-          val absolutecmd = processcmdmessage.cmd.replace("\n"," ").replaceAll("^\\./",processcmdmessage.deffolder.getCanonicalPath+"/")
-          val cmdtolaunch = "python "+ConfManager.get("cpm_home_dir")+"/"+ConfManager.get("process_shell_bin")+" false "+
-            processcmdmessage.id.toString+" "+processcmdmessage.namespace+" "+processcmdmessage.processPort+" "+processcmdmessage.runfolder.getCanonicalPath+" "+absolutecmd+""
 
-          Process(cmdtolaunch,processcmdmessage.runfolder) !
+
+          processcmdmessage.process = Some(process)
+          process.exitValue()
 
         }
       })
@@ -112,18 +117,25 @@ class ExecutableProcessCMDMessage(processcmdmessage:ProcessCMDMessage) extends L
 
     }
 
-    if(containername.isDefined){
-      logger.debug("Waiting for lock containerMap")
-      ProcessManager.containersmap.synchronized{
-        logger.debug("Acquired lock containerMap")
-        ProcessManager.containersmap += (processcmdmessage.id.toString -> containername.get)
-        logger.debug("Released lock containerMap")
+    logger.debug("Waiting for lock containerMap")
+    ProcessManager.containersmap.synchronized{
+      logger.debug("Acquired lock containerMap")
+      if(containername.isDefined) {
+        ProcessManager.containersmap += (processcmdmessage.id.toString -> ProcessContainerDocker(containername.get,processcmdmessage.dockerimagename))
+      }else{
+        ProcessManager.containersmap += (processcmdmessage.id.toString -> ProcessContainerHostWrap(process))
       }
+
+      logger.debug("Released lock containerMap")
     }
 
   }
 
 }
+
+sealed class ProcessContainer
+case class ProcessContainerDocker(uid:String,imagename :Option[String]) extends ProcessContainer
+case class ProcessContainerHostWrap(process:Process) extends ProcessContainer
 
 /**
  * Created by buiquang on 4/7/16.
@@ -134,9 +146,10 @@ object ProcessManager extends Thread with LazyLogging {
   var processQueue :mutable.Queue[ProcessCMDMessage] = mutable.Queue[ProcessCMDMessage]()
   var runningProcess = 0
   val nonDockerExecutorsService = Executors.newFixedThreadPool(maxProcess)
-  var containersmap = mutable.Map[String,String]()
+  var containersmap = mutable.Map[String,ProcessContainer]()
   var abstractProcessQueue:mutable.Queue[AbstractProcess] = mutable.Queue[AbstractProcess]()
   var masterProcessQueue:mutable.Queue[MasterProcessShell] = mutable.Queue[MasterProcessShell]()
+  var runningProcessGrid = mutable.ArrayBuffer[ProcessCMDMessage]()
 
   def addMasterToQueue(process:MasterProcessShell):Boolean={
     ProcessManager.processQueue.synchronized{
@@ -161,6 +174,24 @@ object ProcessManager extends Thread with LazyLogging {
       }else{
         abstractProcessQueue.enqueue(process)
         false
+      }
+    }
+  }
+
+  // remove also queued process
+  def kill(pid:String):Unit={
+
+    ProcessManager.containersmap.synchronized{
+      val p = ProcessManager.containersmap.find((el)=>pid==el._1)
+      if(p.isDefined){
+        p.get._2 match {
+          case ProcessContainerDocker(uid,imagename)=>{
+            DockerManager.updateServiceStatus(Some(uid),imagename,false)
+          }
+          case ProcessContainerHostWrap(process)=>{
+            process.destroy()
+          }
+        }
       }
     }
   }
@@ -201,12 +232,21 @@ object ProcessManager extends Thread with LazyLogging {
             logger.debug("Waiting for lock containerMap")
             ProcessManager.containersmap.synchronized{
               logger.debug("Acquired lock containerMap")
-              if(ProcessManager.containersmap.keySet.exists(_==processmessage.id.toString)){
-                DockerManager.updateServiceStatus(ProcessManager.containersmap.get(processmessage.id.toString),processmessage.dockerimagename,false)
+              if(ProcessManager.containersmap.contains(processmessage.id.toString)){
+                ProcessManager.containersmap(processmessage.id.toString) match {
+                  case  ProcessContainerDocker(uid,imagename)=>{
+                    DockerManager.updateServiceStatus(Some(uid),processmessage.dockerimagename,false)
+                  }
+                  case ProcessContainerHostWrap(process)=>{
+
+                  }
+                }
+
                 ProcessManager.containersmap -= processmessage.id.toString
               }
               logger.debug("Released lock containerMap")
             }
+
 
             if(runningProcess<=maxProcess){
               if(processQueue.length>0) {

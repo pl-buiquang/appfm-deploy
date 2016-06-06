@@ -33,16 +33,16 @@ object CLInterpreter extends LazyLogging{
    * @param data
    * @return
    */
-  def interpret(cmdarg:String,data:Option[String]) :String = {
+  def interpret(cmdarg:String,data:Option[String],user:String) :String = {
     val args = cmdarg.split("\\s")
     try{
       args(0) match {
         case "corpus" =>
           interpretCorpusCommands(args.slice(1,args.length))
         case "process" =>
-          interpretProcessCommands(args.slice(1,args.length))
+          interpretProcessCommands(args.slice(1,args.length),data,user)
         case "module" =>
-          interpretModuleCommands(args.slice(1,args.length),data)
+          interpretModuleCommands(args.slice(1,args.length),data,user)
         case "service" =>
           interpretServiceCommands(args.slice(1,args.length),data)
         case "exec" =>
@@ -151,34 +151,25 @@ object CLInterpreter extends LazyLogging{
     out
   }
 
-  def interpretProcessCommands(args:Seq[String]):String = {
+  def interpretProcessCommands(args:Seq[String],data:Option[String],user:String):String = {
     try{
       args(0) match{
         case "ls" => try {
-          val opt = if(args.size > 2){
-            if(args(1)=="-a" && args(2)=="-r") {
-              (true,true)
-            }else {
-              (false, false) // should not happen if properly called via cpm-cli
-            }
-          }else if(args.size > 1){
-            if(args(1)=="-a") {
-              (true,false)
-            }else if(args(1)=="-r") {
-              (false,true)
-            }else {
-              (false,false) // should not happen if properly called via cpm-cli
-            }
-          }else {
-            (false,false)
-          }
+          val all = args.exists(_=="-a")
+          val head = args.exists(_=="-h")
+          val owned = args.exists(_=="-u")
+          var headsize = 10
+
+
           var toprint : String = ""
           var ids = Array[String]()
           // first in memory (running) process
           ProcessRunManager.list.foreach(el=>{
             if(el._2.parentProcess.isEmpty){ // only master process
-              ids = ids :+ el._1.toString
-              toprint += el._2.moduleval.moduledef.name+" : "+el._1+"("+el._2.creationDate.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)+")\n"
+              if(!head || el._2.owner == user || el._2 == "_DEFAULT"){
+                ids = ids :+ el._1.toString
+                toprint += el._2.moduleval.moduledef.name+" : "+el._1+"("+el._2.creationDate.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)+")\n"
+              }
             }
           })
           // then those saved in db (past process)
@@ -188,8 +179,13 @@ object CLInterpreter extends LazyLogging{
           while(it.hasNext){
             val pobj = it.next()
             val id = pobj.get("ruid").toString
-            if(opt._1 && !ids.contains(id)/*|| pobj.get("status")=="Running"*/){
-              toprint += pobj.get("name") + " : " + id+"("+java.time.LocalDateTime.parse(pobj.get("creationdate").toString).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)+")\n"
+            if((head || all) && !ids.contains(id)/*|| pobj.get("status")=="Running"*/){
+              val owner = pobj.get("owner")
+              if(!head || (headsize>0 && (owner == user  ||  owner == "" || owner == "_DEFAULT"))){
+                headsize -= 1
+                toprint += pobj.get("name") + " : " + id+"("+java.time.LocalDateTime.parse(pobj.get("creationdate").toString).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)+")\n"
+              }
+
               /*if(opt._2){
                 toprint+="\n"+processChildrenRecPrint(pobj,"  |")+"\n"
               }else{
@@ -323,7 +319,7 @@ object CLInterpreter extends LazyLogging{
     }
   }
 
-  def interpretModuleCommands(args:Seq[String],data:Option[String]) = {
+  def interpretModuleCommands(args:Seq[String],data:Option[String],user:String) = {
     try{
       args(0) match{
         case "ls" => {
@@ -338,12 +334,12 @@ object CLInterpreter extends LazyLogging{
         case "run" => {
           val synced = !args.exists(_=="--sync")
           if(data.isDefined){
-            ProcessRunManager.newRun(args(1),data.get,synced)
+            ProcessRunManager.newRun(args(1),data.get,synced,user)
           }else{
             val bs = Source.fromFile(args(2))
             val confdata = bs.getLines.foldLeft("")((agg,line)=>agg+"\n"+line)
             bs.close()
-            ProcessRunManager.newRun(args(1),confdata,synced)
+            ProcessRunManager.newRun(args(1),confdata,synced,user)
           }
         }
         case "info" => {

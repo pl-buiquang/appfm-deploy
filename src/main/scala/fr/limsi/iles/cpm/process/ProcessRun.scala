@@ -124,6 +124,7 @@ object AbstractProcess extends LazyLogging{
       case "NONE" => None
       case x:String => Some(x)
     }
+    val owner = obj.getOrDefault("owner","_DEFAULT").toString
     val status : ProcessStatus = obj.getOrDefault("status","Waiting").toString
     val creationDate : java.time.LocalDateTime = java.time.LocalDateTime.parse(obj.getOrDefault("creationdate","").toString)
     val completedDate : java.time.LocalDateTime = {
@@ -133,6 +134,7 @@ object AbstractProcess extends LazyLogging{
         null
       }
     }
+
     val log : String = obj.getOrDefault("log","").toString
 
     val x =  modulename match {
@@ -142,7 +144,7 @@ object AbstractProcess extends LazyLogging{
       //case "_ANONYMOUS" => new AnonymousModuleProcess(new ModuleVal(namespace,new AnonymousDef(),modulevalconf),parentProcess,uuid)
       case _ => new ModuleProcess(new ModuleVal(namespace,ModuleManager.modules(modulename),modulevalconf),parentProcess,uuid)
     }
-
+    x.owner = owner
     x.status = status
     x.creationDate = creationDate
     x.completedDate = completedDate
@@ -304,6 +306,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
   var log = ""
   var detached = false
   var progress = 0.0
+  var owner :String = null
 
   var childrenProcess = List[UUID]()
 
@@ -339,7 +342,8 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
   /**
    * Retrieve the origin process that has spawn this current process
-   * @return the origin master process
+    *
+    * @return the origin master process
    */
   def getMasterProcess() : AbstractProcess= {
     parentProcess match {
@@ -363,7 +367,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
 
 
-
+  def kill():Unit
   protected[this] def postInit():Unit={}
   protected[this] def step():Unit
   protected[this] def update(message:ProcessMessage)
@@ -378,7 +382,8 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
 
   /**
    * Note : if changing (add or remove) mutable fields, you need to change the content of serializeToMongoObject method...
-   * @return a tuple containing immutable and mutable map fields to be serialized
+    *
+    * @return a tuple containing immutable and mutable map fields to be serialized
    */
   def serialize()={
     var staticfields = List(
@@ -396,6 +401,7 @@ abstract class AbstractProcess(val parentProcess:Option[AbstractProcess],val id 
           parentProcess.get.id.toString
         }
       },
+      "owner"->owner,
       "modvalconf" -> (new Yaml).dump(moduleval.conf.getOrElse("")),
       "modvalnamespace" -> moduleval.namespace,
       "resultnamespace" -> resultnamespace,
@@ -666,6 +672,15 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
 
   var runningModules = Map[String,AbstractProcess]()
   var completedModules = Map[String,AbstractProcess]()
+  val lock = new Object()
+
+  override def kill():Unit={
+    lock.synchronized{
+      runningModules.foreach((el)=>{
+        el._2.kill()
+      })
+    }
+  }
 
   override def endCondition():Boolean={
     completedModules.size == moduleval.moduledef.exec.size
@@ -698,66 +713,69 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
    */
   override def step() = {
     //logger.debug("Trying to run next submodule for module "+moduleval.moduledef.name)
-    val module = moduleval.moduledef.exec(completedModules.size)
-    if(module.isExecutable(env)){
-      //logger.debug("Launching "+module.moduledef.name)
-      val process = module.toProcess(Some(this))
-      if(module.moduledef.name=="_MAP"){
-        process.asInstanceOf[MAPProcess].parentInputsDef = moduleval.moduledef.inputs
-        var context = List[AbstractModuleVal]()
-        runningModules.foreach(elt => {
-          context ::= elt._2.moduleval
-        })
-        process.asInstanceOf[MAPProcess].context = context
-      }else if(module.moduledef.name=="_IF"){
-        process.asInstanceOf[IFProcess].parentInputsDef = moduleval.moduledef.inputs
-        var context = List[AbstractModuleVal]()
-        runningModules.foreach(elt => {
-          context ::= elt._2.moduleval
-        })
-        process.asInstanceOf[IFProcess].context = context
-      }else if(module.moduledef.name=="_WALKMAP"){
-        process.asInstanceOf[WALKMAPProcess].parentInputsDef = moduleval.moduledef.inputs
-        var context = List[AbstractModuleVal]()
-        runningModules.foreach(elt => {
-          context ::= elt._2.moduleval
-        })
-        process.asInstanceOf[WALKMAPProcess].context = context
-      }
-      runningModules += (module.namespace -> process)
-      //childrenProcess ::= process.id
-      //this.saveStateToDB()
-      process.setRun(env,moduleval.namespace,Some(processSockAddr),true)
-      ProcessManager.addToQueue(process)
-    }else{
-      throw new Exception("couldn't continue execution env doesn't provide necessary inputs..")
-    }
-    // this code only takes into account runnable module based on variables existence
-    // it can run multiple modules in parallel not taking into account the execution description modules order
-    /*
-    val runnableModules = moduleval.moduledef.exec.filter(module => {
-      if(runningModules.contains(module.namespace)){
-        false
+    lock.synchronized{
+      val module = moduleval.moduledef.exec(completedModules.size)
+      if(module.isExecutable(env)){
+        //logger.debug("Launching "+module.moduledef.name)
+        val process = module.toProcess(Some(this))
+        if(module.moduledef.name=="_MAP"){
+          process.asInstanceOf[MAPProcess].parentInputsDef = moduleval.moduledef.inputs
+          var context = List[AbstractModuleVal]()
+          runningModules.foreach(elt => {
+            context ::= elt._2.moduleval
+          })
+          process.asInstanceOf[MAPProcess].context = context
+        }else if(module.moduledef.name=="_IF"){
+          process.asInstanceOf[IFProcess].parentInputsDef = moduleval.moduledef.inputs
+          var context = List[AbstractModuleVal]()
+          runningModules.foreach(elt => {
+            context ::= elt._2.moduleval
+          })
+          process.asInstanceOf[IFProcess].context = context
+        }else if(module.moduledef.name=="_WALKMAP"){
+          process.asInstanceOf[WALKMAPProcess].parentInputsDef = moduleval.moduledef.inputs
+          var context = List[AbstractModuleVal]()
+          runningModules.foreach(elt => {
+            context ::= elt._2.moduleval
+          })
+          process.asInstanceOf[WALKMAPProcess].context = context
+        }
+        runningModules += (module.namespace -> process)
+        //childrenProcess ::= process.id
+        //this.saveStateToDB()
+        process.setRun(env,moduleval.namespace,Some(processSockAddr),true)
+        ProcessManager.addToQueue(process)
       }else{
-        module.isExecutable(env)
+        throw new Exception("couldn't continue execution env doesn't provide necessary inputs..")
       }
-    });
-    runnableModules.foreach(module => {
-      logger.debug("Launching "+module.moduledef.name)
-      val process = module.toProcess(Some(this))
-      if(module.moduledef.name=="_MAP"){
-        process.asInstanceOf[MAPProcess].parentInputsDef = moduleval.moduledef.inputs
-        var context = List[AbstractModuleVal]()
-        runningModules.foreach(elt => {
-          context ::= elt._2.moduleval
-        })
-        process.asInstanceOf[MAPProcess].context = context
-      }
-      runningModules += (module.namespace -> process)
-      //childrenProcess ::= process.id
-      //this.saveStateToDB()
-      process.run(env,moduleval.namespace,Some(processPort),true) // not top level modules (called by cpm cli) always run demonized
-    })*/
+      // this code only takes into account runnable module based on variables existence
+      // it can run multiple modules in parallel not taking into account the execution description modules order
+      /*
+      val runnableModules = moduleval.moduledef.exec.filter(module => {
+        if(runningModules.contains(module.namespace)){
+          false
+        }else{
+          module.isExecutable(env)
+        }
+      });
+      runnableModules.foreach(module => {
+        logger.debug("Launching "+module.moduledef.name)
+        val process = module.toProcess(Some(this))
+        if(module.moduledef.name=="_MAP"){
+          process.asInstanceOf[MAPProcess].parentInputsDef = moduleval.moduledef.inputs
+          var context = List[AbstractModuleVal]()
+          runningModules.foreach(elt => {
+            context ::= elt._2.moduleval
+          })
+          process.asInstanceOf[MAPProcess].context = context
+        }
+        runningModules += (module.namespace -> process)
+        //childrenProcess ::= process.id
+        //this.saveStateToDB()
+        process.run(env,moduleval.namespace,Some(processPort),true) // not top level modules (called by cpm cli) always run demonized
+      })*/
+
+    }
   }
 
   override def updateParentEnv() = {
@@ -787,25 +805,30 @@ class ModuleProcess(override val moduleval:ModuleVal,override val parentProcess:
   }
 
   override def getDetailedStatus(): DetailedProcessStatusTree = {
-    DetailedProcessStatusNode(moduleval.namespace,moduleval.moduledef.exec.foldRight(List[DetailedProcessStatusTree]())((moduleval,list)=>{
-      DetailedProcessStatusLeaf(moduleval.namespace,"waiting") :: list
-    }).map(node=>{
-      if(runningModules.keySet.exists(_==node.pname)){
-        runningModules(node.pname).status match {
-          case Running() => {
-            runningModules(node.pname).getDetailedStatus()
-          }
-          case Exited(exitcode)=>{
-            runningModules(node.pname).getDetailedStatus()
-          }
-          case _ => {
+    this.status match {
+      case Exited(code) => DetailedProcessStatusLeaf(moduleval.namespace,"exited ("+code+")")
+      case _ =>
+        DetailedProcessStatusNode(moduleval.namespace, moduleval.moduledef.exec.foldRight(List[DetailedProcessStatusTree]())((moduleval, list) => {
+          DetailedProcessStatusLeaf(moduleval.namespace, "waiting") :: list
+        }).map(node => {
+          if (runningModules.keySet.exists(_ == node.pname)) {
+            runningModules(node.pname).status match {
+              case Running() => {
+                runningModules(node.pname).getDetailedStatus()
+              }
+              case Exited(exitcode) => {
+                runningModules(node.pname).getDetailedStatus()
+              }
+              case _ => {
+                node
+              }
+            }
+          } else {
             node
           }
-        }
-      }else{
-        node
-      }
-    }))
+        }))
+    }
+
   }
 }
 
@@ -841,9 +864,15 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
   var stderrval : VAL = VAL(None,None)
   var launched = ""
   var processCMDMessage : ProcessCMDMessage = null
+  private var _lock = new Object()
 
-
-
+  override def kill():Unit={
+    _lock.synchronized{
+      if(processCMDMessage != null){
+        ProcessManager.kill(processCMDMessage.id.toString)
+      }
+    }
+  }
 
   def getDockerImage(defdir:String)={
     env.resolveValueToString(moduleval.inputs("DOCKERFILE").toYaml()) match {
@@ -871,48 +900,51 @@ class CMDProcess(override val moduleval:CMDVal,override val parentProcess:Option
 
   override def step(): Unit = {
     //logger.debug("Launching CMD "+env.resolveValueToString(moduleval.inputs("CMD").asString()))
-    var stderr = ""
-    var stdout = ""
-    val defdir = env.getRawVar("_DEF_DIR").get.asString()
-    val wd = env.getRawVar("_RUN_DIR").get.asString()
-    val deffolder = new java.io.File(defdir)
-    val runfolder = new java.io.File(wd)
+    _lock.synchronized{
+      var stderr = ""
+      var stdout = ""
+      val defdir = env.getRawVar("_DEF_DIR").get.asString()
+      val wd = env.getRawVar("_RUN_DIR").get.asString()
+      val deffolder = new java.io.File(defdir)
+      val runfolder = new java.io.File(wd)
 
 
-    val dockerimagename = getDockerImage(defdir)
+      val dockerimagename = getDockerImage(defdir)
 
 
-    val unique = (env.resolveValueToString(moduleval.inputs("CONTAINED").toYaml()) == "true")
-    val cmd = env.resolveValueToString(moduleval.inputs("CMD").asString()).replace("\\$","$")
+      val unique = (env.resolveValueToString(moduleval.inputs("CONTAINED").toYaml()) == "true")
+      val cmd = env.resolveValueToString(moduleval.inputs("CMD").asString()).replace("\\$","$")
 
-    val image = if(dockerimagename!=""){
-      Some(dockerimagename)
-    }else{
-      None
+      val image = if(dockerimagename!=""){
+        Some(dockerimagename)
+      }else{
+        None
+      }
+
+      val port = {
+        val items = processSockAddr.split(":")
+        items.takeRight(1)(0)
+      }
+      processCMDMessage = new ProcessCMDMessage(
+        this.id,
+        moduleval.namespace,
+        port,
+        cmd,
+        image,
+        deffolder,
+        runfolder,
+        env.resolveValueToString(moduleval.inputs("DOCKER_OPTS").asString()),
+        unique,
+        "STARTED"
+      )
+
+      logger.info("sending command to be executed : "+cmd+"\n")
+      processCMDMessage.send()
+
+      // tag to prevent running more than once the process
+      launched = "true"
     }
 
-    val port = {
-      val items = processSockAddr.split(":")
-      items.takeRight(1)(0)
-    }
-    processCMDMessage = new ProcessCMDMessage(
-      this.id,
-      moduleval.namespace,
-      port,
-      cmd,
-      image,
-      deffolder,
-      runfolder,
-      env.resolveValueToString(moduleval.inputs("DOCKER_OPTS").asString()),
-      unique,
-      "STARTED"
-    )
-
-    logger.info("sending command to be executed : "+cmd+"\n")
-    processCMDMessage.send()
-
-    // tag to prevent running more than once the process
-    launched = "true"
 
   }
 
@@ -997,6 +1029,18 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
   var parentInputsDef : Map[String,AbstractModuleParameter] = Map[String,AbstractModuleParameter]()
   var context : List[AbstractModuleVal] = List[AbstractModuleVal]()
 
+  private val _lock = new Object()
+  private var _kill = false
+  override def kill():Unit={
+    _lock.synchronized{
+      _kill = true
+      var list = values("process").asInstanceOf[List[AbstractProcess]]
+      list.foreach((p)=>{
+        p.kill()
+      })
+    }
+  }
+
   override def postInit():Unit={
     values += ("chunksize" -> Integer.valueOf(ConfManager.get("maxproc").toString))
     //val modvals = moduleval.inputs("RUN").asInstanceOf[LIST[MODVAL]]
@@ -1050,6 +1094,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     parentEnv.debugPrint()
   }
 
+  // @todo update process list (removed)
   override protected [this] def update(message:ProcessMessage)={
     val n : Int= values("completed").asInstanceOf[Int]
     values += ("chunksize" -> 1)
@@ -1069,6 +1114,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
 
     //val newenv = values("tmpenv").asInstanceOf[RunEnv]
     toProcessFiles.foreach(file => {
+
       val newenv = env
       val dirinfo = this.moduleval.getInput("IN",env)
       val x = FILE(dirinfo.format,dirinfo.schema)
@@ -1095,7 +1141,7 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     resEnv
   }
 
-
+  // @todo update process list
   override protected[this] def step()={
     val to = if(offset+values("chunksize").asInstanceOf[Int]>=values("filteredDir").asInstanceOf[Array[java.io.File]].length){
       values("filteredDir").asInstanceOf[Array[java.io.File]].length
@@ -1106,6 +1152,12 @@ class MAPProcess(override val moduleval:MAPVal,override val parentProcess:Option
     val toProcessFiles = values("filteredDir").asInstanceOf[Array[java.io.File]].slice(offset,to)
 
     var i = 0;
+
+    _lock.synchronized{
+      if(_kill){
+        throw new Exception("killed")
+      }
+    }
 
     //val newenv = values("tmpenv").asInstanceOf[RunEnv]
     toProcessFiles.foreach(file => {
@@ -1167,6 +1219,18 @@ class WALKMAPProcess(override val moduleval:WALKMAPVal,override val parentProces
   var parentInputsDef : Map[String,AbstractModuleParameter] = Map[String,AbstractModuleParameter]()
   var context : List[AbstractModuleVal] = List[AbstractModuleVal]()
 
+  private val _lock = new Object()
+  private var _kill = false
+  override def kill():Unit={
+    _lock.synchronized{
+      _kill = true
+      var list = values("process").asInstanceOf[List[AbstractProcess]]
+      list.foreach((p)=>{
+        p.kill()
+      })
+    }
+  }
+
   override def getDetailedStatus(): DetailedProcessStatusTree = {
     DetailedProcessStatusLeaf(moduleval.namespace,String.valueOf(progress))
   }
@@ -1185,6 +1249,7 @@ class WALKMAPProcess(override val moduleval:WALKMAPVal,override val parentProces
     values += ("module"->module)
   }
 
+  // @todo update process list
   override protected[this] def update(message: ProcessMessage): Unit = {
     val n : Int= values("completed").asInstanceOf[Int]
     values += ("chunksize" -> 1)
@@ -1223,6 +1288,12 @@ class WALKMAPProcess(override val moduleval:WALKMAPVal,override val parentProces
   }
 
   override protected[this] def step(): Unit = {
+    _lock.synchronized{
+      if(_kill){
+        throw new Exception("killed")
+      }
+    }
+
     val n = values("chunksize").asInstanceOf[Int]
 
     val walker = values("walker").asInstanceOf[Utils.FileWalker]
@@ -1265,6 +1336,12 @@ class IFProcess(override val moduleval:IFVal,override val parentProcess:Option[A
   var parentInputsDef : Map[String,AbstractModuleParameter] = Map[String,AbstractModuleParameter]()
   var context : List[AbstractModuleVal] = List[AbstractModuleVal]()
   var launchedMod : AbstractProcess = null
+
+  override def kill():Unit={
+    if(launchedMod!=null){
+      launchedMod.kill()
+    }
+  }
 
   def executeSubmodules(pipeline:String) = {
     val modules = this.moduleval.inputs(pipeline).asInstanceOf[LIST[MODVAL]]

@@ -31,7 +31,7 @@ object CPMCommand {
   def execute(rawmessage:String):String = execute(new CPMCommand(rawmessage))
 
   def execute(command:CPMCommand):String = {
-    CLInterpreter.interpret(command.command,command.data)
+    CLInterpreter.interpret(command.command,command.data,command.user)
   }
 }
 
@@ -42,7 +42,7 @@ class CPMCommand(zmqmessage:String){
 
   val frames = CPMCommand.getFrames(zmqmessage)
 
-  val user = frames.getOrElse("USER","_default")
+  val user = frames.getOrElse("USER","_DEFAULT")
   val password = frames.getOrElse("PSWD","")
   val command = frames.getOrElse("CMD","unknown cmd")
   val data = frames.get("DATA")

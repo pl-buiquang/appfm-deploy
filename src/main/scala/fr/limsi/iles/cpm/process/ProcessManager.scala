@@ -178,6 +178,14 @@ object ProcessManager extends Thread with LazyLogging {
     }
   }
 
+  def debugPrint():String={
+    runningProcess.toString + "\n" +
+    containersmap.foldLeft("")((agg,el)=>{
+      val proc = ProcessRunManager.getProcess(UUID.fromString(el._1))
+      agg + proc.moduleval.moduledef.name +" : "+el._1 + "\n"
+    })
+  }
+
   // remove also queued process
   def kill(pid:String):Unit={
 

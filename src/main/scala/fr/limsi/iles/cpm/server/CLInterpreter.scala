@@ -12,7 +12,7 @@ import com.typesafe.scalalogging.LazyLogging
 import fr.limsi.iles.cpm.CPM
 import fr.limsi.iles.cpm.corpus.CorpusManager
 import fr.limsi.iles.cpm.module.definition.{ModuleDef, ModuleManager}
-import fr.limsi.iles.cpm.process.{Exited, ProcessRunManager}
+import fr.limsi.iles.cpm.process.{ProcessManager, Exited, ProcessRunManager}
 import fr.limsi.iles.cpm.module.value.AbstractModuleVal
 import fr.limsi.iles.cpm.service.ServiceManager
 import fr.limsi.iles.cpm.utils.{YamlElt, Log, Utils, ConfManager}
@@ -154,6 +154,9 @@ object CLInterpreter extends LazyLogging{
   def interpretProcessCommands(args:Seq[String],data:Option[String],user:String):String = {
     try{
       args(0) match{
+        case "queue" => {
+          ProcessManager.debugPrint()
+        }
         case "ls" => try {
           val all = args.exists(_=="-a")
           val head = args.exists(_=="-h")

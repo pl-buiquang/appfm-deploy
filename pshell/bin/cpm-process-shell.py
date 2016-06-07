@@ -58,6 +58,6 @@ processinfo.close()
 outfile.close()
 errfile.close()
 
-message = name+"\nFINISHED\n"+str(exitval)
+message = pid+"\nFINISHED\n"+str(exitval)
 sock.send(message)
 

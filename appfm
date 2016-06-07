@@ -4,6 +4,8 @@ dir=`dirname $0`
 
 source $dir/scripts/env.sh
 
+export LD_LIBRARY_PATH=$ZMQ_LIB 
+
 bin="$CPM_HOME/lib/jdk1.8.0_51/bin/java -Djava.library.path=$ZMQ_LIB -jar $CPM_HOME/core/target/scala-2.11/cpm-core-server-assembly-1.0.jar $CPM_HOME/core/src/main/resources/conf.yml"
 pid=$CPM_HOME/`hostname`-appfm.pid
 mongopid=$CPM_HOME/`hostname`-mongo.pid

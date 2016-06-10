@@ -1,15 +1,15 @@
 [submodule "cpm-core"]
   path = core
-  url = git2@versatile-world.net:~/cpm-core.git
+  url = git@github.limsi.fr:/appfm/core
 
 [submodule "cpm-cli"]
   path = cli
-  url = git2@versatile-world.net:~/cpm-cli.git
+  url = git@github.limsi.fr:/appfm/cli
 
 [submodule "cpm-web-ui"]
   path = web
-  url = git2@versatile-world.net:~/cpm-web-ui.git
+  url = git@github.limsi.fr:/appfm/web-ui
 
 [submodule "cpm-data"]
   path = data
-  url = git2@versatile-world.net:~/cpm-data.git
+  url = git@github.limsi.fr:/appfm/data

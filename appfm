@@ -10,6 +10,18 @@ bin="$CPM_HOME/lib/jdk1.8.0_51/bin/java -Djava.library.path=$ZMQ_LIB -jar $CPM_H
 pid=$CPM_HOME/`hostname`-appfm.pid
 mongopid=$CPM_HOME/`hostname`-mongo.pid
 
+isRunning() {
+  ps ax | grep -e "^\s*$(cat $pid)\s\+" | wc -l
+}
+
+waitForStopped() {
+  i=$(isRunning)
+  while [ $i -ne 0 ]
+  do
+    sleep 1s
+    i=$(isRunning)
+  done
+}
 
 start() {
 	if [ -f $pid ] ; then
@@ -30,6 +42,7 @@ stop() {
 	if [ -f $pid ] ; then
 		echo "AppFM stopped"
 		kill -15 `cat $pid`
+    waitForStopped
 		rm $pid
 	else
 		echo "no pid file found, AppFM may not be running"

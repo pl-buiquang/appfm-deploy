@@ -10,3 +10,7 @@ appfm.log
 *.pid
 scripts/env.sh
 *.log
+target/
+*.iml
+.idea/
+cpm.log

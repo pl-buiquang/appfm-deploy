@@ -1,0 +1,38 @@
+# CPM Server Configuration
+
+cpm_home_dir : /people/buiquang/projects/custom/cpm
+
+# main port to connect client with
+cmd_listen_port : 5555
+
+event_pub_port : 5858
+
+websocket_port : 8083
+
+maxproc : 20
+
+# modules directory
+modules_dir :
+  - /people/buiquang/projects/custom/cpm/modules
+  - /people/buiquang/scratch/labiche_modules
+
+default_module_dir : /people/buiquang/projects/custom/cpm/modules
+
+default_result_dir : /people/buiquang/projects/custom/cpm/data/results
+
+default_corpus_dir : /people/buiquang/projects/custom/cpm/data/corpus
+
+
+# db info
+dbhost : localhost
+dbport : 27017
+dbname : cpmdb
+
+
+#misc
+process_shell_bin : pshell/bin/cpm-process-shell.py
+process-shell-home : pshell
+
+
+
+

@@ -15,11 +15,11 @@ maxproc : 20
 modules_dir :
   - /vagrant/modules
 
-default_module_dir : /vagrant/modules
 
-default_result_dir : /vagrant/data/results
+result_dir : /vagrant/data/results
 
-default_corpus_dir : /vagrant/data/corpus
+corpus_dir : 
+  - /vagrant/data/corpus
 
 
 # db info

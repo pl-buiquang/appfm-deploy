@@ -97,6 +97,7 @@ else
   PREFIX=$HOME/.local # $CURDIR/lib/local
   check_dependencies
   if [ $? -ne 0 ] ; then
+		echo "some distribution use a different Libtool package, you can comment 'check_dependencies' call in this script and try again..."
     exit 1
   fi
   SEDREPLACE=$(echo $PREFIX/lib | sed -e "s/\//\\\\\//g")

@@ -12,7 +12,7 @@ importconf() {
   cp $DEFAULT_USER_CONF/env.sh $DIR/env.sh
   cp $DEFAULT_USER_CONF/settings.php $DIR/../web/settings.php
   cp $DEFAULT_USER_CONF/.htaccess $DIR/../web/.htaccess
-  cp $DEFAULT_USER_CONF/servers.info $DIR/../web/servers.conf
+  cp $DEFAULT_USER_CONF/servers.info $DIR/../web/servers.info
 }
 
 exportconf() {

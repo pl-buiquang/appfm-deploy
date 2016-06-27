@@ -64,6 +64,9 @@ function install_root {
   make install
 
   ldconfig
+
+
+#  cat $CURDIR/scripts/init.d.appfm | sed -e "s|bin=.*|bin=${CURDIR}/appfm|" > /etc/init.d/appfm
 }
 
 function install_non_root {

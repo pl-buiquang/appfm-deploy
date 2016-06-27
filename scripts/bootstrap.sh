@@ -38,6 +38,7 @@ cd /vagrant/lib/jzmq/jzmq-jni
 make
 make install
 
+
 #webserver (apache)
 apt-get install -y apache2 libapache2-mod-php5
 mv /etc/apache2/ports.conf /etc/apache2/ports.conf.origin
@@ -51,7 +52,7 @@ mkdir -p /vagrant/web/dokuwiki/data/index
 touch /vagrant/web/log/custom.log
 chmod a+w /vagrant/web/log/custom.log /vagrant/web/dokuwiki/data/index /vagrant/web/dokuwiki/data/cache
 
-# mongodb php driver
+# mongodb php driver (for moadmin mongodb core, not for web-ui
 apt-get install -y php5-dev php5-cli php-pear libsasl2-dev
 pecl install mongodb
 pecl install mongo

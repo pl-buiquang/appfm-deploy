@@ -22,6 +22,8 @@ corpus_dir :
   - /vagrant/data/corpus
 
 
+resource_dir : /vagrant/data/resources
+
 # db info
 dbhost : localhost
 dbport : 27017

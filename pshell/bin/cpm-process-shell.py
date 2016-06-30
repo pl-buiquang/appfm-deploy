@@ -45,6 +45,10 @@ processinfo = open("/tmp/pinfo"+pid,"w")
 outfile = open("/tmp/out"+pid,"w")
 errfile = open("/tmp/err"+pid,"w")
 
+os.chmod("/tmp/pinfo"+pid,0777)
+os.chmod("/tmp/out"+pid,0777)
+os.chmod("/tmp/err"+pid,0777)
+
 processinfo.write(cmd+"\n")
 
 try:

@@ -1,15 +1,12 @@
 [submodule "cpm-core"]
   path = core
-  url = git@github.limsi.fr:/appfm/core
+  url = git@github.com:Lynks05/appfm-core
 
 [submodule "cpm-cli"]
   path = cli
-  url = git@github.limsi.fr:/appfm/cli
+  url = git@github.com:Lynks05/appfm-cli
 
 [submodule "cpm-web-ui"]
   path = web
-  url = git@github.limsi.fr:/appfm/web-ui
+  url = git@github.com:Lynks05/appfm-web-ui
 
-[submodule "cpm-data"]
-  path = data
-  url = git@github.limsi.fr:/appfm/data

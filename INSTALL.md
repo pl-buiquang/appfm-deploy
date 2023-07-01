@@ -1,8 +1,8 @@
-== Quick'n'Dirty installation using Vagrant+Virtualbox machine virtualization
+# Quick'n'Dirty installation using Vagrant+Virtualbox machine virtualization
 
 Refer to README.md
 
-== Requirements/Dependencies
+## Requirements/Dependencies
 
 The dependencies for the installation of AppFM manually are the following :
 
@@ -21,23 +21,24 @@ Web :
 - Apache
 - PHP5
 
+## Installation
 
-== Installation
+### Install dependencies
 
-=== Install dependencies
-
+```
 sudo ./install.sh
+```
 
 or 
 
+```
 install.sh
-
+```
 
 
 
 For an installation exemple script, refer to the file "scripts/bootstrap.sh" that is used for full installation on a Debian system virtualized under Virtualbox.
-
-== Configuration
+## Configuration
 
 Environment setup:
 - scripts/env.sh : see scripts section below

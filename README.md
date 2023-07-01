@@ -1,4 +1,4 @@
-= AppFM NLP - Application Frame Manager for NLP =
+# AppFM NLP - Application Frame Manager for NLP
 
 AppFM (also previously named cpm in source code) is a platform that manage applications defined within a frame that we refer as "modules". 
 
@@ -16,7 +16,7 @@ In order to achieve these purpose, the AppFM platform is built around :
 - a web interface (Javascript application) for advanced viewing of module execution results and creation
 
 
-== Quick Start (using vagrant) ==
+## Quick Start (using vagrant)
 
 To install on your local machine see the different installation guide in INSTALL.md, OR :
 
@@ -24,14 +24,20 @@ Using default configuration, here is how you can get started.
 The password of every git repository is : freepass
 
 0. Fetch this repository
+```
 git clone git2@versatile-world.net:~/cpm.git
 cd cpm
+```
 
 1. Install (some) Dependencies (on debian) :
+```
 sudo apt-get install git vagrant virtualbox 
+```
 
 2. Fetch projects modules :
+```
 git submodule update --init --recursive
+```
 (you will need to enter multiple times the repository password)
 
 3. Configure virtual machine : Set up resources and add an additional disk to the virtual machine :
@@ -50,14 +56,17 @@ v.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', 
 
 
 4. Installation (may take about 10~30 minutes) :
+```
 vagrant up
 vagrant ssh
 /vagrant/scripts/install.sh
-
+```
 
 5. First run (takes a long the first time since it builds base containers):
+```
 cd /vagrant
 ./appfm start (or ./appfm start -d)
+```
 (first time you should use ./appfm, this way you can monitor when the (first time only long) initialization is complete before proceeding to next step)
 
 
@@ -69,18 +78,24 @@ To disconnect session from the virtual machine:
 exit
 
 To stop the server (and the virtual machine) :
+```
 ./appfm stop
 vagrant halt (from outside the virtual machine session and anywhere within the cpm directory)
+```
 
 To restart :
+```
 vagrant ssh (from anywhere within the cpm directory)
 cd /vagrant
 ./appfm restart
+```
 
 To completly destroy the virtual machine (needs re installation (step 4)) :
+```
 vagrant destroy (from anywhere within the cpm directory)
+```
 
-== First Steps ==
+## First Steps
 
 If installed within a virtual machine (quick start instructions), you may also want to install the cli within your host to be able to use appfm from outside the vm.
 To do so, go the cli subproject directory and follow the quick install guide in the README 
@@ -88,7 +103,7 @@ To do so, go the cli subproject directory and follow the quick install guide in 
 With default installation, there is some modules already availables.
 Following instructions assume that you didn't change the default paths configuration.
 
-=== Corpus / Data ===
+### Corpus / Data
 
 There is some example data in the data/corpus directory, you can add more within this directory.
 Only data stored in this directory is visible by applications of AppFM.
@@ -98,48 +113,55 @@ Results are by default stored in data/results
 
 Warning ! All the paths are relative to the virtual machine filesystem tree !
 
-=== Modules ===
+### Modules
 
 Modules are located in the modules directory. More information for how to implement modules is in the wiki.
 Since documentation isn't yet complete. You can also look into the .module files of already implemented modules interface frame.
 
-=== Examples ===
+### Examples
 
 Listing availables modules :
+```
 cpm module ls
+```
 
 Running module synchronously :
 - extract pdf content into html :
+```
 cpm module run pdfbox@munshi --arg IN_DIR:/vagrant/data/corpus/some-pdfs --sync
+```
 
 Running module asynchronously :
 - apply bonsai parser onto extracted content (may take several minutes up to 30min.. :/)
+```
 cpm module run bonsai-parser@munshi --arg IN_DIR:[insert_result_dir_of_previous_run]
+```
 
 Get process information :
+```
 cpm process get [insert_process_id_of_previous_command]
+```
 
 View process results :
+```
 cpm process view [pid]
 cpm process view [pid] [outputname]
+```
 
 ...
 
 Note that you can view the results and process via the webinterface
 
 
-
-
-
-== Web interface ==
+## Web interface
 
 The web interface is (with default quick start configuration) accessible via http://localhost:8080
 
-== CLI ==
+## CLI
 
 see README.md in cli directory
 
-== Further Documentation ==
+## Further Documentation
 
 see INSTALL.md for more information about how to install with/without vagrant and change default configuration
 a wiki is available in the help section of the web interface (of a newly installed or existing installation) with more information about how to use appfm/cpm.

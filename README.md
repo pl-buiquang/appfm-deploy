@@ -155,14 +155,14 @@ Note that you can view the results and process via the webinterface
 
 ## Web interface
 
-The web interface is (with default quick start configuration) accessible via http://localhost:8080
+The [web interface](https://github.com/pl-buiquang/appfm-web-ui) is (with default quick start configuration) accessible via http://localhost:8080
 
 ## CLI
 
-see README.md in cli directory
+see [README.md](https://github.com/pl-buiquang/appfm-cli/tree/master#readme) in cli repository
 
 ## Further Documentation
 
-see INSTALL.md for more information about how to install with/without vagrant and change default configuration
+see [INSTALL.md](./INSTALL.md) for more information about how to install with/without vagrant and change default configuration
 a wiki is available in the help section of the web interface (of a newly installed or existing installation) with more information about how to use appfm/cpm.
 the default user/password for editing the wiki is admin/0AAvTIz5mf
